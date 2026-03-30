@@ -15,6 +15,7 @@ import { useSort } from './useSort';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
+import { aggregateForConsolidated } from '../utils/aggregation';
 import type { Dimension } from '@shared/types/dashboard';
 
 export function useDashboardState() {
@@ -64,10 +65,20 @@ export function useDashboardState() {
     return entities;
   }, [dashboard, searchTerm, conditions, sortField, sortDirection]);
 
+  // --- Consolidated view aggregation (spec Section 10.5) ---
+  const finalDashboard = useMemo(() => {
+    if (!dashboard) return null;
+    if (isConsolidated && selectedIds.length > 0) {
+      const aggregated = aggregateForConsolidated(dashboard, selectedIds);
+      return { ...dashboard, ...aggregated, entities: processedEntities };
+    }
+    return { ...dashboard, entities: processedEntities };
+  }, [dashboard, isConsolidated, selectedIds, processedEntities]);
+
   // --- Return flat props object for DashboardLayout ---
   return {
     // Data
-    dashboard: dashboard ? { ...dashboard, entities: processedEntities } : null,
+    dashboard: finalDashboard,
     contacts: contactsQuery.data ?? [],
     isLoading,
     error: error?.message ?? null,

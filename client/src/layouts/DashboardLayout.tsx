@@ -109,7 +109,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   const totalCount = dashboard.entities.length;
 
   /** WHY: sortActive is true when sort is NOT the default (revenue desc) */
-  const sortActive = sortField !== 'revenue' || sortDirection !== 'asc';
+  const sortActive = sortField !== 'revenue' || sortDirection !== 'desc';
 
   return (
     <div

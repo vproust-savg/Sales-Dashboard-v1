@@ -16,9 +16,22 @@ export function filterEntities(
   );
   if (activeConditions.length === 0) return entities;
 
-  return entities.filter(entity =>
-    activeConditions.every(cond => evaluateCondition(entity, cond)),
-  );
+  return entities.filter(entity => {
+    // WHY: First condition always applies; subsequent conditions use their conjunction.
+    // 'and' = ALL must pass, 'or' = ANY can pass.
+    // We evaluate left-to-right, grouping by conjunction.
+    let result = evaluateCondition(entity, activeConditions[0]);
+    for (let i = 1; i < activeConditions.length; i++) {
+      const cond = activeConditions[i];
+      const matches = evaluateCondition(entity, cond);
+      if (cond.conjunction === 'or') {
+        result = result || matches;
+      } else {
+        result = result && matches;
+      }
+    }
+    return result;
+  });
 }
 
 function evaluateCondition(

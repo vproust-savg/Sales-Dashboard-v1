@@ -19,6 +19,7 @@ interface FilterPanelProps {
   onAddCondition: () => void;
   onUpdateCondition: (id: string, updates: Partial<HookFilterCondition>) => void;
   onRemoveCondition: (id: string) => void;
+  onClearFilters: () => void;
   onClose: () => void;
 }
 
@@ -34,9 +35,16 @@ function toConditionData(c: HookFilterCondition): FilterConditionData {
 }
 
 export function FilterPanel({
-  isOpen, conditions, onAddCondition, onUpdateCondition, onRemoveCondition, onClose,
+  isOpen, conditions, onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters, onClose,
 }: FilterPanelProps) {
   const [conjunction, setConjunction] = useState<Conjunction>('and');
+
+  /** WHY: When conjunction toggles, update ALL conditions so the filter engine
+   *  evaluates them with the correct logic (AND vs OR). */
+  function handleConjunctionChange(newConj: Conjunction) {
+    setConjunction(newConj);
+    conditions.forEach(c => onUpdateCondition(c.id, { conjunction: newConj }));
+  }
 
   function handleUpdate(id: string, updated: FilterConditionData) {
     onUpdateCondition(id, {
@@ -73,7 +81,7 @@ export function FilterPanel({
             {conditions.map((condition, index) => (
               <div key={condition.id}>
                 {index > 0 && (
-                  <ConjunctionToggle value={conjunction} onChange={setConjunction} />
+                  <ConjunctionToggle value={conjunction} onChange={handleConjunctionChange} />
                 )}
                 <FilterConditionRow
                   condition={toConditionData(condition)}
@@ -83,13 +91,24 @@ export function FilterPanel({
               </div>
             ))}
 
-            <button
-              type="button"
-              onClick={onAddCondition}
-              className="self-start rounded-[var(--radius-md)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[11px] font-medium text-[var(--color-gold-primary)] transition-colors hover:bg-[var(--color-gold-hover)]"
-            >
-              + Add condition
-            </button>
+            <div className="flex gap-[var(--spacing-md)]">
+              <button
+                type="button"
+                onClick={onAddCondition}
+                className="rounded-[var(--radius-md)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[11px] font-medium text-[var(--color-gold-primary)] transition-colors hover:bg-[var(--color-gold-hover)]"
+              >
+                + Add condition
+              </button>
+              {conditions.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onClearFilters}
+                  className="rounded-[var(--radius-md)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[11px] font-medium text-[var(--color-red)] transition-colors hover:bg-red-50"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
         </motion.div>
       )}

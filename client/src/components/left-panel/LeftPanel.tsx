@@ -53,7 +53,7 @@ export function LeftPanel({
   sortField, sortDirection, sortActive,
   onDimensionChange, onEntitySelect, onEntityCheck, onClearSelection,
   onViewConsolidated, onSearchChange, onFilterToggle,
-  onAddCondition, onUpdateCondition, onRemoveCondition,
+  onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters,
   onSort,
 }: LeftPanelProps) {
   const config = DIMENSION_CONFIG[activeDimension];
@@ -85,6 +85,7 @@ export function LeftPanel({
         onAddCondition={onAddCondition}
         onUpdateCondition={onUpdateCondition}
         onRemoveCondition={onRemoveCondition}
+        onClearFilters={onClearFilters}
         onClose={onFilterToggle}
       />
 
