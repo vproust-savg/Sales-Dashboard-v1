@@ -45,8 +45,11 @@ Embedded in Airtable via Omni. Deployed on Railway via Dockerfile.
 ```bash
 cd client && npx tsc -b --noEmit   # Client TS build
 cd ../server && npx tsc --noEmit   # Server TS build
+cd ../server && npx vitest run     # Server tests (49 must pass)
+cd ../client && npx vite build     # Client bundle (must be <500KB gzip)
 ```
-Both must pass — any TypeScript error kills the Railway Docker build.
+All must pass — any TypeScript error kills the Railway Docker build.
+Also verify: no `any` types (`grep -rn ": any\|as any" server/src/ client/src/`), no files >200 lines, no secrets in source.
 
 ## Project Structure
 
@@ -211,8 +214,21 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 - Confusing Express and React Router catch-all syntax — Express 5 uses `/{*path}`, React Router uses `path="*"`
 - `$expand` on DOCUMENTS_P is BROKEN — use two-step `enrichRows` pattern instead
 - URL encoding trap: do NOT use `searchParams.set()` for `$expand` — it double-encodes `$select`. Build the URL string with raw concatenation.
-- Priority has TWO error response formats: JSON `{ "odata.error": { "message": { "value": "..." } } }` and plain text. Parse both.
+- Priority has TWO error response formats: JSON `{ "odata.error": { "message": { "value": "..." } } }` and plain text. Parse both. The key `"odata.error"` has a DOT in the name — use `obj['odata.error']` (bracket notation), NOT `obj.error`. The message is nested: `.message.value`, not `.message` directly.
 - Custom fields on ORDERITEMS follow the `Y_XXXX_5_ESH` naming pattern (e.g., `Y_2K28_5_ESH` for vendor code)
-- Modifying Dockerfile paths without checking `__dirname` math
+- Docker `__dirname` math: `rootDir: ".."` in server/tsconfig means compiled output is at `server/dist/server/src/index.js`. So `__dirname` at runtime = `/app/server/dist/server/src/`. Client dist path is `../../../../client/dist` (4 levels up). The sister project Dockerfile documents this pattern — always check it first.
 - Leaving unused variables — `noUnusedLocals: true` means `tsc -b` fails, killing the Railway Docker build
 - Deleting `railway.json` — Railway needs this file for Dockerfile builder
+- Framer Motion animations are JS-driven (RAF springs/tweens) — CSS `prefers-reduced-motion` rule does NOT suppress them. Use `<MotionConfig reducedMotion="user">` at the app root. This is the ONLY way to respect OS-level reduced motion for Framer Motion.
+- Never wrap ARIA child roles in plain `div`/`motion.div` — e.g., a `motion.div` between `role="listbox"` and `role="option"` breaks the ownership model. Apply motion props directly on the semantic element.
+- Never commit compiled `.js` files alongside `.ts` source files. If `tsc` output lands in the source directory, the `outDir` tsconfig setting is wrong. Only `dist/` should contain compiled output.
+
+## Integration Contracts (MANDATORY for multi-task plans)
+
+When creating a utility function, hook, or state field, ALWAYS verify:
+
+1. **Every exported function is imported somewhere.** Run `grep -r "functionName" client/src/` to confirm. An unused export is a bug.
+2. **State flows end-to-end.** If a UI control changes state (e.g., AND/OR toggle), that state must propagate through: UI component → hook → engine/consumer. Local state that doesn't affect behavior is a bug.
+3. **Aggregation utils must be called.** Creating a utility is useless unless the consuming hook actually imports and calls it.
+4. **Default values must match across files.** If `useSort` defaults to `{field: 'revenue', direction: 'desc'}`, then any `sortActive` check must compare against `'desc'`, not `'asc'`.
+5. **ARIA semantics must match interaction model.** In a multi-select listbox, `aria-selected` reflects checkbox state (multi-select), not which item is focused/active. Use `aria-current` for the active item.
