@@ -112,7 +112,11 @@ Examples of what to capture:
 | `priority-erp-api` | custom | Priority ERP OData patterns, sub-form handling |
 | `railway-deploy` | custom | Railway deployment guardrails for TypeScript + Docker |
 
+| `systematic-debugging` | superpowers | When a bug arises during development — diagnose root cause, don't guess |
+
 **Full catalog:** `tools/useful-links.md`
+
+**Bug handling:** When you hit a bug during implementation, use `/systematic-debugging` to diagnose and fix it yourself. Do not skip past errors or ask the user — investigate the root cause, fix it, verify the fix, then continue.
 
 ## Dashboard Architecture
 
