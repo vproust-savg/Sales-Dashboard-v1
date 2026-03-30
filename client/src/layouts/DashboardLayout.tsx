@@ -4,12 +4,14 @@
 // EXPORTS: DashboardLayout
 
 import { useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { DashboardPayload, Contact, Dimension, Period } from '@shared/types/dashboard';
 import type { FilterCondition } from '../hooks/useFilters';
 import type { SortField, SortDirection } from '../hooks/useSort';
 import { LeftPanel } from '../components/left-panel/LeftPanel';
 import { RightPanel } from '../components/right-panel/RightPanel';
 import { Skeleton } from '../components/shared/Skeleton';
+import { useExport } from '../hooks/useExport';
 
 export interface DashboardLayoutProps {
   // Data
@@ -67,6 +69,16 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     }
   }, [dashboard?.entities, activeEntityId, selectEntity]);
 
+  // WHY: useExport called before early returns to satisfy React hook ordering rules
+  const exportData = dashboard && activeEntityId ? {
+    entityName: dashboard.entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
+    period: activePeriod,
+    kpis: dashboard.kpis,
+    orders: dashboard.orders,
+    items: dashboard.items,
+  } : null;
+  const { exportCsv } = useExport(exportData);
+
   // --- Loading state ---
   if (isLoading && !dashboard) {
     return (
@@ -113,11 +125,11 @@ export function DashboardLayout(props: DashboardLayoutProps) {
 
   return (
     <div
-      className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)]"
+      className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto"
       role="application"
       aria-label="Sales Dashboard"
     >
-      <div className="flex w-[280px] shrink-0 flex-col gap-[var(--spacing-base)]">
+      <div className="flex w-[280px] shrink-0 flex-col gap-[var(--spacing-base)] max-lg:w-full">
         <LeftPanel
           entities={dashboard.entities}
           activeDimension={activeDimension}
@@ -146,22 +158,34 @@ export function DashboardLayout(props: DashboardLayoutProps) {
         />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)]">
-        <RightPanel
-          entity={activeEntity}
-          kpis={dashboard.kpis}
-          monthlyRevenue={dashboard.monthlyRevenue}
-          productMix={dashboard.productMix}
-          topSellers={dashboard.topSellers}
-          sparklines={dashboard.sparklines}
-          orders={dashboard.orders}
-          items={dashboard.items}
-          contacts={contacts}
-          yearsAvailable={dashboard.yearsAvailable}
-          activePeriod={activePeriod}
-          onPeriodChange={switchPeriod}
-          onExport={() => {/* WHY: Export feature planned for future iteration */}}
-        />
+      <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)] max-lg:pr-0">
+        {/* WHY AnimatePresence: fade out/in right panel when active entity changes per spec 21.1 */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeEntityId ?? 'none'}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex flex-col gap-[var(--spacing-base)]"
+          >
+            <RightPanel
+              entity={activeEntity}
+              kpis={dashboard.kpis}
+              monthlyRevenue={dashboard.monthlyRevenue}
+              productMix={dashboard.productMix}
+              topSellers={dashboard.topSellers}
+              sparklines={dashboard.sparklines}
+              orders={dashboard.orders}
+              items={dashboard.items}
+              contacts={contacts}
+              yearsAvailable={dashboard.yearsAvailable}
+              activePeriod={activePeriod}
+              onPeriodChange={switchPeriod}
+              onExport={exportCsv}
+            />
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

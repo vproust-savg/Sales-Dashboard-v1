@@ -3,6 +3,7 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: EntityList
 
+import { motion } from 'framer-motion';
 import type { EntityListItem as EntityListItemType } from '@shared/types/dashboard';
 import { EntityListItem } from './EntityListItem';
 
@@ -36,21 +37,33 @@ export function EntityList({
         </span>
       </div>
 
+      {/* WHY: live region announces list count changes to screen readers */}
+      <div aria-live="polite" className="sr-only">
+        Showing {entities.length} of {totalCount} {dimensionLabel.toLowerCase()}
+      </div>
+
       {/* Scrollable list area */}
       <div
         role="listbox"
         aria-label={`${dimensionLabel} list`}
+        aria-multiselectable="true"
         className="flex-1 overflow-y-auto"
       >
-        {entities.map((entity) => (
-          <EntityListItem
+        {entities.map((entity, index) => (
+          <motion.div
             key={entity.id}
-            entity={entity}
-            isActive={entity.id === activeId}
-            isSelected={selectedIds.includes(entity.id)}
-            onSelect={onSelect}
-            onCheck={onCheck}
-          />
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.03, duration: 0.2 }}
+          >
+            <EntityListItem
+              entity={entity}
+              isActive={entity.id === activeId}
+              isSelected={selectedIds.includes(entity.id)}
+              onSelect={onSelect}
+              onCheck={onCheck}
+            />
+          </motion.div>
         ))}
 
         {entities.length === 0 && (

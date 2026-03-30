@@ -14,7 +14,7 @@ interface ChartsRowProps {
 
 export function ChartsRow({ productMix, topSellers }: ChartsRowProps) {
   return (
-    <div className="grid grid-cols-[3fr_5fr] gap-[var(--spacing-lg)]">
+    <div className="grid grid-cols-[3fr_5fr] gap-[var(--spacing-lg)] max-lg:grid-cols-1">
       {/* Product Mix donut card — spec: 16px 20px padding, border-radius 16px */}
       <div className="flex flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
         <h2 className="mb-[var(--spacing-lg)] text-[14px] font-semibold text-[var(--color-text-primary)]">

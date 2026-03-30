@@ -4,6 +4,7 @@
 // EXPORTS: ProductMixDonut
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import type { ProductMixSegment } from '@shared/types/dashboard';
 import { formatCurrencyCompact } from '@shared/utils/formatting';
 
@@ -66,8 +67,9 @@ export function ProductMixDonut({ data }: ProductMixDonutProps) {
         role="img"
         aria-label="Product mix donut chart"
       >
+        {/* WHY motion.circle: ring draws from 0 to full dashLen, 600ms ease-out per spec 21.1 */}
         {arcs.map(({ i, dashLen, gapLen, offset, color }) => (
-          <circle
+          <motion.circle
             key={i}
             cx={CENTER_X}
             cy={CENTER_Y}
@@ -75,9 +77,11 @@ export function ProductMixDonut({ data }: ProductMixDonutProps) {
             fill="none"
             stroke={color}
             strokeWidth={STROKE_W}
-            strokeDasharray={`${Math.max(dashLen, 0)} ${gapLen}`}
-            strokeDashoffset={offset}
             strokeLinecap="round"
+            strokeDashoffset={offset}
+            initial={{ strokeDasharray: `0 ${CIRCUMFERENCE}` }}
+            animate={{ strokeDasharray: `${Math.max(dashLen, 0)} ${gapLen}` }}
+            transition={{ duration: 0.6, ease: 'easeOut', delay: i * 0.06 }}
             style={{
               opacity: hoveredIdx !== null && hoveredIdx !== i ? 0.5 : 1,
               transform: hoveredIdx === i ? 'scale(1.04)' : 'scale(1)',

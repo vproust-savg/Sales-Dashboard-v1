@@ -4,6 +4,7 @@
 // EXPORTS: YoYBarChart
 
 import { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import type { MonthlyRevenue } from '@shared/types/dashboard';
 import { formatCurrencyCompact } from '@shared/utils/formatting';
 
@@ -108,8 +109,9 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
               style={{ cursor: 'pointer' }}
               opacity={isDimmed ? 0.4 : 1}
             >
+              {/* WHY motion.rect: bars grow from bottom with staggered 30ms delay per spec 21.1 */}
               {/* Previous year bar */}
-              <rect
+              <motion.rect
                 x={prevX}
                 y={BAR_AREA_HEIGHT - prevH}
                 width={barWidth}
@@ -118,9 +120,13 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 opacity={isHovered ? 0.7 : 0.5}
                 rx={BAR_RADIUS}
                 ry={BAR_RADIUS}
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ delay: i * 0.03, duration: 0.4, ease: 'easeOut' }}
+                style={{ transformOrigin: `${prevX}px ${BAR_AREA_HEIGHT}px` }}
               />
               {/* Current year bar */}
-              <rect
+              <motion.rect
                 x={currX}
                 y={BAR_AREA_HEIGHT - currH}
                 width={barWidth}
@@ -130,6 +136,10 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 rx={BAR_RADIUS}
                 ry={BAR_RADIUS}
                 filter={isHovered ? 'brightness(1.05)' : undefined}
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ delay: i * 0.03 + 0.05, duration: 0.4, ease: 'easeOut' }}
+                style={{ transformOrigin: `${currX}px ${BAR_AREA_HEIGHT}px` }}
               />
               {/* X-axis month label */}
               <text

@@ -38,7 +38,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines }: KPISectionProps
   const activity = getActivityStatus(kpis.lastOrderDays);
 
   return (
-    <div className="grid grid-cols-2 gap-[var(--spacing-base)]">
+    <div className="grid grid-cols-2 gap-[var(--spacing-base)] max-lg:grid-cols-1">
       {/* Hero card — spans full height of grid */}
       <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} />
 
