@@ -24,7 +24,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue }: HeroRevenueCardProps) 
       <div className="flex items-start justify-between">
         {/* Left: label + value + trend */}
         <div className="flex flex-col">
-          <span className="text-[11px] font-medium text-[#888]">
+          <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
             Total Revenue (12 months)
           </span>
           <span
@@ -83,11 +83,11 @@ function SubItem({
 }) {
   return (
     <div className="flex flex-col">
-      <span className="text-[11px] font-normal text-[#888]">{label}</span>
+      <span className="text-[11px] font-normal text-[var(--color-text-muted)]">{label}</span>
       <span className="text-[15px] font-semibold text-[var(--color-text-secondary)]">
         {formatCurrency(value)}
         {suffix && (
-          <span className="ml-1 text-[11px] font-normal text-[#888]">({suffix})</span>
+          <span className="ml-1 text-[11px] font-normal text-[var(--color-text-muted)]">({suffix})</span>
         )}
       </span>
     </div>

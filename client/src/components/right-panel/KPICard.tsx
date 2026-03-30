@@ -50,7 +50,7 @@ export function KPICard({
 
       {/* Label */}
       <span
-        className="text-[10px] font-medium uppercase tracking-[0.5px] text-[#888]"
+        className="text-[10px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]"
       >
         {label}
       </span>

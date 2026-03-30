@@ -83,7 +83,7 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
               className={`relative flex items-center gap-1.5 py-3 text-[14px] transition-colors duration-200 outline-none ${
                 isActive
                   ? 'font-bold text-[var(--color-text-primary)]'
-                  : 'font-medium text-[#888] hover:text-[var(--color-text-secondary)]'
+                  : 'font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
               }`}
             >
               {tab.label}
@@ -93,7 +93,7 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
                 className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-semibold ${
                   isActive
                     ? 'bg-[var(--color-dark)] text-white'
-                    : 'bg-[var(--color-gold-subtle)] text-[#888]'
+                    : 'bg-[var(--color-gold-subtle)] text-[var(--color-text-muted)]'
                 }`}
               >
                 {tab.count}

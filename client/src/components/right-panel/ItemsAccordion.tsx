@@ -45,16 +45,16 @@ export function ItemsAccordion({ items }: ItemsAccordionProps) {
     <div>
       {/* Header row */}
       <div className="flex items-center border-b border-[var(--color-gold-subtle)] px-[var(--spacing-3xl)] py-[var(--spacing-lg)]">
-        <span className="flex-1 text-[11px] font-semibold uppercase text-[#888] tracking-wide">
+        <span className="flex-1 text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide">
           Category / Product
         </span>
-        <span className="w-24 text-right text-[11px] font-semibold uppercase text-[#888] tracking-wide">
+        <span className="w-24 text-right text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide">
           Value
         </span>
-        <span className="w-20 text-right text-[11px] font-semibold uppercase text-[#888] tracking-wide">
+        <span className="w-20 text-right text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide">
           Margin %
         </span>
-        <span className="w-24 text-right text-[11px] font-semibold uppercase text-[#888] tracking-wide">
+        <span className="w-24 text-right text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide">
           Margin $
         </span>
       </div>
@@ -106,7 +106,7 @@ function CategoryRow({ category, isExpanded, onToggle }: CategoryRowProps) {
         </span>
 
         {/* Item count badge */}
-        <span className="mx-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--color-gold-subtle)] px-1 text-[9px] font-semibold text-[#888]">
+        <span className="mx-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--color-gold-subtle)] px-1 text-[9px] font-semibold text-[var(--color-text-muted)]">
           {category.itemCount}
         </span>
 

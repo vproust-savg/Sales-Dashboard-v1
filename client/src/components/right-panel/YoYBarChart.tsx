@@ -78,7 +78,7 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 x={Y_LABEL_WIDTH - 4}
                 y={y + 3}
                 textAnchor="end"
-                fill="#bbb"
+                fill="var(--color-text-faint)"
                 fontSize={9}
                 fontFamily="var(--font-sans)"
               >
@@ -116,7 +116,7 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 y={BAR_AREA_HEIGHT - prevH}
                 width={barWidth}
                 height={Math.max(prevH, 0)}
-                fill="#e8e0d0"
+                fill="var(--color-gold-muted)"
                 opacity={isHovered ? 0.7 : 0.5}
                 rx={BAR_RADIUS}
                 ry={BAR_RADIUS}
@@ -131,7 +131,7 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 y={BAR_AREA_HEIGHT - currH}
                 width={barWidth}
                 height={Math.max(currH, 0)}
-                fill="#d4c5a9"
+                fill="var(--color-gold-light)"
                 opacity={isHovered ? 1 : 1}
                 rx={BAR_RADIUS}
                 ry={BAR_RADIUS}
@@ -146,7 +146,7 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 x={groupX + groupWidth / 2}
                 y={BAR_AREA_HEIGHT + 12}
                 textAnchor="middle"
-                fill="#bbb"
+                fill="var(--color-text-faint)"
                 fontSize={9}
                 fontFamily="var(--font-sans)"
               >
@@ -158,12 +158,12 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
 
         {/* Legend */}
         <g transform={`translate(${Y_LABEL_WIDTH}, ${CHART_HEIGHT - 4})`}>
-          <circle cx={0} cy={-3} r={3} fill="#e8e0d0" />
-          <text x={8} y={0} fill="#888" fontSize={11} fontFamily="var(--font-sans)">
+          <circle cx={0} cy={-3} r={3} fill="var(--color-gold-muted)" />
+          <text x={8} y={0} fill="var(--color-text-muted)" fontSize={11} fontFamily="var(--font-sans)">
             Previous Year
           </text>
-          <circle cx={96} cy={-3} r={3} fill="#d4c5a9" />
-          <text x={104} y={0} fill="#888" fontSize={11} fontFamily="var(--font-sans)">
+          <circle cx={96} cy={-3} r={3} fill="var(--color-gold-light)" />
+          <text x={104} y={0} fill="var(--color-text-muted)" fontSize={11} fontFamily="var(--font-sans)">
             This Year
           </text>
         </g>

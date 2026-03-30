@@ -22,11 +22,11 @@ interface KPISectionProps {
 
 /** WHY activity status here: spec 10.3 defines dot color thresholds by days since last order */
 function getActivityStatus(days: number | null): { color: string; label: string } {
-  if (days === null) return { color: '#999', label: 'No orders' };
-  if (days <= 14) return { color: '#22c55e', label: 'Active buyer' };
-  if (days <= 45) return { color: '#b8a88a', label: 'Regular' };
-  if (days <= 90) return { color: '#eab308', label: 'Slowing' };
-  return { color: '#ef4444', label: 'At risk' };
+  if (days === null) return { color: 'var(--color-text-muted)', label: 'No orders' };
+  if (days <= 14) return { color: 'var(--color-green)', label: 'Active buyer' };
+  if (days <= 45) return { color: 'var(--color-gold-primary)', label: 'Regular' };
+  if (days <= 90) return { color: 'var(--color-yellow)', label: 'Slowing' };
+  return { color: 'var(--color-red)', label: 'At risk' };
 }
 
 function getTrendColor(value: number | null): 'green' | 'red' | 'neutral' {

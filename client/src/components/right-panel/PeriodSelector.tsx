@@ -40,7 +40,7 @@ export function PeriodSelector({ activePeriod, yearsAvailable, onChange }: Perio
             className="relative cursor-pointer rounded-[var(--radius-base)] px-[var(--spacing-xl)] py-[var(--spacing-sm)] text-[12px] transition-colors"
             style={{
               fontWeight: isActive ? 600 : 500,
-              color: isActive ? 'var(--color-text-primary)' : '#888',
+              color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
             }}
           >
             {/* WHY layoutId: creates sliding white pill between active tabs */}

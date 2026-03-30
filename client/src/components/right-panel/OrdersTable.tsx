@@ -43,7 +43,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
             {COLUMNS.map((col) => (
               <th
                 key={col}
-                className="px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[11px] font-semibold uppercase text-[#888] tracking-wide whitespace-nowrap"
+                className="px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide whitespace-nowrap"
               >
                 {col}
               </th>

@@ -5,6 +5,7 @@ dist/
 !.env.example
 .DS_Store
 *.log
+.superpowers/
 
 # Compiled output alongside source (only dist/ should have .js)
 client/src/**/*.js
