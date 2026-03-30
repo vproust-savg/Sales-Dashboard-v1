@@ -26,7 +26,9 @@ app.use('/api', healthRouter);
 
 // In production, serve the React client
 if (env.NODE_ENV === 'production') {
-  const clientDist = path.join(__dirname, '../../client/dist');
+  // WHY: rootDir=".." in tsconfig means compiled output lands at server/dist/server/src/index.js
+  // __dirname at runtime = /app/server/dist/server/src/ — need 4 levels up to reach /app/
+  const clientDist = path.join(__dirname, '../../../../client/dist');
   app.use(express.static(clientDist));
   app.get('/{*path}', (_req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));
