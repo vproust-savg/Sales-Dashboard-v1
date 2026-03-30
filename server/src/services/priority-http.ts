@@ -45,13 +45,20 @@ export function buildODataUrl(baseUrl: string, entity: string, opts: ODataUrlOpt
   return url;
 }
 
-/** Parse both Priority error formats — spec Section 17.7 */
+/** Parse both Priority error formats — spec Section 17.7
+ *  Format 1: { "odata.error": { "message": { "value": "..." } } }
+ *  Format 2: { "FORM": { "InterfaceErrors": { "text": "..." } } } */
 export function extractPriorityError(body: unknown, response: Response): string {
   if (body && typeof body === 'object') {
     const obj = body as Record<string, unknown>;
-    // Format 1: OData standard
-    if (obj.error && typeof obj.error === 'object') {
-      return (obj.error as Record<string, string>).message ?? `HTTP ${response.status}`;
+    // WHY: Key is "odata.error" (dot in key name), not obj.error
+    const odataError = obj['odata.error'];
+    if (odataError && typeof odataError === 'object') {
+      const msg = (odataError as Record<string, unknown>).message;
+      if (msg && typeof msg === 'object') {
+        return (msg as Record<string, string>).value ?? `HTTP ${response.status}`;
+      }
+      if (typeof msg === 'string') return msg;
     }
     // Format 2: Priority InterfaceErrors
     if (obj.FORM && typeof obj.FORM === 'object') {

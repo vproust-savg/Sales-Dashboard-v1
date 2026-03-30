@@ -39,9 +39,9 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
           </tr>
         </thead>
         <tbody>
-          {contacts.map((contact) => (
+          {contacts.map((contact, index) => (
             <tr
-              key={contact.email}
+              key={contact.email || `contact-${index}`}
               className="border-b border-[var(--color-bg-page)]"
             >
               <td className="w-1/4 px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
