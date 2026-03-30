@@ -18,14 +18,15 @@ export function formatCurrency(value: number, opts?: FormatOptions): string {
 }
 
 export function formatCurrencyCompact(value: number): string {
+  const sign = value < 0 ? '-' : '';
   const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `$${(abs / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000_000_000) return `${sign}$${(abs / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
   if (abs >= 1_000) {
     const k = abs / 1_000;
-    return k % 1 === 0 ? `$${k}K` : `$${k.toFixed(1)}K`;
+    return k % 1 === 0 ? `${sign}$${k}K` : `${sign}$${k.toFixed(1)}K`;
   }
-  return `$${abs}`;
+  return `${sign}$${abs}`;
 }
 
 export function formatPercent(value: number, opts?: FormatOptions): string {
