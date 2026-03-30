@@ -1,62 +1,34 @@
 // FILE: client/src/components/left-panel/FilterCondition.tsx
 // PURPOSE: Single filter condition row — field selector + operator + value input + remove button
 // USED BY: client/src/components/left-panel/FilterPanel.tsx
-// EXPORTS: FilterCondition, FilterConditionData, FilterField, FilterOperator
+// EXPORTS: FilterConditionRow
 
 /** WHY two-line layout: spec Section 22.7 defines field + remove on top row,
  *  operator + value on bottom row, all inside a #faf8f4 card. */
 
+import {
+  type FilterField, type FilterOperator,
+  FIELD_LABELS, OPERATOR_LABELS, FIELD_TYPES, OPERATORS_BY_TYPE,
+} from '../../utils/filter-types';
+
 export interface FilterConditionData {
   id: string;
-  field: FilterField;
-  operator: FilterOperator;
+  field: FilterField | '';
+  operator: FilterOperator | '';
   value: string;
 }
 
-export type FilterField =
-  | 'rep' | 'customer_type' | 'zone' | 'last_order_date'
-  | 'margin_pct' | 'margin_amt' | 'total_revenue'
-  | 'avg_order' | 'frequency' | 'outstanding';
-
-export type FilterOperator =
-  | 'contains' | 'equals' | 'not_equals'
-  | 'gt' | 'lt' | 'gte' | 'lte'
-  | 'between' | 'is_before' | 'is_after' | 'is_empty';
-
-const FIELD_OPTIONS: { value: FilterField; label: string }[] = [
-  { value: 'rep', label: 'Rep' },
-  { value: 'customer_type', label: 'Customer Type' },
-  { value: 'zone', label: 'Zone' },
-  { value: 'last_order_date', label: 'Last Order Date' },
-  { value: 'margin_pct', label: 'Margin %' },
-  { value: 'margin_amt', label: 'Margin $' },
-  { value: 'total_revenue', label: 'Total Revenue' },
-  { value: 'avg_order', label: 'Average Order' },
-  { value: 'frequency', label: 'Frequency' },
-  { value: 'outstanding', label: 'Outstanding' },
-];
-
-const OPERATOR_OPTIONS: { value: FilterOperator; label: string }[] = [
-  { value: 'contains', label: 'contains' },
-  { value: 'equals', label: 'equals' },
-  { value: 'not_equals', label: 'not equals' },
-  { value: 'gt', label: '>' },
-  { value: 'lt', label: '<' },
-  { value: 'gte', label: '>=' },
-  { value: 'lte', label: '<=' },
-  { value: 'between', label: 'between' },
-  { value: 'is_before', label: 'is before' },
-  { value: 'is_after', label: 'is after' },
-  { value: 'is_empty', label: 'is empty' },
-];
-
 interface FilterConditionProps {
   condition: FilterConditionData;
+  availableFields: FilterField[];
   onChange: (updated: FilterConditionData) => void;
   onRemove: () => void;
 }
 
-export function FilterCondition({ condition, onChange, onRemove }: FilterConditionProps) {
+export function FilterConditionRow({ condition, availableFields, onChange, onRemove }: FilterConditionProps) {
+  const fieldType = condition.field ? FIELD_TYPES[condition.field] : null;
+  const operatorOptions = fieldType ? OPERATORS_BY_TYPE[fieldType] : [];
+
   return (
     <div
       className="flex flex-col gap-[var(--spacing-sm)] rounded-[var(--radius-base)] p-[8px_12px]"
@@ -66,12 +38,17 @@ export function FilterCondition({ condition, onChange, onRemove }: FilterConditi
       <div className="flex items-center gap-[var(--spacing-md)]">
         <select
           value={condition.field}
-          onChange={(e) => onChange({ ...condition, field: e.target.value as FilterField })}
+          onChange={(e) => {
+            const newField = e.target.value as FilterField | '';
+            // WHY: Reset operator when field changes — different types have different operators
+            onChange({ ...condition, field: newField, operator: '', value: '' });
+          }}
           className="flex-1 rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[13px] font-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-gold-primary)]"
           aria-label="Filter field"
         >
-          {FIELD_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option value="">Select field...</option>
+          {availableFields.map((f) => (
+            <option key={f} value={f}>{FIELD_LABELS[f]}</option>
           ))}
         </select>
 
@@ -93,8 +70,9 @@ export function FilterCondition({ condition, onChange, onRemove }: FilterConditi
           className="w-[90px] shrink-0 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-sm)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-gold-primary)]"
           aria-label="Filter operator"
         >
-          {OPERATOR_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option value="">Op...</option>
+          {operatorOptions.map((op) => (
+            <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
           ))}
         </select>
 

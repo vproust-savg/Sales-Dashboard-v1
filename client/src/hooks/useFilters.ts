@@ -4,11 +4,12 @@
 // EXPORTS: useFilters, FilterCondition
 
 import { useState, useCallback } from 'react';
+import type { FilterField, FilterOperator } from '../utils/filter-types';
 
 export interface FilterCondition {
   id: string;
-  field: string;
-  operator: string;
+  field: FilterField | '';         // WHY: '' = "not yet selected" in a new condition
+  operator: FilterOperator | '';
   value: string | number;
   conjunction: 'and' | 'or';
 }
@@ -22,8 +23,8 @@ export function useFilters() {
       ...prev,
       {
         id: crypto.randomUUID(),
-        field: '',
-        operator: '',
+        field: '' as const,
+        operator: '' as const,
         value: '',
         conjunction: 'and' as const,
       },

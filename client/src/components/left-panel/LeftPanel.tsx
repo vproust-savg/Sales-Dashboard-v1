@@ -82,6 +82,7 @@ export function LeftPanel({
       <FilterPanel
         isOpen={filterOpen}
         conditions={filterConditions}
+        activeDimension={activeDimension}
         onAddCondition={onAddCondition}
         onUpdateCondition={onUpdateCondition}
         onRemoveCondition={onRemoveCondition}

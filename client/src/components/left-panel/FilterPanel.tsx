@@ -5,9 +5,10 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FilterCondition as FilterConditionRow } from './FilterCondition';
-import type { FilterConditionData } from './FilterCondition';
-import type { FilterCondition as HookFilterCondition } from '../../hooks/useFilters';
+import { FilterConditionRow } from './FilterCondition';
+import type { FilterCondition } from '../../hooks/useFilters';
+import { DIMENSION_FILTER_FIELDS } from '../../utils/filter-types';
+import type { Dimension } from '@shared/types/dashboard';
 
 /** WHY conjunction type: spec Section 3.4 defines AND/OR toggle between conditions,
  *  letting users combine filters with different logic. */
@@ -15,43 +16,26 @@ export type Conjunction = 'and' | 'or';
 
 interface FilterPanelProps {
   isOpen: boolean;
-  conditions: HookFilterCondition[];
+  conditions: FilterCondition[];
+  activeDimension: Dimension;
   onAddCondition: () => void;
-  onUpdateCondition: (id: string, updates: Partial<HookFilterCondition>) => void;
+  onUpdateCondition: (id: string, updates: Partial<FilterCondition>) => void;
   onRemoveCondition: (id: string) => void;
   onClearFilters: () => void;
   onClose: () => void;
 }
 
-/** WHY: Adapter converts hook's string-typed condition to FilterConditionData for the UI row.
- *  FilterCondition component uses typed enums internally for select options. */
-function toConditionData(c: HookFilterCondition): FilterConditionData {
-  return {
-    id: c.id,
-    field: (c.field || 'total_revenue') as FilterConditionData['field'],
-    operator: (c.operator || 'gt') as FilterConditionData['operator'],
-    value: String(c.value),
-  };
-}
-
 export function FilterPanel({
-  isOpen, conditions, onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters, onClose,
+  isOpen, conditions, activeDimension, onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters, onClose,
 }: FilterPanelProps) {
   const [conjunction, setConjunction] = useState<Conjunction>('and');
+  const availableFields = DIMENSION_FILTER_FIELDS[activeDimension];
 
   /** WHY: When conjunction toggles, update ALL conditions so the filter engine
    *  evaluates them with the correct logic (AND vs OR). */
   function handleConjunctionChange(newConj: Conjunction) {
     setConjunction(newConj);
     conditions.forEach(c => onUpdateCondition(c.id, { conjunction: newConj }));
-  }
-
-  function handleUpdate(id: string, updated: FilterConditionData) {
-    onUpdateCondition(id, {
-      field: updated.field,
-      operator: updated.operator,
-      value: updated.value,
-    });
   }
 
   function handleRemove(id: string) {
@@ -84,8 +68,9 @@ export function FilterPanel({
                   <ConjunctionToggle value={conjunction} onChange={handleConjunctionChange} />
                 )}
                 <FilterConditionRow
-                  condition={toConditionData(condition)}
-                  onChange={(updated) => handleUpdate(condition.id, updated)}
+                  condition={{ id: condition.id, field: condition.field, operator: condition.operator, value: String(condition.value) }}
+                  availableFields={availableFields}
+                  onChange={(updated) => onUpdateCondition(condition.id, { field: updated.field || '', operator: updated.operator || '', value: updated.value })}
                   onRemove={() => handleRemove(condition.id)}
                 />
               </div>
