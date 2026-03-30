@@ -16,6 +16,7 @@ import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
 import { aggregateForConsolidated } from '../utils/aggregation';
+import type { FilterField, FilterOperator } from '../utils/filter-types';
 import type { Dimension } from '@shared/types/dashboard';
 
 export function useDashboardState() {
@@ -60,7 +61,13 @@ export function useDashboardState() {
     if (!dashboard) return [];
     let entities = dashboard.entities;
     if (searchTerm) entities = searchEntities(entities, searchTerm);
-    if (conditions.length > 0) entities = filterEntities(entities, conditions);
+    // WHY: Hook conditions have field: string | '', engine expects FilterField.
+    // Filter out incomplete conditions and narrow the type.
+    const complete = conditions.filter(
+      (c): c is typeof c & { field: FilterField; operator: FilterOperator } =>
+        c.field !== '' && c.operator !== '',
+    );
+    if (complete.length > 0) entities = filterEntities(entities, complete);
     entities = sortEntities(entities, sortField, sortDirection);
     return entities;
   }, [dashboard, searchTerm, conditions, sortField, sortDirection]);
