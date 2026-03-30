@@ -81,6 +81,7 @@ export class PriorityClient {
     const cursorField = opts.cursorField ?? this.guessCursorField(entity);
     const allRecords: T[] = [];
     let cursorValue: string | null = null;
+    let previousCursorValue: string | null = null;
 
     // Outer loop: MAXAPILINES query contexts
     while (true) {
@@ -113,6 +114,10 @@ export class PriorityClient {
         const lastValue = (lastRecord as Record<string, unknown>)[cursorField];
         if (typeof lastValue === 'string') {
           cursorValue = lastValue.trim();
+          // WHY: If last two records share the same cursor field value,
+          // cursorValue doesn't advance and the outer loop would fetch forever.
+          if (cursorValue === previousCursorValue) break;
+          previousCursorValue = cursorValue;
         } else {
           break; // Can't cursor on non-string field
         }
