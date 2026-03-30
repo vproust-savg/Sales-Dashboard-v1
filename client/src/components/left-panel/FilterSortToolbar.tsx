@@ -1,5 +1,5 @@
 // FILE: client/src/components/left-panel/FilterSortToolbar.tsx
-// PURPOSE: Filter + Sort buttons side by side above the entity list
+// PURPOSE: Filter + Sort buttons side by side above the entity list, with active filter count badge
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: FilterSortToolbar
 
@@ -8,6 +8,7 @@ interface FilterSortToolbarProps {
   onSortToggle: () => void;
   filterActive: boolean;
   sortActive: boolean;
+  filterCount?: number;
 }
 
 export function FilterSortToolbar({
@@ -15,6 +16,7 @@ export function FilterSortToolbar({
   onSortToggle,
   filterActive,
   sortActive,
+  filterCount,
 }: FilterSortToolbarProps) {
   return (
     <div className="flex gap-[var(--spacing-md)]">
@@ -40,6 +42,12 @@ export function FilterSortToolbar({
           <line x1="4" y1="9" x2="10" y2="9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         Filter
+        {/* WHY: Badge shows count of active (field+value set) filter conditions */}
+        {filterCount !== undefined && filterCount > 0 && (
+          <span className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[var(--color-gold-primary)] px-1 text-[9px] font-bold text-white">
+            {filterCount}
+          </span>
+        )}
       </button>
 
       {/* Sort button — shows down arrow when active */}

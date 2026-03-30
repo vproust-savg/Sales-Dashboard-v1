@@ -1,7 +1,9 @@
 // FILE: client/src/components/left-panel/SearchBox.tsx
-// PURPOSE: Search input with magnifying glass icon for filtering the entity list
+// PURPOSE: Search input with magnifying glass icon and 300ms debounce for filtering the entity list
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: SearchBox
+
+import { useState, useEffect } from 'react';
 
 interface SearchBoxProps {
   value: string;
@@ -10,6 +12,25 @@ interface SearchBoxProps {
 }
 
 export function SearchBox({ value, onChange, placeholder }: SearchBoxProps) {
+  // WHY: Internal state for responsive typing; debounced onChange avoids re-filtering on every keystroke
+  const [localValue, setLocalValue] = useState(value);
+
+  // WHY: Sync external value changes (e.g., reset on dimension switch)
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (localValue === value) return; // No change
+    // WHY: Instant clear — spec 13.2 says clearing search should be immediate
+    if (!localValue) {
+      onChange('');
+      return;
+    }
+    const timer = setTimeout(() => onChange(localValue), 300);
+    return () => clearTimeout(timer);
+  }, [localValue, onChange, value]);
+
   return (
     <div className="flex h-[36px] items-center gap-[var(--spacing-md)] rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-xl)] py-[var(--spacing-base)] shadow-[var(--shadow-card)]">
       {/* WHY: inline SVG avoids an icon library dependency for a single icon */}
@@ -29,8 +50,8 @@ export function SearchBox({ value, onChange, placeholder }: SearchBoxProps) {
         type="text"
         role="searchbox"
         aria-label={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
         className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-faint)]"
       />

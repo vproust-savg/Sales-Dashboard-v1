@@ -1,5 +1,5 @@
 // FILE: client/src/components/right-panel/RightPanel.tsx
-// PURPOSE: Right panel container — header, KPIs, charts, tabs
+// PURPOSE: Right panel container — header, KPIs, charts, tabs with real data
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: RightPanel
 
@@ -10,6 +10,7 @@ import type {
 import { DetailHeader } from './DetailHeader';
 import { KPISection } from './KPISection';
 import { ChartsRow } from './ChartsRow';
+import { TabsSection } from './TabsSection';
 
 interface RightPanelProps {
   entity: EntityListItem | null;
@@ -23,11 +24,14 @@ interface RightPanelProps {
   contacts: Contact[];
   yearsAvailable: string[];
   activePeriod: Period;
+  onPeriodChange: (period: Period) => void;
+  onExport: () => void;
 }
 
 export function RightPanel({
   entity, kpis, monthlyRevenue, productMix, topSellers,
-  sparklines, yearsAvailable, activePeriod,
+  sparklines, orders, items, contacts, yearsAvailable, activePeriod,
+  onPeriodChange, onExport,
 }: RightPanelProps) {
   return (
     <>
@@ -35,8 +39,8 @@ export function RightPanel({
         entity={entity}
         activePeriod={activePeriod}
         yearsAvailable={yearsAvailable}
-        onPeriodChange={() => {/* WHY no-op: wired in Plan C with state management */}}
-        onExport={() => {/* WHY no-op: wired in Plan C */}}
+        onPeriodChange={onPeriodChange}
+        onExport={onExport}
       />
       <KPISection
         kpis={kpis}
@@ -44,9 +48,7 @@ export function RightPanel({
         sparklines={sparklines}
       />
       <ChartsRow productMix={productMix} topSellers={topSellers} />
-      <div className="flex-1 rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] shadow-[var(--shadow-card)]">
-        <p className="p-4 text-xs text-[var(--color-text-muted)]">TabsSection</p>
-      </div>
+      <TabsSection orders={orders} items={items} contacts={contacts} />
     </>
   );
 }

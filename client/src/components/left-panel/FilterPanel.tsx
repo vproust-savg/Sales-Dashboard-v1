@@ -3,9 +3,11 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: FilterPanel
 
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FilterCondition } from './FilterCondition';
-import type { FilterConditionData, FilterField } from './FilterCondition';
+import { FilterCondition as FilterConditionRow } from './FilterCondition';
+import type { FilterConditionData } from './FilterCondition';
+import type { FilterCondition as HookFilterCondition } from '../../hooks/useFilters';
 
 /** WHY conjunction type: spec Section 3.4 defines AND/OR toggle between conditions,
  *  letting users combine filters with different logic. */
@@ -13,49 +15,41 @@ export type Conjunction = 'and' | 'or';
 
 interface FilterPanelProps {
   isOpen: boolean;
-  conditions: FilterConditionData[];
-  conjunction: Conjunction;
-  onConditionsChange: (conditions: FilterConditionData[]) => void;
-  onConjunctionChange: (conjunction: Conjunction) => void;
+  conditions: HookFilterCondition[];
+  onAddCondition: () => void;
+  onUpdateCondition: (id: string, updates: Partial<HookFilterCondition>) => void;
+  onRemoveCondition: (id: string) => void;
   onClose: () => void;
 }
 
-/** Generates a unique ID for new filter conditions */
-function createConditionId(): string {
-  return `cond_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+/** WHY: Adapter converts hook's string-typed condition to FilterConditionData for the UI row.
+ *  FilterCondition component uses typed enums internally for select options. */
+function toConditionData(c: HookFilterCondition): FilterConditionData {
+  return {
+    id: c.id,
+    field: (c.field || 'total_revenue') as FilterConditionData['field'],
+    operator: (c.operator || 'gt') as FilterConditionData['operator'],
+    value: String(c.value),
+  };
 }
 
-const DEFAULT_FIELD: FilterField = 'total_revenue';
-
 export function FilterPanel({
-  isOpen,
-  conditions,
-  conjunction,
-  onConditionsChange,
-  onConjunctionChange,
-  onClose,
+  isOpen, conditions, onAddCondition, onUpdateCondition, onRemoveCondition, onClose,
 }: FilterPanelProps) {
-  function handleAddCondition() {
-    const newCondition: FilterConditionData = {
-      id: createConditionId(),
-      field: DEFAULT_FIELD,
-      operator: 'gt',
-      value: '',
-    };
-    onConditionsChange([...conditions, newCondition]);
+  const [conjunction, setConjunction] = useState<Conjunction>('and');
+
+  function handleUpdate(id: string, updated: FilterConditionData) {
+    onUpdateCondition(id, {
+      field: updated.field,
+      operator: updated.operator,
+      value: updated.value,
+    });
   }
 
-  function handleUpdateCondition(index: number, updated: FilterConditionData) {
-    const next = [...conditions];
-    next[index] = updated;
-    onConditionsChange(next);
-  }
-
-  function handleRemoveCondition(index: number) {
-    const next = conditions.filter((_, i) => i !== index);
-    onConditionsChange(next);
-    /** WHY auto-close: if all conditions removed, close the panel */
-    if (next.length === 0) onClose();
+  function handleRemove(id: string) {
+    onRemoveCondition(id);
+    /** WHY auto-close: if this was the last condition, close the panel */
+    if (conditions.length <= 1) onClose();
   }
 
   return (
@@ -71,36 +65,27 @@ export function FilterPanel({
           aria-label="Filters"
           aria-expanded={isOpen}
         >
-          <div
-            className="flex max-h-[280px] flex-col gap-[var(--spacing-md)] overflow-y-auto rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] p-[12px_16px_12px] shadow-[var(--shadow-card)]"
-          >
-            {/* "Where" label — spec Section 22.7 */}
+          <div className="flex max-h-[280px] flex-col gap-[var(--spacing-md)] overflow-y-auto rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] p-[12px_16px_12px] shadow-[var(--shadow-card)]">
             <span className="text-[12px] font-semibold text-[var(--color-gold-primary)]">
               Where
             </span>
 
-            {/* Condition cards with conjunctions between them */}
             {conditions.map((condition, index) => (
               <div key={condition.id}>
-                {/* AND/OR conjunction between conditions — spec Section 22.7 */}
                 {index > 0 && (
-                  <ConjunctionToggle
-                    value={conjunction}
-                    onChange={onConjunctionChange}
-                  />
+                  <ConjunctionToggle value={conjunction} onChange={setConjunction} />
                 )}
-                <FilterCondition
-                  condition={condition}
-                  onChange={(updated) => handleUpdateCondition(index, updated)}
-                  onRemove={() => handleRemoveCondition(index)}
+                <FilterConditionRow
+                  condition={toConditionData(condition)}
+                  onChange={(updated) => handleUpdate(condition.id, updated)}
+                  onRemove={() => handleRemove(condition.id)}
                 />
               </div>
             ))}
 
-            {/* Add condition button */}
             <button
               type="button"
-              onClick={handleAddCondition}
+              onClick={onAddCondition}
               className="self-start rounded-[var(--radius-md)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[11px] font-medium text-[var(--color-gold-primary)] transition-colors hover:bg-[var(--color-gold-hover)]"
             >
               + Add condition
