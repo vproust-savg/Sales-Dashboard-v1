@@ -6,13 +6,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
-import { PriorityClient } from '../services/priority-client.js';
+import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
-import { env } from '../config/env.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 import type { ApiResponse } from '@shared/types/api-responses';
 
@@ -36,21 +35,15 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
 
-    const client = new PriorityClient({
-      baseUrl: env.PRIORITY_BASE_URL,
-      username: env.PRIORITY_USERNAME,
-      password: env.PRIORITY_PASSWORD,
-    });
-
     // Fetch all data in parallel, with caching
     const cacheEntityType = period === 'ytd' ? 'orders_ytd' : 'orders_year';
     const [ordersResult, prevOrdersResult, customersResult] = await Promise.all([
       cachedFetch(cacheKey(cacheEntityType, period), getTTL(cacheEntityType),
-        () => fetchOrders(client, startDate, endDate, true)),
+        () => fetchOrders(priorityClient, startDate, endDate, true)),
       cachedFetch(cacheKey('orders_year', String(year - 1)), getTTL('orders_year'),
-        () => fetchOrders(client, prevStartDate, prevEndDate, false)),
+        () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false)),
       cachedFetch(cacheKey('customers', 'all'), getTTL('customers'),
-        () => fetchCustomers(client)),
+        () => fetchCustomers(priorityClient)),
     ]);
 
     // Aggregate and group

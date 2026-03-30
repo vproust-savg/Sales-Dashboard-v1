@@ -6,11 +6,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
-import { PriorityClient } from '../services/priority-client.js';
+import { priorityClient } from '../services/priority-instance.js';
 import { fetchContacts } from '../services/priority-queries.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
-import { env } from '../config/env.js';
 import type { Contact } from '@shared/types/dashboard';
 import type { ApiResponse } from '@shared/types/api-responses';
 
@@ -23,17 +22,11 @@ export const contactsRouter = Router();
 contactsRouter.get('/contacts', validateQuery(querySchema), async (_req, res, next) => {
   try {
     const { customerId } = res.locals.query as z.infer<typeof querySchema>;
-    const client = new PriorityClient({
-      baseUrl: env.PRIORITY_BASE_URL,
-      username: env.PRIORITY_USERNAME,
-      password: env.PRIORITY_PASSWORD,
-    });
-
     const result = await cachedFetch(
       cacheKey('contacts', customerId),
       getTTL('contacts'),
       async () => {
-        const raw = await fetchContacts(client, customerId);
+        const raw = await fetchContacts(priorityClient, customerId);
         return raw.map(c => ({
           fullName: c.NAME,
           position: c.POSITIONDES,
