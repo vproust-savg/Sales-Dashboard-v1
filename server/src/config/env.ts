@@ -21,5 +21,18 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
-export const env = envSchema.parse(process.env);
+/** WHY try/catch — Zod throws on missing vars. Without this, Railway shows only
+ *  "healthcheck failed" with zero diagnostic output because the process crashes
+ *  before Express starts and the error goes to stderr which Railway deploy logs hide. */
+function parseEnv() {
+  const result = envSchema.safeParse(process.env);
+  if (!result.success) {
+    const missing = result.error.issues.map(i => `  - ${i.path.join('.')}: ${i.message}`);
+    console.error(`[env] Missing or invalid environment variables:\n${missing.join('\n')}`);
+    process.exit(1);
+  }
+  return result.data;
+}
+
+export const env = parseEnv();
 export type Env = z.infer<typeof envSchema>;
