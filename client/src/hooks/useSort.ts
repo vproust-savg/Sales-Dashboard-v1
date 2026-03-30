@@ -3,7 +3,7 @@
 // USED BY: client/src/hooks/useDashboardState.ts
 // EXPORTS: useSort, SortField, SortDirection
 
-import { useState, useCallback } from 'react';
+import { useReducer, useCallback } from 'react';
 
 export type SortField =
   | 'name'
@@ -12,33 +12,45 @@ export type SortField =
   | 'avgOrder'
   | 'marginPercent'
   | 'frequency'
-  | 'outstanding'
   | 'lastOrder';
 
 export type SortDirection = 'asc' | 'desc';
 
-export function useSort() {
-  const [sortField, setSortField] = useState<SortField>('revenue');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+interface SortState {
+  field: SortField;
+  direction: SortDirection;
+}
 
-  /** Click the same field to toggle direction; click a new field to sort desc */
-  const setSort = useCallback((field: SortField) => {
-    setSortField(prev => {
-      if (prev === field) {
-        // WHY: Toggle direction when clicking the already-active sort field
-        setSortDirection(d => (d === 'asc' ? 'desc' : 'asc'));
-        return prev;
+type SortAction =
+  | { type: 'toggle'; field: SortField }
+  | { type: 'reset' };
+
+const INITIAL_STATE: SortState = { field: 'revenue', direction: 'desc' };
+
+// WHY: useReducer instead of two useState calls eliminates stale closure risk
+// where setSortDirection was called inside setSortField's updater function.
+function sortReducer(state: SortState, action: SortAction): SortState {
+  switch (action.type) {
+    case 'toggle':
+      if (state.field === action.field) {
+        return { ...state, direction: state.direction === 'asc' ? 'desc' : 'asc' };
       }
-      // WHY: New sort fields default to desc (highest first) as most useful default
-      setSortDirection('desc');
-      return field;
-    });
+      return { field: action.field, direction: 'desc' };
+    case 'reset':
+      return INITIAL_STATE;
+  }
+}
+
+export function useSort() {
+  const [state, dispatch] = useReducer(sortReducer, INITIAL_STATE);
+
+  const setSort = useCallback((field: SortField) => {
+    dispatch({ type: 'toggle', field });
   }, []);
 
   const resetSort = useCallback(() => {
-    setSortField('revenue');
-    setSortDirection('desc');
+    dispatch({ type: 'reset' });
   }, []);
 
-  return { sortField, sortDirection, setSort, resetSort };
+  return { sortField: state.field, sortDirection: state.direction, setSort, resetSort };
 }

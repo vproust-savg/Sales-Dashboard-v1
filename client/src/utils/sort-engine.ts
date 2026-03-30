@@ -1,5 +1,5 @@
 // FILE: client/src/utils/sort-engine.ts
-// PURPOSE: Client-side sort with field accessors for entity list
+// PURPOSE: Client-side sort with field accessors for enriched entity list
 // USED BY: client/src/hooks/useDashboardState.ts
 // EXPORTS: sortEntities
 
@@ -20,9 +20,14 @@ export function sortEntities(
         return e.revenue;
       case 'orders':
         return e.orderCount;
-      // WHY: Fields like avgOrder, marginPercent, frequency, outstanding, lastOrder
-      // are not on EntityListItem — they come from the full dashboard payload.
-      // Default to revenue sort when a non-entity field is selected.
+      case 'avgOrder':
+        return e.avgOrder;
+      case 'marginPercent':
+        return e.marginPercent;
+      case 'frequency':
+        return e.frequency ?? -Infinity; // WHY: null sorts last
+      case 'lastOrder':
+        return e.lastOrderDate ? new Date(e.lastOrderDate).getTime() : -Infinity;
       default:
         return e.revenue;
     }
