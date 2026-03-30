@@ -5,6 +5,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'framer-motion';
+import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { useDashboardState } from './hooks/useDashboardState';
 
@@ -25,12 +26,14 @@ function DashboardApp() {
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* WHY: reducedMotion="user" tells Framer Motion to respect OS-level
-       *  prefers-reduced-motion setting, suppressing all motion.* animations */}
-      <MotionConfig reducedMotion="user">
-        <DashboardApp />
-      </MotionConfig>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        {/* WHY: reducedMotion="user" tells Framer Motion to respect OS-level
+         *  prefers-reduced-motion setting, suppressing all motion.* animations */}
+        <MotionConfig reducedMotion="user">
+          <DashboardApp />
+        </MotionConfig>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

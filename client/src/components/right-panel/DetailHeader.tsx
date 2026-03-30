@@ -51,6 +51,7 @@ export function DetailHeader({
           onChange={onPeriodChange}
         />
         <button
+          type="button"
           onClick={onExport}
           className="cursor-pointer rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] px-[var(--spacing-2xl)] py-[var(--spacing-md)] text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-gold-muted)]"
         >
