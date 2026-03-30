@@ -283,6 +283,26 @@ echo "========================================="
 
 ---
 
+## Post-Implementation Eval-Fix Loop
+
+After all tasks complete and the Pre-Completion Gate passes, enter the eval-fix iteration loop.
+
+**Protocol:** `docs/evals/eval-fix-iteration-loop.md`
+**Max iterations:** 3
+
+**Scope for this plan:**
+- Smoke test: Quick Smoke Test above (9 checks)
+- Full eval: Sections 1-6 (39 checks)
+- Convergence: All Critical PASS, High allows max 1 FAIL with documented fix plan
+
+**Fix agent file scope:** `server/src/**`, `server/tests/**`, `shared/**`
+**Fix agent read-only:** `client/**`
+**Fix agent spec sections:** 10, 17, 18, 19
+
+**Iteration Reports:** Appended to the bottom of this document.
+
+---
+
 ## Loop Detection
 
 Stop and reassess if any of these occur:

@@ -10,8 +10,10 @@
 
 **Spec reference:** `docs/specs/2026-03-29-sales-dashboard-design.md` — Sections 10 (formulas), 17 (OData queries), 18 (field mapping), 19 (caching)
 
-**Depends on:** Nothing (this is the foundation)
+**Depends on:** Plan 0 (shared foundation — creates shared/types and shared/utils)
 **Produces:** Working API at `localhost:3001` that the frontend (Plan B+C) consumes
+
+> **Tasks 1-2 moved to Plan 0.** Shared types (`dashboard.ts`, `api-responses.ts`) and shared utils (`formatting.ts`) are now created by `docs/plans/2026-03-30-plan-0-shared-foundation.md` before this plan starts. **Skip Tasks 1-2** — they are already complete. Start at Task 0 (server scaffolding), then proceed to Task 3.
 
 ---
 
@@ -74,9 +76,6 @@ server/
 - Create: `server/package.json`
 - Create: `server/tsconfig.json`
 - Create: `server/vitest.config.ts`
-- Create: `shared/types/dashboard.ts`
-- Create: `shared/types/api-responses.ts`
-- Create: `shared/utils/formatting.ts`
 
 - [ ] **Step 1: Initialize server package.json**
 

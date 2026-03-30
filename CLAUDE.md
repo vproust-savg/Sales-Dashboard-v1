@@ -10,6 +10,12 @@ Embedded in Airtable via Omni. Deployed on Railway via Dockerfile.
 **Language:** TypeScript strict mode throughout. Zero plain JavaScript.
 **Maintained by:** Claude Code (sole developer). Reviewed by Grok, Deepseek, Gemini, Minimax.
 
+## Safety Constraints
+
+- **Priority ERP is READ-ONLY.** The dashboard must NEVER write data to Priority. No POST, PUT, PATCH, DELETE. This is non-negotiable.
+- **Test customer:** `C7826` — use for all validation and testing.
+- **No secrets in source code.** Priority credentials and Redis tokens live in `.env` only.
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -75,7 +81,7 @@ Both must pass — any TypeScript error kills the Railway Docker build.
 └── .dockerignore         ← Excludes node_modules, .env, .git
 ```
 
-**Parallel session rules:** Backend session only writes to `server/`. Frontend session only writes to `client/`. Shared code in `shared/` must be created before either session starts. Neither session should modify `CLAUDE.md`.
+**Parallel session rules:** Plan 0 creates `shared/` first. Then backend session only writes to `server/`. Frontend session only writes to `client/`. Neither session should modify `shared/` or `CLAUDE.md`.
 
 ## Learnings (MANDATORY)
 
@@ -93,21 +99,20 @@ Examples of what to capture:
 
 ## Useful Skills & References
 
-**Reference file:** `tools/useful-links.md` — Full catalog of reviewed GitHub repos and Claude Code skills, sorted by relevance.
+**Top skills for the implementation workflow:**
 
-**Top skills to leverage during development:**
+| Skill | Type | Use for |
+|-------|------|---------|
+| `subagent-driven-development` | superpowers | Implementation — fresh subagent per task with two-stage review |
+| `receiving-code-review` | superpowers | Fix agent processes eval findings in iteration loop |
+| `requesting-code-review` | superpowers | Inline review checkpoints during implementation |
+| `verification-before-completion` | superpowers | Evidence before completion claims |
+| `frontend-design` | superpowers | Distinctive React + Tailwind interfaces |
+| `design-critique` | superpowers | Visual fidelity review via Chrome plugins |
+| `priority-erp-api` | custom | Priority ERP OData patterns, sub-form handling |
+| `railway-deploy` | custom | Railway deployment guardrails for TypeScript + Docker |
 
-| Skill | Source | Use for |
-|-------|--------|---------|
-| `ui-ux-pro-max-skill` | [nextlevelbuilder](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | Chart type selection (25 types with accessibility grades), React performance patterns, UX guidelines, pre-delivery accessibility checklist |
-| `frontend-design` | Installed (superpowers) | Distinctive React + Tailwind interfaces — fights generic AI aesthetics |
-| `Docker Development` | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | Multi-stage Node.js/TS build patterns for Railway Dockerfile |
-| `CI/CD Pipeline Builder` | [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | GitHub Actions automation for Railway deploy pipeline |
-| `claude-code-spec-workflow` | [jqueryscript list](https://github.com/jqueryscript/awesome-claude-code) | Spec → Design → Tasks → Implementation workflow |
-| `Ralph Wiggum Loop` | [hesreallyhim list](https://github.com/hesreallyhim/awesome-claude-code) | Autonomous build/test/fix development cycles |
-| `webapp-testing` | Anthropic official | Playwright-based E2E testing for the dashboard |
-| `priority-erp-api` | Installed (custom) | Priority ERP OData patterns, sub-form handling, rate limiting |
-| `railway-deploy` | Installed (custom) | Railway deployment guardrails for TypeScript + Docker |
+**Full catalog:** `tools/useful-links.md`
 
 ## Dashboard Architecture
 
@@ -123,6 +128,26 @@ Examples of what to capture:
 
 **Design spec:** `docs/specs/2026-03-29-sales-dashboard-design.md`
 **Mockup reference:** `docs/specs/dashboard-mockup-v5-reference.png`
+
+## Execution Workflow
+
+The project follows a spec → plan → eval → iteration loop pipeline:
+
+| Document | Path | Content |
+|----------|------|---------|
+| Design spec | `docs/specs/2026-03-29-sales-dashboard-design.md` | 25 sections, 1900+ lines — the single source of truth |
+| Plan 0 (shared) | `docs/plans/2026-03-30-plan-0-shared-foundation.md` | Shared types + formatting utils (2 tasks) |
+| Plan A (backend) | `docs/plans/2026-03-30-plan-a-backend.md` | Express + Priority client + Redis cache (Tasks 0, 3-12. Tasks 1-2 moved to Plan 0) |
+| Plan B (frontend) | `docs/plans/2026-03-30-plan-b-frontend-shell.md` | React components with mock data (19 tasks) |
+| Plan C (integration) | `docs/plans/2026-03-30-plan-c-integration.md` | Wire real data + interactions + deploy (12 tasks) |
+| Eval A | `docs/evals/2026-03-30-plan-a-backend-eval.md` | 39 checks, 2 review checkpoints |
+| Eval B | `docs/evals/2026-03-30-plan-b-frontend-eval.md` | 60 checks, 3 review checkpoints |
+| Eval C | `docs/evals/2026-03-30-plan-c-integration-eval.md` | 53 checks, 3 review checkpoints |
+| Iteration loop | `docs/evals/eval-fix-iteration-loop.md` | Post-implementation eval-fix cycle (max 3 iterations) |
+
+**Execution order:** Plan 0 runs first (shared types). Then Plans A + B run in parallel (server/ vs client/ ownership). Plan C runs after both.
+**Implementation skill:** Use `/subagent-driven-development` — fresh subagent per task with two-stage review.
+**Post-implementation:** Each eval has a Post-Implementation Eval-Fix Loop section. Run full eval → fix failures → re-run (max 3 iterations). Protocol in `eval-fix-iteration-loop.md`.
 
 ## LLM-Optimized Code Rules (MANDATORY)
 
@@ -168,6 +193,7 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 - **Header:** Always include `IEEE754Compatible: true`
 - **XML metadata:** `tools/Priority ERP March 30.xml` contains entity names and field definitions
 - **Existing reference:** The sync project at `/Users/victorproust/Documents/Work/Priority/Airtable_Priority_N8N_v1/` uses the same Priority API.
+- **Sister project:** `/Users/victorproust/Documents/Work/SG Interface/Priority Reports/` — same stack (Express + React + Railway), same Priority API. Read its code when stuck on API patterns, Docker config, or Railway deployment.
 
 ## Common Mistakes (avoid these)
 
@@ -180,6 +206,9 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 - Interpolating user input directly into OData `$filter` queries — validate with Zod
 - Confusing Express and React Router catch-all syntax — Express 5 uses `/{*path}`, React Router uses `path="*"`
 - `$expand` on DOCUMENTS_P is BROKEN — use two-step `enrichRows` pattern instead
+- URL encoding trap: do NOT use `searchParams.set()` for `$expand` — it double-encodes `$select`. Build the URL string with raw concatenation.
+- Priority has TWO error response formats: JSON `{ "odata.error": { "message": { "value": "..." } } }` and plain text. Parse both.
+- Custom fields on ORDERITEMS follow the `Y_XXXX_5_ESH` naming pattern (e.g., `Y_2K28_5_ESH` for vendor code)
 - Modifying Dockerfile paths without checking `__dirname` math
 - Leaving unused variables — `noUnusedLocals: true` means `tsc -b` fails, killing the Railway Docker build
 - Deleting `railway.json` — Railway needs this file for Dockerfile builder

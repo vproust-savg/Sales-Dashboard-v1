@@ -418,6 +418,26 @@ echo "========================================="
 
 ---
 
+## Post-Implementation Eval-Fix Loop
+
+After all tasks complete and the Pre-Completion Gate passes, enter the eval-fix iteration loop.
+
+**Protocol:** `docs/evals/eval-fix-iteration-loop.md`
+**Max iterations:** 3
+
+**Scope for this plan:**
+- Smoke test: Quick Smoke Test above (10 checks)
+- Full eval: Sections 1-8 (53 checks)
+- Convergence: All Critical PASS, High allows max 1 FAIL with documented fix plan
+
+**Fix agent file scope:** `client/src/**`, `server/src/**`, `shared/**`, `Dockerfile`, `railway.json`, `.dockerignore`
+**Fix agent spec sections:** 5-7, 10.5, 12-14, 21
+**Fix agent visual reference:** `docs/specs/dashboard-mockup-v5-reference.png`
+
+**Iteration Reports:** Appended to the bottom of this document.
+
+---
+
 ## Loop Detection
 
 Stop and reassess if any of these occur:
