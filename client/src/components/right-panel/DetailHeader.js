@@ -1,7 +1,0 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { PeriodSelector } from './PeriodSelector';
-export function DetailHeader({ entity, activePeriod, yearsAvailable, onPeriodChange, onExport, }) {
-    const name = entity?.name ?? 'All Customers';
-    const subtitle = entity?.meta1 ?? '';
-    return (_jsxs("div", { className: "flex items-center justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-4xl)] py-[var(--spacing-xl)] shadow-[var(--shadow-card)]", role: "banner", children: [_jsxs("div", { className: "min-w-0 flex-1", children: [_jsx("h1", { className: "truncate text-[20px] font-bold leading-[1.3] text-[var(--color-text-primary)]", title: name, children: name }), subtitle && (_jsxs("p", { className: "mt-[var(--spacing-2xs)] truncate text-[11px] text-[var(--color-text-muted)]", title: subtitle, children: [entity?.id, " \u00B7 ", subtitle, " \u00B7 ", entity?.meta2] }))] }), _jsxs("div", { className: "ml-[var(--spacing-lg)] flex shrink-0 items-center gap-[var(--spacing-lg)]", children: [_jsx(PeriodSelector, { activePeriod: activePeriod, yearsAvailable: yearsAvailable, onChange: onPeriodChange }), _jsx("button", { onClick: onExport, className: "cursor-pointer rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] px-[var(--spacing-2xl)] py-[var(--spacing-md)] text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-gold-muted)]", children: "Export" })] })] }));
-}

@@ -5,3 +5,7 @@ dist/
 !.env.example
 .DS_Store
 *.log
+
+# Compiled output alongside source (only dist/ should have .js)
+client/src/**/*.js
+shared/**/*.js

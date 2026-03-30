@@ -13,20 +13,27 @@ import { RightPanel } from '../components/right-panel/RightPanel';
 import { Skeleton } from '../components/shared/Skeleton';
 import { useExport } from '../hooks/useExport';
 
+interface DashboardMeta {
+  cached: boolean;
+  cachedAt: string | null;
+  period: string;
+  dimension: string;
+  entityCount: number;
+}
+
 export interface DashboardLayoutProps {
   // Data
   dashboard: DashboardPayload | null;
   contacts: Contact[];
   isLoading: boolean;
   error: string | null;
-  meta: unknown;
+  meta: DashboardMeta | null;
 
   // State
   activeDimension: Dimension;
   activePeriod: Period;
   activeEntityId: string | null;
   selectedEntityIds: string[];
-  isConsolidated: boolean;
   searchTerm: string;
   filterConditions: FilterCondition[];
   filterOpen: boolean;

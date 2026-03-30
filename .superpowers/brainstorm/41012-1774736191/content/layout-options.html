@@ -1,0 +1,203 @@
+<h2>Sales Dashboard Layout</h2>
+<p class="subtitle">How should the overview and customer detail sit together? Based on the Fixoria reference.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 20px; background: #faf8f5;">
+      <!-- 3-column layout mockup -->
+      <div style="display: flex; gap: 8px; height: 220px; font-size: 11px; color: #666;">
+        <!-- Sidebar -->
+        <div style="width: 60px; background: #2c2c2c; border-radius: 8px; padding: 8px;">
+          <div style="color: #fff; font-size: 9px; margin-bottom: 12px;">Nav</div>
+          <div style="background: rgba(255,255,255,0.1); border-radius: 4px; padding: 4px; margin-bottom: 4px; color: #ccc; font-size: 8px;">Dashboard</div>
+          <div style="padding: 4px; color: #888; font-size: 8px;">Customers</div>
+          <div style="padding: 4px; color: #888; font-size: 8px;">Orders</div>
+          <div style="padding: 4px; color: #888; font-size: 8px;">Products</div>
+        </div>
+        <!-- Main content -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; gap: 6px;">
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Revenue</div>
+              <div style="font-size: 14px; font-weight: 700;">$1.2M</div>
+              <div style="font-size: 8px; color: #22c55e;">+12%</div>
+            </div>
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Orders</div>
+              <div style="font-size: 14px; font-weight: 700;">847</div>
+              <div style="font-size: 8px; color: #22c55e;">+8%</div>
+            </div>
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Avg Value</div>
+              <div style="font-size: 14px; font-weight: 700;">$1,420</div>
+              <div style="font-size: 8px; color: #ef4444;">-3%</div>
+            </div>
+          </div>
+          <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <div style="font-size: 8px; color: #999; margin-bottom: 4px;">Revenue Chart</div>
+            <div style="display: flex; align-items: flex-end; gap: 3px; height: 60px;">
+              <div style="flex:1; background: #d4c5a9; border-radius: 2px; height: 40%;"></div>
+              <div style="flex:1; background: #d4c5a9; border-radius: 2px; height: 55%;"></div>
+              <div style="flex:1; background: #d4c5a9; border-radius: 2px; height: 70%;"></div>
+              <div style="flex:1; background: #d4c5a9; border-radius: 2px; height: 45%;"></div>
+              <div style="flex:1; background: #d4c5a9; border-radius: 2px; height: 85%;"></div>
+              <div style="flex:1; background: #d4c5a9; border-radius: 2px; height: 60%;"></div>
+              <div style="flex:1; background: #b8a88a; border-radius: 2px; height: 90%;"></div>
+            </div>
+          </div>
+          <div style="background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <div style="font-size: 8px; color: #999; margin-bottom: 4px;">Recent Orders</div>
+            <div style="font-size: 7px; color: #ccc;">ORD-001 &bull; Customer A &bull; $2,400</div>
+            <div style="font-size: 7px; color: #ccc;">ORD-002 &bull; Customer B &bull; $1,800</div>
+          </div>
+        </div>
+        <!-- Right panel: Customer Detail -->
+        <div style="width: 90px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <div style="font-size: 8px; color: #999;">Customer</div>
+            <div style="font-size: 10px; font-weight: 600; margin: 4px 0;">Acme Corp</div>
+            <div style="font-size: 7px; color: #888;">$240K rev</div>
+            <div style="font-size: 7px; color: #888;">32 orders</div>
+            <div style="font-size: 7px; color: #888;">18% margin</div>
+          </div>
+          <div style="background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex: 1;">
+            <div style="font-size: 8px; color: #999;">Contacts</div>
+            <div style="display: flex; align-items: center; gap: 3px; margin-top: 4px;">
+              <div style="width: 14px; height: 14px; background: #b8a88a; border-radius: 50%; font-size: 7px; color: #fff; display: flex; align-items: center; justify-content: center;">J</div>
+              <div style="font-size: 7px;">John D.</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 3px; margin-top: 3px;">
+              <div style="width: 14px; height: 14px; background: #c9a96e; border-radius: 50%; font-size: 7px; color: #fff; display: flex; align-items: center; justify-content: center;">S</div>
+              <div style="font-size: 7px;">Sarah M.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Three-Column (like Fixoria)</h3>
+      <p>Left nav sidebar + main overview area + right customer detail panel. Always-visible customer context. Closest to the reference design.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 20px; background: #faf8f5;">
+      <!-- Customer list + detail layout -->
+      <div style="display: flex; gap: 8px; height: 220px; font-size: 11px; color: #666;">
+        <!-- Left: Customer list -->
+        <div style="width: 100px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <input style="width: 100%; border: 1px solid #e5e5e5; border-radius: 4px; padding: 3px; font-size: 8px;" placeholder="Search customers..." />
+          </div>
+          <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+            <div style="background: #f0ebe3; border-radius: 4px; padding: 4px; margin-bottom: 4px; font-size: 8px; font-weight: 600;">Acme Corp</div>
+            <div style="padding: 4px; font-size: 8px; color: #888;">Beta Ltd</div>
+            <div style="padding: 4px; font-size: 8px; color: #888;">Gamma Inc</div>
+            <div style="padding: 4px; font-size: 8px; color: #888;">Delta SA</div>
+            <div style="padding: 4px; font-size: 8px; color: #888;">Epsilon</div>
+          </div>
+        </div>
+        <!-- Right: Full detail area -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; gap: 6px;">
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Revenue</div>
+              <div style="font-size: 14px; font-weight: 700;">$240K</div>
+            </div>
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Orders</div>
+              <div style="font-size: 14px; font-weight: 700;">32</div>
+            </div>
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Avg Value</div>
+              <div style="font-size: 14px; font-weight: 700;">$7,500</div>
+            </div>
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Margin</div>
+              <div style="font-size: 14px; font-weight: 700;">18%</div>
+            </div>
+          </div>
+          <!-- Tabs -->
+          <div style="background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex: 1;">
+            <div style="display: flex; gap: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; margin-bottom: 6px;">
+              <span style="font-size: 8px; font-weight: 600; border-bottom: 2px solid #b8a88a; padding-bottom: 3px;">Orders</span>
+              <span style="font-size: 8px; color: #999;">Items</span>
+              <span style="font-size: 8px; color: #999;">Products</span>
+              <span style="font-size: 8px; color: #999;">Contacts</span>
+            </div>
+            <div style="font-size: 7px; color: #888;">
+              <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f5f5f5;">
+                <span>ORD-001</span><span>$12,400</span><span>2024-03-15</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f5f5f5;">
+                <span>ORD-002</span><span>$8,200</span><span>2024-03-10</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 3px 0;">
+                <span>ORD-003</span><span>$5,600</span><span>2024-02-28</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Customer List + Detail (Recommended)</h3>
+      <p>Left panel is a searchable customer list. Right area shows the selected customer's full data with tabs (Orders, Items, Products, Contacts). All your metrics focused on one customer at a time. Clean master-detail pattern.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding: 20px; background: #faf8f5;">
+      <!-- Dashboard overview + slide-out -->
+      <div style="display: flex; gap: 8px; height: 220px; font-size: 11px; color: #666; position: relative;">
+        <!-- Full-width overview -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; gap: 6px;">
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Total Revenue</div>
+              <div style="font-size: 14px; font-weight: 700;">$1.2M</div>
+            </div>
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Total Orders</div>
+              <div style="font-size: 14px; font-weight: 700;">847</div>
+            </div>
+            <div style="flex: 1; background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <div style="font-size: 8px; color: #999;">Active Customers</div>
+              <div style="font-size: 14px; font-weight: 700;">156</div>
+            </div>
+          </div>
+          <div style="background: #fff; border-radius: 6px; padding: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex: 1;">
+            <div style="font-size: 8px; color: #999; margin-bottom: 4px;">Customer Table (click row to open detail)</div>
+            <div style="font-size: 7px;">
+              <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f0f0f0; font-weight: 600; color: #555;">
+                <span>Customer</span><span>Revenue</span><span>Orders</span><span>Margin</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f5f5f5; background: #faf6f0;">
+                <span style="font-weight: 600;">Acme Corp</span><span>$240K</span><span>32</span><span>18%</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #f5f5f5;">
+                <span>Beta Ltd</span><span>$180K</span><span>28</span><span>22%</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 3px 0;">
+                <span>Gamma Inc</span><span>$95K</span><span>15</span><span>15%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Slide-out panel indicator -->
+        <div style="width: 90px; background: #fff; border-radius: 6px; padding: 8px; box-shadow: -2px 0 8px rgba(0,0,0,0.08); border-left: 3px solid #b8a88a;">
+          <div style="font-size: 8px; color: #999;">Detail Panel</div>
+          <div style="font-size: 9px; font-weight: 600; margin: 4px 0;">Acme Corp</div>
+          <div style="font-size: 7px; color: #888;">Slides in when you click a customer row</div>
+          <div style="margin-top: 8px; font-size: 7px; color: #b8a88a; font-weight: 600;">Orders</div>
+          <div style="font-size: 7px; color: #b8a88a;">Items</div>
+          <div style="font-size: 7px; color: #b8a88a;">Contacts</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Overview + Slide-out Detail</h3>
+      <p>Full-width overview with KPIs + sortable customer table. Click a customer row to slide open a detail panel on the right. Best when you spend most time on the overview and occasionally drill in.</p>
+    </div>
+  </div>
+</div>

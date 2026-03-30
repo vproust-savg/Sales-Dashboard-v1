@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Dashboard — v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    background: #FFFEF3;
+    color: #1a1a1a;
+    padding: 16px;
+    min-height: 100vh;
+  }
+
+  .dashboard {
+    display: flex;
+    gap: 16px;
+    height: calc(100vh - 32px);
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* Left Panel — Customer List */
+  .customer-list {
+    width: 280px;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .search-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .search-box svg { color: #999; flex-shrink: 0; }
+  .search-box input {
+    border: none;
+    outline: none;
+    font-size: 13px;
+    width: 100%;
+    font-family: inherit;
+    color: #333;
+    background: transparent;
+  }
+  .search-box input::placeholder { color: #bbb; }
+
+  .list-container {
+    background: #fff;
+    border-radius: 16px;
+    flex: 1;
+    overflow-y: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .list-header {
+    padding: 12px 16px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #f0ece5;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+  }
+  .customer-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f8f5f0;
+    transition: background 0.15s;
+  }
+  .customer-item:hover { background: #fdfcf4; }
+  .customer-item.active {
+    background: #f5f3e8;
+    border-left: 3px solid #b8a88a;
+    padding-left: 13px;
+  }
+  .customer-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .customer-meta {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Right Panel — Detail */
+  .detail-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  /* Customer header */
+  .customer-header {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .customer-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .customer-id {
+    font-size: 12px;
+    color: #999;
+    margin-top: 2px;
+  }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-secondary {
+    background: #f0ece5;
+    color: #5a5245;
+  }
+
+  /* KPI Cards Row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+  }
+  .kpi-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: #999;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .kpi-trend {
+    font-size: 11px;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .kpi-trend.up { color: #22c55e; }
+  .kpi-trend.down { color: #ef4444; }
+
+  /* Tabs */
+  .tabs-container {
+    background: #fff;
+    border-radius: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+  }
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #f0ece5;
+    padding: 0 24px;
+  }
+  .tab {
+    padding: 14px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #999;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab:hover { color: #666; }
+  .tab.active {
+    color: #1a1a1a;
+    font-weight: 600;
+    border-bottom-color: #b8a88a;
+  }
+  .tab-count {
+    font-size: 10px;
+    background: #f0ece5;
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    color: #999;
+  }
+  .tab.active .tab-count {
+    background: #2c2a26;
+    color: #fff;
+  }
+
+  .tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+  }
+
+  /* Table */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .data-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f0ece5;
+  }
+  .data-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f8f5f0;
+    color: #444;
+  }
+  .data-table tr:hover td { background: #fdfcf4; }
+
+  .status-badge {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .status-delivered { background: #ecfdf5; color: #059669; }
+  .status-pending { background: #fef9c3; color: #a16207; }
+  .status-processing { background: #eff6ff; color: #2563eb; }
+
+  .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+  }
+  .toolbar-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .filter-chip {
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    background: #f0ece5;
+    color: #5a5245;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .filter-chip.active {
+    background: #2c2a26;
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- LEFT: Customer List -->
+    <div class="customer-list">
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="Search customers..." />
+      </div>
+
+      <div class="list-container">
+        <div class="list-header">Customers (42)</div>
+        <div class="customer-item active">
+          <div class="customer-name">Acme Corporation</div>
+          <div class="customer-meta">
+            <span>32 orders</span>
+            <span style="font-weight: 600;">$240,200</span>
+          </div>
+        </div>
+        <div class="customer-item">
+          <div class="customer-name">Beta Industries Ltd</div>
+          <div class="customer-meta">
+            <span>28 orders</span>
+            <span>$182,400</span>
+          </div>
+        </div>
+        <div class="customer-item">
+          <div class="customer-name">Gamma Technologies</div>
+          <div class="customer-meta">
+            <span>15 orders</span>
+            <span>$95,800</span>
+          </div>
+        </div>
+        <div class="customer-item">
+          <div class="customer-name">Delta Solutions SA</div>
+          <div class="customer-meta">
+            <span>22 orders</span>
+            <span>$134,600</span>
+          </div>
+        </div>
+        <div class="customer-item">
+          <div class="customer-name">Epsilon Group</div>
+          <div class="customer-meta">
+            <span>9 orders</span>
+            <span>$67,300</span>
+          </div>
+        </div>
+        <div class="customer-item">
+          <div class="customer-name">Zeta Manufacturing</div>
+          <div class="customer-meta">
+            <span>18 orders</span>
+            <span>$112,500</span>
+          </div>
+        </div>
+        <div class="customer-item">
+          <div class="customer-name">Eta Logistics</div>
+          <div class="customer-meta">
+            <span>11 orders</span>
+            <span>$78,900</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Detail Area -->
+    <div class="detail-area">
+      <!-- Customer Header -->
+      <div class="customer-header">
+        <div>
+          <div class="customer-title">Acme Corporation</div>
+          <div class="customer-id">Priority ID: C-10042 &bull; Active since Jan 2021</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary">Export</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-label">Revenue</div>
+          <div class="kpi-value">$240K</div>
+          <div class="kpi-trend up">+12% vs last year</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Order Total</div>
+          <div class="kpi-value">$38.2K</div>
+          <div class="kpi-trend up">Latest order</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Order Count</div>
+          <div class="kpi-value">32</div>
+          <div class="kpi-trend up">+4 this quarter</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Value</div>
+          <div class="kpi-value">$7,506</div>
+          <div class="kpi-trend down">-3% vs last year</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Frequency</div>
+          <div class="kpi-value">2.7/mo</div>
+          <div class="kpi-trend up">+0.3 vs avg</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Margin</div>
+          <div class="kpi-value">18.4%</div>
+          <div class="kpi-trend down">-1.2pp vs target</div>
+        </div>
+      </div>
+
+      <!-- Tabbed Content -->
+      <div class="tabs-container">
+        <div class="tab-bar">
+          <div class="tab active">Orders<span class="tab-count">32</span></div>
+          <div class="tab">Items<span class="tab-count">186</span></div>
+          <div class="tab">Products<span class="tab-count">24</span></div>
+          <div class="tab">Contacts<span class="tab-count">3</span></div>
+        </div>
+
+        <div class="tab-content">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <button class="filter-chip active">All</button>
+              <button class="filter-chip">Delivered</button>
+              <button class="filter-chip">Pending</button>
+              <button class="filter-chip">Processing</button>
+            </div>
+            <div>
+              <button class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+              </button>
+            </div>
+          </div>
+
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Order #</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Amount</th>
+                <th>Margin</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight: 600;">SO-24-0847</td>
+                <td>Mar 25, 2026</td>
+                <td>14</td>
+                <td class="amount">$38,200</td>
+                <td>19.2%</td>
+                <td><span class="status-badge status-processing">Processing</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight: 600;">SO-24-0831</td>
+                <td>Mar 18, 2026</td>
+                <td>8</td>
+                <td class="amount">$12,400</td>
+                <td>22.1%</td>
+                <td><span class="status-badge status-delivered">Delivered</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight: 600;">SO-24-0815</td>
+                <td>Mar 10, 2026</td>
+                <td>22</td>
+                <td class="amount">$45,600</td>
+                <td>16.8%</td>
+                <td><span class="status-badge status-delivered">Delivered</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight: 600;">SO-24-0798</td>
+                <td>Feb 28, 2026</td>
+                <td>6</td>
+                <td class="amount">$8,900</td>
+                <td>24.5%</td>
+                <td><span class="status-badge status-delivered">Delivered</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight: 600;">SO-24-0772</td>
+                <td>Feb 15, 2026</td>
+                <td>11</td>
+                <td class="amount">$22,300</td>
+                <td>17.3%</td>
+                <td><span class="status-badge status-pending">Pending</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight: 600;">SO-24-0756</td>
+                <td>Feb 5, 2026</td>
+                <td>19</td>
+                <td class="amount">$31,800</td>
+                <td>20.1%</td>
+                <td><span class="status-badge status-delivered">Delivered</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

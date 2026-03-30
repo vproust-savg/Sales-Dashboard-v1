@@ -96,7 +96,6 @@ export function useDashboardState() {
     activePeriod,
     activeEntityId,
     selectedEntityIds: selectedIds,
-    isConsolidated,
     searchTerm,
     filterConditions: conditions,
     filterOpen,
