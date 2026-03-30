@@ -11,8 +11,9 @@ interface AnimatedNumberProps {
   formatter: (n: number) => string;
 }
 
-/** WHY useSpring + useTransform: gives smooth digit rolling with slight overshoot per spec 21.3 */
-const SPRING_CONFIG = { stiffness: 100, damping: 20, mass: 0.5 };
+/** WHY: High stiffness + damping for ~350ms settle time per spec 21.3.
+ *  Lower values cause >1s settle for large KPI values (e.g., $450,000). */
+const SPRING_CONFIG = { stiffness: 400, damping: 40, mass: 0.5 };
 
 export function AnimatedNumber({ value, formatter }: AnimatedNumberProps) {
   const motionVal = useMotionValue(0);

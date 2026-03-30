@@ -3,7 +3,6 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: EntityList
 
-import { motion } from 'framer-motion';
 import type { EntityListItem as EntityListItemType } from '@shared/types/dashboard';
 import { EntityListItem } from './EntityListItem';
 
@@ -50,20 +49,15 @@ export function EntityList({
         className="flex-1 overflow-y-auto"
       >
         {entities.map((entity, index) => (
-          <motion.div
+          <EntityListItem
             key={entity.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.03, duration: 0.2 }}
-          >
-            <EntityListItem
-              entity={entity}
-              isActive={entity.id === activeId}
-              isSelected={selectedIds.includes(entity.id)}
-              onSelect={onSelect}
-              onCheck={onCheck}
-            />
-          </motion.div>
+            entity={entity}
+            isActive={entity.id === activeId}
+            isSelected={selectedIds.includes(entity.id)}
+            onSelect={onSelect}
+            onCheck={onCheck}
+            animationDelay={index * 0.03}
+          />
         ))}
 
         {entities.length === 0 && (

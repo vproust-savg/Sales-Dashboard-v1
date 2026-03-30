@@ -69,9 +69,9 @@ export function FilterPanel({
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
           className="overflow-hidden"
+          id="filter-panel"
           role="region"
           aria-label="Filters"
-          aria-expanded={isOpen}
         >
           <div className="flex max-h-[280px] flex-col gap-[var(--spacing-md)] overflow-y-auto rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] p-[12px_16px_12px] shadow-[var(--shadow-card)]">
             <span className="text-[12px] font-semibold text-[var(--color-gold-primary)]">

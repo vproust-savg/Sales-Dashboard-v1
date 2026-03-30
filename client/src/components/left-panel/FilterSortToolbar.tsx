@@ -24,7 +24,8 @@ export function FilterSortToolbar({
       <button
         type="button"
         onClick={onFilterToggle}
-        aria-pressed={filterActive}
+        aria-expanded={filterActive}
+        aria-controls="filter-panel"
         className={`
           flex h-[36px] flex-1 items-center justify-center gap-[var(--spacing-sm)]
           rounded-[var(--radius-lg)] px-[var(--spacing-2xl)] py-[var(--spacing-base)]
