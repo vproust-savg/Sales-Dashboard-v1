@@ -11,6 +11,16 @@ export interface EntityListItem {
   meta2: string;        // Line 2 right (e.g., "22 orders")
   revenue: number;      // For sort + display
   orderCount: number;   // For sort + display
+  // WHY: Enrichment fields enable client-side filter + sort on all spec-defined fields.
+  // Computed by dimension-grouper from the same order data already fetched.
+  avgOrder: number;                // revenue / orderCount, 0 when no orders
+  marginPercent: number;           // (totalProfit / totalRevenue) * 100
+  marginAmount: number;            // total profit in dollars
+  frequency: number | null;        // orders per month, null when period < 1 month
+  lastOrderDate: string | null;    // ISO date of most recent order, null when no orders
+  rep: string | null;              // sales agent name (customer dimension only, null otherwise)
+  zone: string | null;             // zone name (customer dimension only, null otherwise)
+  customerType: string | null;     // customer type (customer dimension only, null otherwise)
 }
 
 /** KPI values for the right panel — spec Section 10.1 */

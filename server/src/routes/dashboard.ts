@@ -48,7 +48,9 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
 
     // Aggregate and group
     const aggregate = aggregateOrders(ordersResult.data, prevOrdersResult.data, period);
-    const entities = groupByDimension(groupBy as Dimension, ordersResult.data, customersResult.data);
+    // WHY: periodMonths is used by dimension-grouper for frequency calculation
+    const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
+    const entities = groupByDimension(groupBy as Dimension, ordersResult.data, customersResult.data, periodMonths);
 
     // Derive years available from order dates
     const years = new Set(ordersResult.data.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));

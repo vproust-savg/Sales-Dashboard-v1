@@ -5,38 +5,46 @@
 
 import type { EntityListItem, Dimension } from '@shared/types/dashboard';
 import type { RawOrder, RawCustomer } from './priority-queries.js';
+import { groupByVendor, groupByBrand, groupByProductType, groupByProduct } from './dimension-grouper-items.js';
 
 export function groupByDimension(
   dimension: Dimension,
   orders: RawOrder[],
   customers: RawCustomer[],
+  periodMonths: number,
 ): EntityListItem[] {
   const groupers: Record<Dimension, () => EntityListItem[]> = {
-    customer: () => groupByCustomer(orders, customers),
-    zone: () => groupByZone(orders, customers),
-    vendor: () => groupByVendor(orders),
-    brand: () => groupByBrand(orders),
-    product_type: () => groupByProductType(orders),
-    product: () => groupByProduct(orders),
+    customer: () => groupByCustomer(orders, customers, periodMonths),
+    zone: () => groupByZone(orders, customers, periodMonths),
+    vendor: () => groupByVendor(orders, periodMonths),
+    brand: () => groupByBrand(orders, periodMonths),
+    product_type: () => groupByProductType(orders, periodMonths),
+    product: () => groupByProduct(orders, periodMonths),
   };
 
   return (groupers[dimension] ?? groupers.customer)()
     .sort((a, b) => b.revenue - a.revenue);
 }
 
-function groupByCustomer(orders: RawOrder[], customers: RawCustomer[]): EntityListItem[] {
+function groupByCustomer(orders: RawOrder[], customers: RawCustomer[], periodMonths: number): EntityListItem[] {
   const custMap = new Map(customers.map(c => [c.CUSTNAME, c]));
-  const groups = new Map<string, { revenue: number; orderCount: number }>();
+  const groups = new Map<string, { revenue: number; orderCount: number; profit: number; dates: string[] }>();
 
   orders.forEach(o => {
-    const g = groups.get(o.CUSTNAME) ?? { revenue: 0, orderCount: 0 };
+    const g = groups.get(o.CUSTNAME) ?? { revenue: 0, orderCount: 0, profit: 0, dates: [] };
     g.revenue += o.TOTPRICE;
     g.orderCount += 1;
+    g.dates.push(o.CURDATE);
+    const itemProfit = (o.ORDERITEMS_SUBFORM ?? []).reduce((s, i) => s + i.QPROFIT, 0);
+    g.profit += itemProfit;
     groups.set(o.CUSTNAME, g);
   });
 
   return [...groups.entries()].map(([id, g]) => {
     const cust = custMap.get(id);
+    const lastDate = g.dates.length > 0
+      ? g.dates.reduce((a, b) => a > b ? a : b)
+      : null;
     return {
       id,
       name: cust?.CUSTDES ?? id,
@@ -44,113 +52,48 @@ function groupByCustomer(orders: RawOrder[], customers: RawCustomer[]): EntityLi
       meta2: `${g.orderCount} orders`,
       revenue: g.revenue,
       orderCount: g.orderCount,
+      avgOrder: g.orderCount > 0 ? g.revenue / g.orderCount : 0,
+      marginPercent: g.revenue > 0 ? (g.profit / g.revenue) * 100 : 0,
+      marginAmount: g.profit,
+      frequency: periodMonths >= 1 ? g.orderCount / periodMonths : null,
+      lastOrderDate: lastDate,
+      rep: cust?.AGENTDES ?? null,
+      zone: cust?.ZONEDES ?? null,
+      customerType: cust?.CTYPEDES ?? null,
     };
   });
 }
 
-function groupByZone(orders: RawOrder[], customers: RawCustomer[]): EntityListItem[] {
+function groupByZone(orders: RawOrder[], customers: RawCustomer[], periodMonths: number): EntityListItem[] {
   const custZone = new Map(customers.map(c => [c.CUSTNAME, { zone: c.ZONECODE, zoneName: c.ZONEDES }]));
-  const groups = new Map<string, { name: string; revenue: number; orderCount: number; customerIds: Set<string> }>();
+  const groups = new Map<string, { name: string; revenue: number; orderCount: number; profit: number; customerIds: Set<string>; dates: string[] }>();
 
   orders.forEach(o => {
     const z = custZone.get(o.CUSTNAME);
     const zoneId = z?.zone ?? 'UNKNOWN';
-    const g = groups.get(zoneId) ?? { name: z?.zoneName ?? zoneId, revenue: 0, orderCount: 0, customerIds: new Set() };
+    const g = groups.get(zoneId) ?? { name: z?.zoneName ?? zoneId, revenue: 0, orderCount: 0, profit: 0, customerIds: new Set(), dates: [] };
     g.revenue += o.TOTPRICE;
     g.orderCount += 1;
+    g.dates.push(o.CURDATE);
+    const itemProfit = (o.ORDERITEMS_SUBFORM ?? []).reduce((s, i) => s + i.QPROFIT, 0);
+    g.profit += itemProfit;
     g.customerIds.add(o.CUSTNAME);
     groups.set(zoneId, g);
   });
 
-  return [...groups.entries()].map(([id, g]) => ({
-    id, name: g.name,
-    meta1: `${g.customerIds.size} customers`,
-    meta2: `${g.orderCount} orders`,
-    revenue: g.revenue, orderCount: g.orderCount,
-  }));
-}
-
-function groupByVendor(orders: RawOrder[]): EntityListItem[] {
-  const groups = new Map<string, { name: string; revenue: number; orderCount: number; productIds: Set<string> }>();
-
-  orders.forEach(o => (o.ORDERITEMS_SUBFORM ?? []).forEach(item => {
-    const id = item.Y_1159_5_ESH || 'UNKNOWN';
-    const g = groups.get(id) ?? { name: item.Y_1530_5_ESH || id, revenue: 0, orderCount: 0, productIds: new Set() };
-    g.revenue += item.QPRICE;
-    g.productIds.add(item.PARTNAME);
-    groups.set(id, g);
-  }));
-
-  // Count orders per vendor (distinct ORDNAME)
-  const ordersByVendor = new Map<string, Set<string>>();
-  orders.forEach(o => (o.ORDERITEMS_SUBFORM ?? []).forEach(item => {
-    const id = item.Y_1159_5_ESH || 'UNKNOWN';
-    if (!ordersByVendor.has(id)) ordersByVendor.set(id, new Set());
-    ordersByVendor.get(id)!.add(o.ORDNAME);
-  }));
-
-  return [...groups.entries()].map(([id, g]) => ({
-    id, name: g.name,
-    meta1: `${g.productIds.size} products`,
-    meta2: `${ordersByVendor.get(id)?.size ?? 0} orders`,
-    revenue: g.revenue, orderCount: ordersByVendor.get(id)?.size ?? 0,
-  }));
-}
-
-function groupByBrand(orders: RawOrder[]): EntityListItem[] {
-  const groups = new Map<string, { revenue: number; productIds: Set<string>; orderIds: Set<string> }>();
-
-  orders.forEach(o => (o.ORDERITEMS_SUBFORM ?? []).forEach(item => {
-    const brand = item.Y_9952_5_ESH || 'Other';
-    const g = groups.get(brand) ?? { revenue: 0, productIds: new Set(), orderIds: new Set() };
-    g.revenue += item.QPRICE;
-    g.productIds.add(item.PARTNAME);
-    g.orderIds.add(o.ORDNAME);
-    groups.set(brand, g);
-  }));
-
-  return [...groups.entries()].map(([name, g]) => ({
-    id: name, name,
-    meta1: `${g.productIds.size} products`,
-    meta2: `${g.orderIds.size} orders`,
-    revenue: g.revenue, orderCount: g.orderIds.size,
-  }));
-}
-
-function groupByProductType(orders: RawOrder[]): EntityListItem[] {
-  const groups = new Map<string, { code: string; revenue: number; productIds: Set<string>; orderIds: Set<string> }>();
-
-  orders.forEach(o => (o.ORDERITEMS_SUBFORM ?? []).forEach(item => {
-    const name = item.Y_3021_5_ESH || 'Other';
-    const g = groups.get(name) ?? { code: item.Y_3020_5_ESH, revenue: 0, productIds: new Set(), orderIds: new Set() };
-    g.revenue += item.QPRICE;
-    g.productIds.add(item.PARTNAME);
-    g.orderIds.add(o.ORDNAME);
-    groups.set(name, g);
-  }));
-
-  return [...groups.entries()].map(([name, g]) => ({
-    id: g.code || name, name,
-    meta1: `${g.productIds.size} products`,
-    meta2: `${g.orderIds.size} orders`,
-    revenue: g.revenue, orderCount: g.orderIds.size,
-  }));
-}
-
-function groupByProduct(orders: RawOrder[]): EntityListItem[] {
-  const groups = new Map<string, { name: string; brand: string; revenue: number; orderIds: Set<string> }>();
-
-  orders.forEach(o => (o.ORDERITEMS_SUBFORM ?? []).forEach(item => {
-    const g = groups.get(item.PARTNAME) ?? { name: item.PARTDES, brand: item.Y_9952_5_ESH, revenue: 0, orderIds: new Set() };
-    g.revenue += item.QPRICE;
-    g.orderIds.add(o.ORDNAME);
-    groups.set(item.PARTNAME, g);
-  }));
-
-  return [...groups.entries()].map(([sku, g]) => ({
-    id: sku, name: g.name,
-    meta1: [sku, g.brand].filter(Boolean).join(' \u00B7 '),
-    meta2: `${g.orderIds.size} orders`,
-    revenue: g.revenue, orderCount: g.orderIds.size,
-  }));
+  return [...groups.entries()].map(([id, g]) => {
+    const lastDate = g.dates.length > 0 ? g.dates.reduce((a, b) => a > b ? a : b) : null;
+    return {
+      id, name: g.name,
+      meta1: `${g.customerIds.size} customers`,
+      meta2: `${g.orderCount} orders`,
+      revenue: g.revenue, orderCount: g.orderCount,
+      avgOrder: g.orderCount > 0 ? g.revenue / g.orderCount : 0,
+      marginPercent: g.revenue > 0 ? (g.profit / g.revenue) * 100 : 0,
+      marginAmount: g.profit,
+      frequency: periodMonths >= 1 ? g.orderCount / periodMonths : null,
+      lastOrderDate: lastDate,
+      rep: null, zone: null, customerType: null,
+    };
+  });
 }
