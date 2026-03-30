@@ -3,7 +3,7 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: SearchBox
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SearchBoxProps {
   value: string;
@@ -15,21 +15,25 @@ export function SearchBox({ value, onChange, placeholder }: SearchBoxProps) {
   // WHY: Internal state for responsive typing; debounced onChange avoids re-filtering on every keystroke
   const [localValue, setLocalValue] = useState(value);
 
+  // WHY: Store onChange in a ref so the debounce timer only restarts when localValue changes,
+  // not when the parent re-renders with a new function reference.
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   // WHY: Sync external value changes (e.g., reset on dimension switch)
   useEffect(() => {
     setLocalValue(value);
   }, [value]);
 
   useEffect(() => {
-    if (localValue === value) return; // No change
-    // WHY: Instant clear — spec 13.2 says clearing search should be immediate
+    if (localValue === value) return;
     if (!localValue) {
-      onChange('');
+      onChangeRef.current('');
       return;
     }
-    const timer = setTimeout(() => onChange(localValue), 300);
+    const timer = setTimeout(() => onChangeRef.current(localValue), 300);
     return () => clearTimeout(timer);
-  }, [localValue, onChange, value]);
+  }, [localValue, value]);
 
   return (
     <div className="flex h-[36px] items-center gap-[var(--spacing-md)] rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-xl)] py-[var(--spacing-base)] shadow-[var(--shadow-card)]">
