@@ -101,8 +101,8 @@ function buildOrderRows(orders: RawOrder[]): OrderRow[] {
       marginPercent: computeOrderMarginPct(o),
       marginAmount: (o.ORDERITEMS_SUBFORM ?? []).reduce((s, i) => s + i.QPROFIT, 0),
       status: (ORDER_STATUS_MAP[o.ORDSTATUSDES] ?? 'Processing') as OrderRow['status'],
-    }))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }));
+    // WHY: Client-side OrdersTable handles sorting — users can change direction
 }
 
 function computeOrderMarginPct(order: RawOrder): number {

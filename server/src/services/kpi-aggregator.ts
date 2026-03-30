@@ -25,13 +25,13 @@ export function computeKPIs(
 
   const now = new Date();
   const monthsInPeriod = period === 'ytd'
-    ? Math.max(1, now.getMonth() + 1)
+    ? Math.max(1, now.getUTCMonth() + 1)
     : 12;
 
-  // Quarter calculations
-  const currentQuarter = Math.floor(now.getMonth() / 3);
-  const qStart = new Date(now.getFullYear(), currentQuarter * 3, 1);
-  const prevQStart = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1);
+  // Quarter calculations — WHY: UTC consistency with monthly revenue (lines 93-94)
+  const currentQuarter = Math.floor(now.getUTCMonth() / 3);
+  const qStart = new Date(Date.UTC(now.getUTCFullYear(), currentQuarter * 3, 1));
+  const prevQStart = new Date(Date.UTC(now.getUTCFullYear(), (currentQuarter - 1) * 3, 1));
   const thisQuarterRevenue = orders
     .filter(o => new Date(o.CURDATE) >= qStart)
     .reduce((sum, o) => sum + o.TOTPRICE, 0);
@@ -106,8 +106,8 @@ export function computeSparklines(orders: RawOrder[]): Record<string, SparklineD
   const now = new Date();
   const months: number[] = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push(d.getFullYear() * 12 + d.getMonth());
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    months.push(d.getUTCFullYear() * 12 + d.getUTCMonth());
   }
 
   const revenueByMonth = new Map<number, number>();
