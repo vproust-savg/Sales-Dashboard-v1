@@ -3,7 +3,7 @@
 // USED BY: client/src/hooks/useDashboardState.ts
 // EXPORTS: useEntitySelection
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 export function useEntitySelection() {
   const [activeEntityId, setActiveEntityId] = useState<string | null>(null);
@@ -47,11 +47,13 @@ export function useEntitySelection() {
     setIsConsolidated(false);
   }, []);
 
+  // WHY: Without useMemo, [...selectedIds] creates a new array on every render,
+  // defeating React.memo on every downstream component that receives this prop.
+  const selectedIdsArray = useMemo(() => [...selectedIds], [selectedIds]);
+
   return {
     activeEntityId,
-    // WHY: Convert Set to array for easier consumption by components
-    // and for React's shallow comparison in memoization.
-    selectedIds: [...selectedIds],
+    selectedIds: selectedIdsArray,
     isConsolidated,
     selectEntity,
     toggleCheckbox,

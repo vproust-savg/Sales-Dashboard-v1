@@ -3,6 +3,8 @@
 // USED BY: KPICard.tsx
 // EXPORTS: Sparkline
 
+import { useId } from 'react';
+
 interface SparklineProps {
   data: number[];
   width?: number;
@@ -38,7 +40,8 @@ export function Sparkline({
   /* WHY area fill: spec 20.3 calls for gradient from color at 20% opacity to transparent */
   const areaPath = `${linePath} L${points[points.length - 1].x},${height} L${points[0].x},${height} Z`;
 
-  const gradientId = `sparkline-grad-${Math.random().toString(36).slice(2, 8)}`;
+  const id = useId();
+  const gradientId = `sparkline-grad-${id}`;
 
   return (
     <svg
