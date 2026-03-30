@@ -1,9 +1,13 @@
 // FILE: server/src/services/priority-client.ts
-// PURPOSE: HTTP client for Priority ERP OData API with auth, rate limiting, pagination, error parsing
+// PURPOSE: HTTP client for Priority ERP OData API with auth, rate limiting, pagination
 // USED BY: server/src/services/priority-queries.ts
 // EXPORTS: PriorityClient, PriorityApiError
 
 import { API_LIMITS, PAGE_SIZE } from '../config/constants.js';
+import { PriorityApiError, buildODataUrl, extractPriorityError } from './priority-http.js';
+
+// WHY: Re-export so callers can import PriorityApiError from the same module
+export { PriorityApiError } from './priority-http.js';
 
 interface FetchOptions {
   select: string;
@@ -29,17 +33,6 @@ interface ClientConfig {
   password: string;
 }
 
-export class PriorityApiError extends Error {
-  constructor(
-    message: string,
-    public statusCode: number,
-    public retryable: boolean,
-  ) {
-    super(message);
-    this.name = 'PriorityApiError';
-  }
-}
-
 export class PriorityClient {
   private baseUrl: string;
   private authHeader: string;
@@ -56,7 +49,7 @@ export class PriorityClient {
     opts: FetchOptions,
   ): Promise<T[]> {
     await this.throttle();
-    const url = this.buildUrl(entity, opts);
+    const url = buildODataUrl(this.baseUrl, entity, opts);
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -70,7 +63,7 @@ export class PriorityClient {
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
-      const message = this.extractError(body, response);
+      const message = extractPriorityError(body, response);
       const retryable = response.status === 429 || response.status >= 500;
       throw new PriorityApiError(message, response.status, retryable);
     }
@@ -129,47 +122,6 @@ export class PriorityClient {
     }
 
     return allRecords;
-  }
-
-  /** Build OData URL — spec Section 17.8 (URL encoding trap) */
-  private buildUrl(entity: string, opts: FetchOptions): string {
-    const params: string[] = [];
-    if (opts.select) params.push(`$select=${opts.select}`);
-    if (opts.filter) params.push(`$filter=${encodeURIComponent(opts.filter)}`);
-    if (opts.top !== undefined) params.push(`$top=${opts.top}`);
-    if (opts.skip !== undefined) params.push(`$skip=${opts.skip}`);
-    if (opts.orderby) params.push(`$orderby=${encodeURIComponent(opts.orderby)}`);
-
-    let url = `${this.baseUrl}/${entity}`;
-    if (params.length > 0) url += '?' + params.join('&');
-
-    // WHY: $expand contains nested OData syntax with ( ) $ = characters.
-    // URL.searchParams.set() would form-encode these, breaking Priority's parser.
-    // Append raw instead — these chars are valid per RFC 3986.
-    if (opts.expand) {
-      url += (params.length > 0 ? '&' : '?') + `$expand=${opts.expand}`;
-    }
-
-    return url;
-  }
-
-  /** Parse both Priority error formats — spec Section 17.7 */
-  private extractError(body: unknown, response: Response): string {
-    if (body && typeof body === 'object') {
-      const obj = body as Record<string, unknown>;
-      // Format 1: OData standard
-      if (obj.error && typeof obj.error === 'object') {
-        return (obj.error as Record<string, string>).message ?? `HTTP ${response.status}`;
-      }
-      // Format 2: Priority InterfaceErrors
-      if (obj.FORM && typeof obj.FORM === 'object') {
-        const form = obj.FORM as Record<string, unknown>;
-        if (form.InterfaceErrors && typeof form.InterfaceErrors === 'object') {
-          return (form.InterfaceErrors as Record<string, string>).text ?? `HTTP ${response.status}`;
-        }
-      }
-    }
-    return `HTTP ${response.status}: ${response.statusText}`;
   }
 
   /** Rate limiting — 100 calls/min — spec Section 17.5 */
