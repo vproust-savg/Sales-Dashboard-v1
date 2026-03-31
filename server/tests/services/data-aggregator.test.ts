@@ -14,12 +14,14 @@ function makeOrder(overrides: Partial<RawOrder> = {}): RawOrder {
     AGENTCODE: 'A01',
     AGENTDES: 'Sarah M.',
     ORDERITEMS_SUBFORM: [{
-      PARTDES: 'Widget A', PARTNAME: 'WGT-A', TQUANT: 100,
+      PARTDES: 'Widget A', PARTNAME: 'WGT-A', TQUANT: 100, TUNITNAME: 'ea',
       QPRICE: 5000, PRICE: 50, PURCHASEPRICE: 30, COST: 30,
       QPROFIT: 2000, PERCENT: 0,
       Y_1159_5_ESH: 'V01', Y_1530_5_ESH: 'Vendor One',
       Y_9952_5_ESH: 'BrandX', Y_3020_5_ESH: 'FAM1',
       Y_3021_5_ESH: 'Packaging', Y_17936_5_ESH: 'VP-001',
+      Y_2075_5_ESH: 'Family A', Y_5380_5_ESH: 'USA',
+      Y_9967_5_ESH: 'N',
     }],
     ...overrides,
   };
@@ -92,25 +94,25 @@ describe('aggregateOrders', () => {
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
-    expect(result.productMix).toHaveLength(2);
-    expect(result.productMix[0].category).toBe('Packaging');
-    expect(result.productMix[0].percentage).toBe(60);
+    expect(result.productMixes.productType).toHaveLength(2);
+    expect(result.productMixes.productType[0].category).toBe('Packaging');
+    expect(result.productMixes.productType[0].percentage).toBe(60);
   });
 
-  it('builds top 10 sellers ranked by revenue', () => {
-    const items = Array.from({ length: 15 }, (_, i) => ({
+  it('builds top 25 sellers ranked by revenue', () => {
+    const items = Array.from({ length: 30 }, (_, i) => ({
       ...makeOrder().ORDERITEMS_SUBFORM[0],
       PARTNAME: `SKU-${i}`,
       PARTDES: `Product ${i}`,
-      QPRICE: (15 - i) * 1000,
-      TQUANT: (15 - i) * 10,
+      QPRICE: (30 - i) * 1000,
+      TQUANT: (30 - i) * 10,
     }));
     const orders = [makeOrder({ ORDERITEMS_SUBFORM: items })];
     const result = aggregateOrders(orders, [], 'ytd');
-    expect(result.topSellers).toHaveLength(10);
+    expect(result.topSellers).toHaveLength(25);
     expect(result.topSellers[0].rank).toBe(1);
-    expect(result.topSellers[0].revenue).toBe(15000);
-    expect(result.topSellers[9].rank).toBe(10);
+    expect(result.topSellers[0].revenue).toBe(30000);
+    expect(result.topSellers[24].rank).toBe(25);
   });
 
   it('computes YoY revenue change percent', () => {
@@ -137,5 +139,75 @@ describe('aggregateOrders', () => {
     expect(result.orders[0].status).toBe('Delivered');
     expect(result.orders[1].status).toBe('Processing');
     expect(result.orders[2].status).toBe('Pending');
+  });
+
+  it('builds Food Service vs Retail mix from Y_9967_5_ESH', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_9967_5_ESH: 'Y', QPRICE: 7000 },
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_9967_5_ESH: 'N', QPRICE: 3000 },
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.productMixes.foodServiceRetail).toHaveLength(2);
+    expect(result.productMixes.foodServiceRetail[0].category).toBe('Retail');
+    expect(result.productMixes.foodServiceRetail[0].percentage).toBe(70);
+    expect(result.productMixes.foodServiceRetail[1].category).toBe('Food Service');
+  });
+
+  it('includes unit of measure from TUNITNAME in top sellers', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-A', TUNITNAME: 'cs', QPRICE: 5000 },
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-B', TUNITNAME: 'lb', QPRICE: 3000 },
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.topSellers[0].unit).toBe('cs');
+    expect(result.topSellers[1].unit).toBe('lb');
+  });
+
+  it('defaults unit to "units" when TUNITNAME is empty', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], TUNITNAME: '' },
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.topSellers[0].unit).toBe('units');
+  });
+
+  it('excludes zero-revenue items from top sellers', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-A', QPRICE: 5000 },
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-B', QPRICE: 0 },
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-C', QPRICE: -100 },
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.topSellers).toHaveLength(1);
+    expect(result.topSellers[0].sku).toBe('SKU-A');
+  });
+
+  it('returns all 5 product mix types', () => {
+    const orders = [makeOrder()];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(Object.keys(result.productMixes)).toEqual([
+      'productType', 'productFamily', 'brand', 'countryOfOrigin', 'foodServiceRetail',
+    ]);
+  });
+
+  it('excludes zero-value segments from product mix', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Packaging', QPRICE: 5000 },
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Equipment', QPRICE: 0 },
+        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Consumables', QPRICE: -100 },
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.productMixes.productType).toHaveLength(1);
+    expect(result.productMixes.productType[0].category).toBe('Packaging');
   });
 });
