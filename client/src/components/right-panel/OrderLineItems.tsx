@@ -17,7 +17,7 @@ const COLUMNS = ['SKU', 'Product', 'Qty', 'Unit Price', 'Line Total'] as const;
 export function OrderLineItems({ items }: OrderLineItemsProps) {
   if (items.length === 0) {
     return (
-      <div className="mx-[var(--spacing-3xl)] my-[var(--spacing-md)] rounded-[var(--radius-base)] bg-[var(--color-bg-card)] border-l-[3px] border-l-[var(--color-gold-primary)] py-[var(--spacing-base)] pl-[var(--spacing-3xl)]">
+      <div className="my-[var(--spacing-md)] bg-[var(--color-bg-card)] border-l-[3px] border-l-[var(--color-gold-primary)] py-[var(--spacing-base)] pl-[var(--spacing-3xl)]">
         <span className="text-[12px] text-[var(--color-text-muted)]">
           No line item details available.
         </span>
@@ -26,7 +26,7 @@ export function OrderLineItems({ items }: OrderLineItemsProps) {
   }
 
   return (
-    <div className="mx-[var(--spacing-3xl)] my-[var(--spacing-md)] rounded-[var(--radius-base)] bg-[var(--color-bg-card)] border-l-[3px] border-l-[var(--color-gold-primary)] shadow-[var(--shadow-card)] overflow-x-auto">
+    <div className="my-[var(--spacing-md)] bg-[var(--color-bg-card)] border-l-[3px] border-l-[var(--color-gold-primary)] overflow-x-auto">
       <table className="w-full min-w-[600px] border-collapse">
         <thead>
           <tr>
