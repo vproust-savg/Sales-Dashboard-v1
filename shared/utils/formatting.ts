@@ -47,8 +47,8 @@ export function formatFrequency(value: number | null): string {
 export function formatDays(value: number | null): string {
   if (value === null) return 'No orders';
   if (value === 0) return 'Today';
-  if (value === 1) return '1 day';
-  return `${value} days`;
+  if (value === 1) return '1 day ago';
+  return `${value} days ago`;
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

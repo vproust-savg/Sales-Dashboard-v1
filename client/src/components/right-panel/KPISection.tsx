@@ -128,7 +128,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
         {/* 6. Last Order — activity status dot per spec 10.3 */}
         <KPICard
           label="Last Order"
-          periodLabel={pLabel}
+          periodLabel=""
           value={kpis.lastOrderDays ?? 0}
           formatter={(n) => kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(n))}
           statusDot={activity}
