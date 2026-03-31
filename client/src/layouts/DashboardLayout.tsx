@@ -1,35 +1,30 @@
 // FILE: client/src/layouts/DashboardLayout.tsx
-// PURPOSE: Master-detail layout — left panel (280px) + right panel (flex:1), loading/error states
+// PURPOSE: Master-detail layout — left panel (280px) + right panel (flex:1), two-stage loading
 // USED BY: client/src/App.tsx
 // EXPORTS: DashboardLayout
 
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { DashboardPayload, Contact, Dimension, Period } from '@shared/types/dashboard';
+import type { DashboardPayload, EntityListItem, Contact, Dimension, Period } from '@shared/types/dashboard';
 import type { FilterCondition } from '../hooks/useFilters';
 import type { SortField, SortDirection } from '../hooks/useSort';
+import type { ApiResponse } from '@shared/types/api-responses';
 import { LeftPanel } from '../components/left-panel/LeftPanel';
 import { RightPanel } from '../components/right-panel/RightPanel';
+import { LoadingModal } from '../components/shared/LoadingModal';
 import { Skeleton } from '../components/shared/Skeleton';
 import { useExport } from '../hooks/useExport';
 
-interface DashboardMeta {
-  cached: boolean;
-  cachedAt: string | null;
-  period: string;
-  dimension: string;
-  entityCount: number;
-}
-
 export interface DashboardLayoutProps {
-  // Data
   dashboard: DashboardPayload | null;
+  entities: EntityListItem[];
   contacts: Contact[];
   isLoading: boolean;
+  isDetailLoading: boolean;
+  loadingStage: string | null;
   error: string | null;
-  meta: DashboardMeta | null;
-
-  // State
+  meta: ApiResponse<unknown>['meta'] | null;
+  yearsAvailable: string[];
   activeDimension: Dimension;
   activePeriod: Period;
   activeEntityId: string | null;
@@ -40,8 +35,6 @@ export interface DashboardLayoutProps {
   filterCount: number;
   sortField: SortField;
   sortDirection: SortDirection;
-
-  // Actions
   switchDimension: (dim: Dimension) => void;
   switchPeriod: (period: Period) => void;
   selectEntity: (id: string) => void;
@@ -59,8 +52,8 @@ export interface DashboardLayoutProps {
 
 export function DashboardLayout(props: DashboardLayoutProps) {
   const {
-    dashboard, contacts, isLoading, error,
-    activeDimension, activePeriod, activeEntityId, selectedEntityIds,
+    dashboard, entities, contacts, isLoading, isDetailLoading, loadingStage, error,
+    activeDimension, activePeriod, activeEntityId, selectedEntityIds, yearsAvailable,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection,
     switchDimension, switchPeriod, selectEntity, toggleCheckbox,
@@ -69,43 +62,39 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     setSort,
   } = props;
 
-  // WHY: Auto-select first entity when data loads and nothing is selected
   useEffect(() => {
-    if (dashboard?.entities.length && !activeEntityId) {
-      selectEntity(dashboard.entities[0].id);
-    }
-  }, [dashboard?.entities, activeEntityId, selectEntity]);
+    if (entities.length > 0 && !activeEntityId) selectEntity(entities[0].id);
+  }, [entities, activeEntityId, selectEntity]);
 
-  // WHY: useExport called before early returns to satisfy React hook ordering rules
   const exportData = dashboard && activeEntityId ? {
-    entityName: dashboard.entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
-    period: activePeriod,
-    kpis: dashboard.kpis,
-    orders: dashboard.orders,
-    items: dashboard.items,
+    entityName: entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
+    period: activePeriod, kpis: dashboard.kpis, orders: dashboard.orders, items: dashboard.items,
   } : null;
   const { exportCsv } = useExport(exportData);
 
-  // --- Loading state ---
-  if (isLoading && !dashboard) {
+
+  if (isLoading && entities.length === 0) {
     return (
-      <div
-        className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)]"
-        role="application"
-        aria-label="Sales Dashboard"
-      >
-        <div className="w-[280px] shrink-0">
-          <Skeleton variant="left-panel" />
+      <>
+        <LoadingModal stage={loadingStage} />
+        <div
+          className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)]"
+          role="application"
+          aria-label="Sales Dashboard"
+        >
+          <div className="w-[280px] shrink-0">
+            <Skeleton variant="left-panel" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <Skeleton variant="right-panel" />
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <Skeleton variant="right-panel" />
-        </div>
-      </div>
+      </>
     );
   }
 
   // --- Error state ---
-  if (error && !dashboard) {
+  if (error && entities.length === 0) {
     return (
       <div
         className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] items-center justify-center p-[var(--spacing-2xl)]"
@@ -120,80 +109,91 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     );
   }
 
-  if (!dashboard) return null;
-
-  const activeEntity = dashboard.entities.find(e => e.id === activeEntityId) ?? null;
-  /** WHY: totalCount before filtering — useDashboardState may have filtered the list,
-   *  but EntityList header needs the original count for "12 of 45" display. */
-  const totalCount = dashboard.entities.length;
-
-  /** WHY: sortActive is true when sort is NOT the default (revenue desc) */
+  const activeEntity = entities.find(e => e.id === activeEntityId) ?? null;
+  const totalCount = entities.length;
   const sortActive = sortField !== 'revenue' || sortDirection !== 'desc';
 
   return (
-    <div
-      className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto"
-      role="application"
-      aria-label="Sales Dashboard"
-    >
-      <div className="flex w-[280px] shrink-0 flex-col gap-[var(--spacing-base)] max-lg:w-full">
-        <LeftPanel
-          entities={dashboard.entities}
-          activeDimension={activeDimension}
-          activeEntityId={activeEntityId}
-          selectedEntityIds={selectedEntityIds}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          filterOpen={filterOpen}
-          filterCount={filterCount}
-          filterConditions={filterConditions}
-          onFilterToggle={toggleFilterPanel}
-          onAddCondition={addCondition}
-          onUpdateCondition={updateCondition}
-          onRemoveCondition={removeCondition}
-          onClearFilters={clearFilters}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          sortActive={sortActive}
-          onSort={setSort}
-          totalCount={totalCount}
-          onDimensionChange={switchDimension}
-          onEntitySelect={selectEntity}
-          onEntityCheck={toggleCheckbox}
-          onClearSelection={clearSelection}
-          onViewConsolidated={viewConsolidated}
-        />
-      </div>
+    <>
+      {/* WHY: Show loading modal when fetching detail data for a selected entity */}
+      <LoadingModal stage={isDetailLoading ? loadingStage : null} />
 
-      <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)] max-lg:pr-0">
-        {/* WHY AnimatePresence: fade out/in right panel when active entity changes per spec 21.1 */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeEntityId ?? 'none'}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="flex flex-col gap-[var(--spacing-base)]"
-          >
-            <RightPanel
-              entity={activeEntity}
-              kpis={dashboard.kpis}
-              monthlyRevenue={dashboard.monthlyRevenue}
-              productMix={dashboard.productMix}
-              topSellers={dashboard.topSellers}
-              sparklines={dashboard.sparklines}
-              orders={dashboard.orders}
-              items={dashboard.items}
-              contacts={contacts}
-              yearsAvailable={dashboard.yearsAvailable}
-              activePeriod={activePeriod}
-              onPeriodChange={switchPeriod}
-              onExport={exportCsv}
-            />
-          </motion.div>
-        </AnimatePresence>
+      <div
+        className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto"
+        role="application"
+        aria-label="Sales Dashboard"
+      >
+        <div className="flex w-[280px] shrink-0 flex-col gap-[var(--spacing-base)] max-lg:w-full">
+          <LeftPanel
+            entities={entities}
+            activeDimension={activeDimension}
+            activeEntityId={activeEntityId}
+            selectedEntityIds={selectedEntityIds}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            filterOpen={filterOpen}
+            filterCount={filterCount}
+            filterConditions={filterConditions}
+            onFilterToggle={toggleFilterPanel}
+            onAddCondition={addCondition}
+            onUpdateCondition={updateCondition}
+            onRemoveCondition={removeCondition}
+            onClearFilters={clearFilters}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            sortActive={sortActive}
+            onSort={setSort}
+            totalCount={totalCount}
+            onDimensionChange={switchDimension}
+            onEntitySelect={selectEntity}
+            onEntityCheck={toggleCheckbox}
+            onClearSelection={clearSelection}
+            onViewConsolidated={viewConsolidated}
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)] max-lg:pr-0">
+          <AnimatePresence mode="wait">
+            {dashboard ? (
+              <motion.div
+                key={activeEntityId ?? 'none'}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex flex-col gap-[var(--spacing-base)]"
+              >
+                <RightPanel
+                  entity={activeEntity}
+                  kpis={dashboard.kpis}
+                  monthlyRevenue={dashboard.monthlyRevenue}
+                  productMix={dashboard.productMix}
+                  topSellers={dashboard.topSellers}
+                  sparklines={dashboard.sparklines}
+                  orders={dashboard.orders}
+                  items={dashboard.items}
+                  contacts={contacts}
+                  yearsAvailable={yearsAvailable}
+                  activePeriod={activePeriod}
+                  onPeriodChange={switchPeriod}
+                  onExport={exportCsv}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="placeholder"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-1 items-center justify-center"
+              >
+                <p className="text-[14px] text-[var(--color-text-muted)]">
+                  Select a customer to view details
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

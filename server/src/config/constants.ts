@@ -23,8 +23,10 @@ export const CACHE_TTLS = {
   zones: 24 * 60 * 60,       // 24 hours
   agents: 60 * 60,           // 1 hour
   vendors: 24 * 60 * 60,     // 24 hours
-  contacts: 30 * 60,         // 30 min
-  years_available: 60 * 60,  // 1 hour
+  contacts: 30 * 60,              // 30 min
+  years_available: 60 * 60,       // 1 hour
+  entities_summary: 15 * 60,      // 15 min — lightweight left-panel list
+  entity_detail: 10 * 60,         // 10 min — per-entity dashboard detail
 } as const;
 
 /** Priority ORDERS fields — spec Section 18.1 */

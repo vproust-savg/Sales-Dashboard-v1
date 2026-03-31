@@ -25,7 +25,7 @@ export const dashboardRouter = Router();
 
 dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, next) => {
   try {
-    const { groupBy, period } = res.locals.query as z.infer<typeof querySchema>;
+    const { groupBy, period, entityId } = res.locals.query as z.infer<typeof querySchema>;
     const now = new Date();
     const year = period === 'ytd' ? now.getFullYear() : parseInt(period, 10);
 
@@ -35,13 +35,33 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
 
-    // Fetch all data in parallel, with caching
+    // WHY: When entityId is provided, fetch only that entity's orders (10-100 rows vs 5000+).
+    // This makes per-entity detail fast while background warm handles the full list.
+    const entityFilter = entityId && groupBy === 'customer'
+      ? `CUSTNAME eq '${entityId.replace(/'/g, "''")}'`
+      : undefined;
+
+    // WHY: Per-entity requests use a separate cache key with shorter TTL so detail data stays fresh.
+    const detailKey = entityId
+      ? cacheKey('entity_detail', period, `${groupBy}:${entityId}`)
+      : undefined;
     const cacheEntityType = period === 'ytd' ? 'orders_ytd' : 'orders_year';
+
+    // Fetch all data in parallel, with caching
     const [ordersResult, prevOrdersResult, customersResult] = await Promise.all([
-      cachedFetch(cacheKey(cacheEntityType, period), getTTL(cacheEntityType),
-        () => fetchOrders(priorityClient, startDate, endDate, true)),
-      cachedFetch(cacheKey('orders_year', String(year - 1)), getTTL('orders_year'),
-        () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false)),
+      detailKey
+        ? cachedFetch(detailKey, getTTL('entity_detail'),
+            () => fetchOrders(priorityClient, startDate, endDate, true, entityFilter))
+        : cachedFetch(cacheKey(cacheEntityType, period), getTTL(cacheEntityType),
+            () => fetchOrders(priorityClient, startDate, endDate, true)),
+      // WHY: When entityId is provided, prev-year orders are also entity-scoped.
+      // Use a separate cache key to avoid corrupting the global prev-year cache.
+      entityId
+        ? cachedFetch(cacheKey('entity_detail', String(year - 1), `${groupBy}:${entityId}:prev`),
+            getTTL('entity_detail'),
+            () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, entityFilter))
+        : cachedFetch(cacheKey('orders_year', String(year - 1)), getTTL('orders_year'),
+            () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false)),
       cachedFetch(cacheKey('customers', 'all'), getTTL('customers'),
         () => fetchCustomers(priorityClient)),
     ]);

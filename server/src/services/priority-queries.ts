@@ -84,9 +84,13 @@ export async function fetchOrders(
   startDate: string,
   endDate: string,
   isCurrentPeriod: boolean,
+  extraFilter?: string,
 ): Promise<RawOrder[]> {
   const statusExclude = EXCLUDED_STATUSES.map(s => `ORDSTATUSDES ne '${s}'`).join(' and ');
-  const dateFilter = `CURDATE ge ${startDate} and CURDATE lt ${endDate} and ${statusExclude}`;
+  // WHY: extraFilter lets callers narrow by entity (e.g., CUSTNAME eq 'C7826') without
+  // duplicating the entire query construction logic.
+  const dateFilter = `CURDATE ge ${startDate} and CURDATE lt ${endDate} and ${statusExclude}`
+    + (extraFilter ? ` and ${extraFilter}` : '');
   const itemFields = isCurrentPeriod ? ORDERITEM_SELECT : ORDERITEM_SELECT_PREV;
 
   return client.fetchAllPages<RawOrder>('ORDERS', {

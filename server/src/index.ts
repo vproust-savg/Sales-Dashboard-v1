@@ -9,9 +9,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
 import { dashboardRouter } from './routes/dashboard.js';
+import { entitiesRouter } from './routes/entities.js';
 import { contactsRouter } from './routes/contacts.js';
 import { healthRouter } from './routes/health.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { warmEntityCache } from './services/warm-cache.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +37,7 @@ app.use(cors({
 }));
 
 // API routes
+app.use('/api/sales', entitiesRouter);
 app.use('/api/sales', dashboardRouter);
 app.use('/api/sales', contactsRouter);
 app.use('/api', healthRouter);
@@ -56,4 +59,10 @@ app.use(errorHandler);
 // Start server
 app.listen(env.PORT, () => {
   console.log(`[server] listening on port ${env.PORT} (${env.NODE_ENV})`);
+
+  // WHY: Warm cache runs in background after server starts accepting requests.
+  // Failures are logged but don't crash the server.
+  warmEntityCache().catch(err => {
+    console.error('[warm-cache] Background warm failed:', err);
+  });
 });

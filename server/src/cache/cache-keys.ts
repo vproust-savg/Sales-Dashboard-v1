@@ -5,7 +5,7 @@
 
 import { CACHE_TTLS } from '../config/constants.js';
 
-type CacheEntity = 'orders_ytd' | 'orders_year' | 'customers' | 'zones' | 'agents' | 'vendors' | 'contacts' | 'years_available';
+type CacheEntity = 'orders_ytd' | 'orders_year' | 'customers' | 'zones' | 'agents' | 'vendors' | 'contacts' | 'years_available' | 'entities_summary' | 'entity_detail';
 
 /** Build a cache key: dashboard:{entity}:{period}:{qualifier} */
 export function cacheKey(entity: CacheEntity, period: string, qualifier = ''): string {

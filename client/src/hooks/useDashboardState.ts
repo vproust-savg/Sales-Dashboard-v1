@@ -1,10 +1,10 @@
 // FILE: client/src/hooks/useDashboardState.ts
-// PURPOSE: Combines all state hooks + server data into one prop bundle for DashboardLayout
+// PURPOSE: Combines all state hooks + two-stage server data into one prop bundle for DashboardLayout
 // USED BY: client/src/App.tsx
 // EXPORTS: useDashboardState
 
 import { useCallback, useMemo } from 'react';
-import { useDashboardData } from './useDashboardData';
+import { useEntities, useDashboardDetail } from './useDashboardData';
 import { useContacts } from './useContacts';
 import { useDimension } from './useDimension';
 import { usePeriod } from './usePeriod';
@@ -44,25 +44,30 @@ export function useDashboardState() {
     resetSort();
   }, [rawSwitchDimension, resetSelection, resetSearch, clearFilters, resetSort]);
 
-  // --- Server data ---
-  const { data: response, isLoading, error } = useDashboardData({
+  // --- Stage 1: Lightweight entity list (fast — no orders needed) ---
+  const entitiesQuery = useEntities({
     groupBy: activeDimension,
     period: activePeriod,
   });
-  const dashboard = response?.data ?? null;
-  const meta = response?.meta ?? null;
+  const entitiesData = entitiesQuery.data?.data ?? null;
+
+  // --- Stage 2: Full detail for selected entity (on-demand) ---
+  const detailQuery = useDashboardDetail({
+    entityId: activeEntityId,
+    groupBy: activeDimension,
+    period: activePeriod,
+  });
+  const dashboard = detailQuery.data?.data ?? null;
+  const meta = detailQuery.data?.meta ?? entitiesQuery.data?.meta ?? null;
 
   // WHY: Contacts only load for the customer dimension when the Contacts tab is active.
-  // The tab-active flag will be wired in Task 6; for now we enable when dimension is customer.
   const contactsQuery = useContacts(activeEntityId, activeDimension === 'customer');
 
   // --- Client-side pipeline: search -> filter -> sort (spec Section 6) ---
   const processedEntities = useMemo(() => {
-    if (!dashboard) return [];
-    let entities = dashboard.entities;
+    if (!entitiesData) return [];
+    let entities = entitiesData.entities;
     if (searchTerm) entities = searchEntities(entities, searchTerm);
-    // WHY: Hook conditions have field: string | '', engine expects FilterField.
-    // Filter out incomplete conditions and narrow the type.
     const complete = conditions.filter(
       (c): c is typeof c & { field: FilterField; operator: FilterOperator } =>
         c.field !== '' && c.operator !== '',
@@ -70,7 +75,7 @@ export function useDashboardState() {
     if (complete.length > 0) entities = filterEntities(entities, complete);
     entities = sortEntities(entities, sortField, sortDirection);
     return entities;
-  }, [dashboard, searchTerm, conditions, sortField, sortDirection]);
+  }, [entitiesData, searchTerm, conditions, sortField, sortDirection]);
 
   // --- Consolidated view aggregation (spec Section 10.5) ---
   const finalDashboard = useMemo(() => {
@@ -82,14 +87,25 @@ export function useDashboardState() {
     return { ...dashboard, entities: processedEntities };
   }, [dashboard, isConsolidated, selectedIds, processedEntities]);
 
+  // --- Loading stage for progress modal ---
+  const loadingStage = entitiesQuery.isLoading
+    ? 'Loading customers...'
+    : detailQuery.isLoading
+      ? 'Loading dashboard data...'
+      : null;
+
   // --- Return flat props object for DashboardLayout ---
   return {
     // Data
     dashboard: finalDashboard,
+    entities: processedEntities,
     contacts: contactsQuery.data ?? [],
-    isLoading,
-    error: error?.message ?? null,
+    isLoading: entitiesQuery.isLoading,
+    isDetailLoading: detailQuery.isLoading,
+    loadingStage,
+    error: entitiesQuery.error?.message ?? detailQuery.error?.message ?? null,
     meta,
+    yearsAvailable: entitiesData?.yearsAvailable ?? dashboard?.yearsAvailable ?? [],
 
     // State
     activeDimension,
