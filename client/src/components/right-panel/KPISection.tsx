@@ -29,6 +29,11 @@ function getActivityStatus(days: number | null): { color: string; label: string 
   return { color: 'var(--color-red)', label: 'At risk' };
 }
 
+/** WHY: YoY percent change — null when no prev year data to avoid division by zero */
+function yoyChange(current: number, prevYear: number): number | null {
+  return prevYear > 0 ? ((current - prevYear) / prevYear) * 100 : null;
+}
+
 export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, activePeriod }: KPISectionProps) {
   const activity = getActivityStatus(kpis.lastOrderDays);
   const pLabel = activePeriod === 'ytd' ? '(YTD)' : `(${activePeriod})`;
@@ -52,6 +57,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.orders}
           formatter={(n) => Math.round(n).toLocaleString('en-US')}
           prevYearValue={Math.round(ob.prevYear).toLocaleString('en-US')}
+          changePercent={yoyChange(kpis.orders, ob.prevYear)}
           subItems={[
             { label: 'This Quarter', value: Math.round(ob.thisQuarter).toLocaleString('en-US') },
             { label: 'Last Month', value: Math.round(ob.lastMonth).toLocaleString('en-US'), suffix: ob.lastMonthName },
@@ -66,6 +72,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.avgOrder ?? 0}
           formatter={(n) => kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(n))}
           prevYearValue={ab.prevYear > 0 ? formatCurrency(Math.round(ab.prevYear)) : '\u2014'}
+          changePercent={yoyChange(kpis.avgOrder ?? 0, ab.prevYear)}
           subItems={[
             { label: 'This Quarter', value: ab.thisQuarter > 0 ? formatCurrency(Math.round(ab.thisQuarter)) : '\u2014' },
             { label: 'Last Month', value: ab.lastMonth > 0 ? formatCurrency(Math.round(ab.lastMonth)) : '\u2014', suffix: ab.lastMonthName },
@@ -80,6 +87,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.marginPercent ?? 0}
           formatter={(n) => kpis.marginPercent === null ? '\u2014' : formatPercent(n)}
           prevYearValue={mpb.prevYear > 0 ? formatPercent(mpb.prevYear) : '\u2014'}
+          changePercent={yoyChange(kpis.marginPercent ?? 0, mpb.prevYear)}
           subItems={[
             { label: 'This Quarter', value: mpb.thisQuarter > 0 ? formatPercent(mpb.thisQuarter) : '\u2014' },
             { label: 'Last Month', value: mpb.lastMonth > 0 ? formatPercent(mpb.lastMonth) : '\u2014', suffix: mpb.lastMonthName },
@@ -94,6 +102,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.marginAmount}
           formatter={(n) => formatCurrency(Math.round(n))}
           prevYearValue={formatCurrency(Math.round(mab.prevYear))}
+          changePercent={yoyChange(kpis.marginAmount, mab.prevYear)}
           subItems={[
             { label: 'This Quarter', value: formatCurrency(Math.round(mab.thisQuarter)) },
             { label: 'Last Month', value: formatCurrency(Math.round(mab.lastMonth)), suffix: mab.lastMonthName },
@@ -108,6 +117,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.frequency ?? 0}
           formatter={(n) => kpis.frequency === null ? '\u2014' : formatFrequency(n)}
           prevYearValue={fb.prevYear > 0 ? formatFrequency(fb.prevYear) : '\u2014'}
+          changePercent={yoyChange(kpis.frequency ?? 0, fb.prevYear)}
           subItems={[
             { label: 'This Quarter', value: fb.thisQuarter > 0 ? formatFrequency(fb.thisQuarter) : '\u2014' },
             { label: 'Last Month', value: Math.round(fb.lastMonth).toLocaleString('en-US'), suffix: fb.lastMonthName },

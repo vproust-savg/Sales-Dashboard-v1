@@ -17,13 +17,15 @@ interface KPICardProps {
   value: number;
   formatter: (n: number) => string;
   prevYearValue?: string;
+  /** YoY change line — e.g. "-22.4% vs same period last year" */
+  changePercent?: number | null;
   subItems?: KPISubItem[];
   /** WHY statusDot: Last Order card shows activity status dot per spec 10.3 */
   statusDot?: { color: string; label: string };
 }
 
 export function KPICard({
-  label, periodLabel, value, formatter, prevYearValue, subItems, statusDot,
+  label, periodLabel, value, formatter, prevYearValue, changePercent, subItems, statusDot,
 }: KPICardProps) {
   return (
     <div
@@ -38,6 +40,14 @@ export function KPICard({
           <span className="mt-[var(--spacing-2xs)] text-[17px] font-bold text-[var(--color-text-primary)]">
             <AnimatedNumber value={value} formatter={formatter} />
           </span>
+          {changePercent !== undefined && changePercent !== null && (
+            <span
+              className="text-[9px] font-medium"
+              style={{ color: changePercent >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}
+            >
+              {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}% vs same period last year
+            </span>
+          )}
           {statusDot && (
             <span className="mt-[var(--spacing-2xs)] text-[10px] font-medium">
               <span style={{ color: statusDot.color }}>&#9679;</span>{' '}
