@@ -1,7 +1,31 @@
 // FILE: server/tests/services/data-aggregator.test.ts
 import { describe, it, expect } from 'vitest';
 import { aggregateOrders } from '../../src/services/data-aggregator';
-import type { RawOrder } from '../../src/services/priority-queries';
+import type { RawOrder, RawOrderItem } from '../../src/services/priority-queries';
+
+function makeItem(overrides: Partial<RawOrderItem> = {}): RawOrderItem {
+  return {
+    PDES: 'Widget A',
+    PARTNAME: 'WGT-A',
+    TQUANT: 100,
+    TUNITNAME: 'ea',
+    QPRICE: 5000,
+    PRICE: 50,
+    PURCHASEPRICE: 30,
+    QPROFIT: 2000,
+    PERCENT: 40,
+    Y_1159_5_ESH: 'V01',
+    Y_1530_5_ESH: 'Vendor One',
+    Y_9952_5_ESH: 'BrandX',
+    Y_3020_5_ESH: 'FAM1',
+    Y_3021_5_ESH: 'Packaging',
+    Y_17936_5_ESH: 'VP-001',
+    Y_2075_5_ESH: 'Family A',
+    Y_5380_5_ESH: 'USA',
+    Y_9967_5_ESH: 'N',
+    ...overrides,
+  };
+}
 
 function makeOrder(overrides: Partial<RawOrder> = {}): RawOrder {
   return {
@@ -10,19 +34,9 @@ function makeOrder(overrides: Partial<RawOrder> = {}): RawOrder {
     ORDSTATUSDES: 'Closed',
     TOTPRICE: 10000,
     CUSTNAME: 'C001',
-    CUSTDES: 'Acme Corp',
     AGENTCODE: 'A01',
-    AGENTDES: 'Sarah M.',
-    ORDERITEMS_SUBFORM: [{
-      PARTDES: 'Widget A', PARTNAME: 'WGT-A', TQUANT: 100, TUNITNAME: 'ea',
-      QPRICE: 5000, PRICE: 50, PURCHASEPRICE: 30, COST: 30,
-      QPROFIT: 2000, PERCENT: 0,
-      Y_1159_5_ESH: 'V01', Y_1530_5_ESH: 'Vendor One',
-      Y_9952_5_ESH: 'BrandX', Y_3020_5_ESH: 'FAM1',
-      Y_3021_5_ESH: 'Packaging', Y_17936_5_ESH: 'VP-001',
-      Y_2075_5_ESH: 'Family A', Y_5380_5_ESH: 'USA',
-      Y_9967_5_ESH: 'N',
-    }],
+    AGENTNAME: 'Sarah M.',
+    ORDERITEMS_SUBFORM: [makeItem()],
     ...overrides,
   };
 }
@@ -61,8 +75,8 @@ describe('aggregateOrders', () => {
     const orders = [makeOrder({
       ORDNAME: 'O1',
       ORDERITEMS_SUBFORM: [
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], QPROFIT: 2000, QPRICE: 5000 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], QPROFIT: 1000, QPRICE: 3000 },
+        makeItem({ QPROFIT: 2000, QPRICE: 5000 }),
+        makeItem({ QPROFIT: 1000, QPRICE: 3000 }),
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
@@ -89,8 +103,8 @@ describe('aggregateOrders', () => {
   it('builds product mix from Y_3021_5_ESH (family type name)', () => {
     const orders = [makeOrder({
       ORDERITEMS_SUBFORM: [
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Packaging', QPRICE: 6000 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Equipment', QPRICE: 4000 },
+        makeItem({ Y_3021_5_ESH: 'Packaging', QPRICE: 6000 }),
+        makeItem({ Y_3021_5_ESH: 'Equipment', QPRICE: 4000 }),
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
@@ -100,13 +114,14 @@ describe('aggregateOrders', () => {
   });
 
   it('builds top 25 sellers ranked by revenue', () => {
-    const items = Array.from({ length: 30 }, (_, i) => ({
-      ...makeOrder().ORDERITEMS_SUBFORM[0],
-      PARTNAME: `SKU-${i}`,
-      PARTDES: `Product ${i}`,
-      QPRICE: (30 - i) * 1000,
-      TQUANT: (30 - i) * 10,
-    }));
+    const items = Array.from({ length: 30 }, (_, i) =>
+      makeItem({
+        PARTNAME: `SKU-${i}`,
+        PDES: `Product ${i}`,
+        QPRICE: (30 - i) * 1000,
+        TQUANT: (30 - i) * 10,
+      }),
+    );
     const orders = [makeOrder({ ORDERITEMS_SUBFORM: items })];
     const result = aggregateOrders(orders, [], 'ytd');
     expect(result.topSellers).toHaveLength(25);
@@ -144,8 +159,8 @@ describe('aggregateOrders', () => {
   it('builds Food Service vs Retail mix from Y_9967_5_ESH', () => {
     const orders = [makeOrder({
       ORDERITEMS_SUBFORM: [
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_9967_5_ESH: 'Y', QPRICE: 7000 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_9967_5_ESH: 'N', QPRICE: 3000 },
+        makeItem({ Y_9967_5_ESH: 'Y', QPRICE: 7000 }),
+        makeItem({ Y_9967_5_ESH: 'N', QPRICE: 3000 }),
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
@@ -158,8 +173,8 @@ describe('aggregateOrders', () => {
   it('includes unit of measure from TUNITNAME in top sellers', () => {
     const orders = [makeOrder({
       ORDERITEMS_SUBFORM: [
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-A', TUNITNAME: 'cs', QPRICE: 5000 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-B', TUNITNAME: 'lb', QPRICE: 3000 },
+        makeItem({ PARTNAME: 'SKU-A', TUNITNAME: 'cs', QPRICE: 5000 }),
+        makeItem({ PARTNAME: 'SKU-B', TUNITNAME: 'lb', QPRICE: 3000 }),
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
@@ -170,7 +185,7 @@ describe('aggregateOrders', () => {
   it('defaults unit to "units" when TUNITNAME is empty', () => {
     const orders = [makeOrder({
       ORDERITEMS_SUBFORM: [
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], TUNITNAME: '' },
+        makeItem({ TUNITNAME: '' }),
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
@@ -180,9 +195,9 @@ describe('aggregateOrders', () => {
   it('excludes zero-revenue items from top sellers', () => {
     const orders = [makeOrder({
       ORDERITEMS_SUBFORM: [
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-A', QPRICE: 5000 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-B', QPRICE: 0 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], PARTNAME: 'SKU-C', QPRICE: -100 },
+        makeItem({ PARTNAME: 'SKU-A', QPRICE: 5000 }),
+        makeItem({ PARTNAME: 'SKU-B', QPRICE: 0 }),
+        makeItem({ PARTNAME: 'SKU-C', QPRICE: -100 }),
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
@@ -201,9 +216,9 @@ describe('aggregateOrders', () => {
   it('excludes zero-value segments from product mix', () => {
     const orders = [makeOrder({
       ORDERITEMS_SUBFORM: [
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Packaging', QPRICE: 5000 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Equipment', QPRICE: 0 },
-        { ...makeOrder().ORDERITEMS_SUBFORM[0], Y_3021_5_ESH: 'Consumables', QPRICE: -100 },
+        makeItem({ Y_3021_5_ESH: 'Packaging', QPRICE: 5000 }),
+        makeItem({ Y_3021_5_ESH: 'Equipment', QPRICE: 0 }),
+        makeItem({ Y_3021_5_ESH: 'Consumables', QPRICE: -100 }),
       ],
     })];
     const result = aggregateOrders(orders, [], 'ytd');
