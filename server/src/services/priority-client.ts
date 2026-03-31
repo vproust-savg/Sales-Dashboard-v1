@@ -25,6 +25,7 @@ interface PaginateOptions {
   expand?: string;
   pageSize?: number;
   cursorField?: string;
+  onProgress?: (rowsFetched: number, estimatedTotal: number) => void;
 }
 
 interface ClientConfig {
@@ -107,6 +108,13 @@ export class PriorityClient {
       }
 
       allRecords.push(...batch);
+
+      // WHY: Report progress after each batch for SSE streaming
+      if (opts.onProgress) {
+        const hasMore = batch.length > 0 && batch.length % pageSize === 0 && batch.length >= pageSize;
+        const estimated = hasMore ? allRecords.length + pageSize : allRecords.length;
+        opts.onProgress(allRecords.length, estimated);
+      }
 
       // If batch hit MAXAPILINES, continue with cursor from last record
       if (batch.length > 0 && batch.length % pageSize === 0 && batch.length >= pageSize) {
