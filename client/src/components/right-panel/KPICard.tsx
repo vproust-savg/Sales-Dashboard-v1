@@ -1,8 +1,10 @@
 // FILE: client/src/components/right-panel/KPICard.tsx
-// PURPOSE: Individual KPI card with label (YTD), animated value, prev year, and sub-items row
+// PURPOSE: Individual KPI card with label (YTD), animated value, prev year, and expandable sub-items
 // USED BY: KPISection.tsx
 // EXPORTS: KPICard
 
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
 
 interface KPISubItem {
@@ -27,22 +29,27 @@ interface KPICardProps {
 export function KPICard({
   label, periodLabel, value, formatter, prevYearValue, changePercent, subItems, statusDot,
 }: KPICardProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const hasSubItems = subItems && subItems.length > 0;
+
   return (
     <div
-      className="flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-xl)] py-[var(--spacing-base)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      className="group/kpi flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-xl)] py-[var(--spacing-base)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Top row: label + value (left) + prev year (right) */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col min-w-0">
           <span className="text-[10px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
-            {label} {periodLabel}
+            {label}{periodLabel && <span className="opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100"> {periodLabel}</span>}
           </span>
           <span className="mt-[var(--spacing-2xs)] text-[17px] font-bold text-[var(--color-text-primary)]">
             <AnimatedNumber value={value} formatter={formatter} />
           </span>
           {changePercent !== undefined && changePercent !== null && (
             <span
-              className="text-[9px] font-medium"
+              className="text-[9px] font-medium opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100"
               style={{ color: changePercent >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}
             >
               {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}% vs same period last year
@@ -63,21 +70,59 @@ export function KPICard({
         )}
       </div>
 
-      {/* Sub-items row — This Quarter, Last Month, Best Month */}
-      {subItems && subItems.length > 0 && (
-        <div className="mt-[var(--spacing-sm)] flex gap-[var(--spacing-lg)] border-t border-[var(--color-gold-subtle)] pt-[var(--spacing-sm)]">
-          {subItems.map((item) => (
-            <div key={item.label} className="flex flex-col min-w-0">
-              <span className="text-[8px] font-normal text-[var(--color-text-muted)] whitespace-nowrap">{item.label}</span>
-              <span className="text-[11px] font-semibold text-[var(--color-text-secondary)] whitespace-nowrap">
-                {item.value}
-                {item.suffix && (
-                  <span className="ml-0.5 text-[8px] font-normal text-[var(--color-text-muted)]">({item.suffix})</span>
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Expandable sub-items — hidden by default, revealed on hover */}
+      {hasSubItems && (
+        <>
+          {/* Expand hint — 3 dots visible when collapsed */}
+          <AnimatePresence>
+            {!isHovered && (
+              <motion.div
+                key="hint"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex justify-center pt-[var(--spacing-xs)]"
+              >
+                <span className="text-[8px] tracking-[3px] text-[var(--color-gold-muted)]">&#183;&#183;&#183;</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Sub-items row — expands with staggered entry */}
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                key="sub-items"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="mt-[var(--spacing-sm)] flex gap-[var(--spacing-lg)] border-t border-[var(--color-gold-subtle)] pt-[var(--spacing-sm)]">
+                  {subItems.map((item, i) => (
+                    <motion.div
+                      key={item.label}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05, duration: 0.15, ease: 'easeOut' }}
+                      className="flex flex-col min-w-0"
+                    >
+                      <span className="text-[8px] font-normal text-[var(--color-text-muted)] whitespace-nowrap">{item.label}</span>
+                      <span className="text-[11px] font-semibold text-[var(--color-text-secondary)] whitespace-nowrap">
+                        {item.value}
+                        {item.suffix && (
+                          <span className="ml-0.5 text-[8px] font-normal text-[var(--color-text-muted)]">({item.suffix})</span>
+                        )}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </div>
   );
