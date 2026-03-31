@@ -17,6 +17,17 @@ Custom fields added to Priority entities follow the naming convention: `Y_XXXX_5
 | `Y_2I8Z_5_ESH` | Brand | Brand grouping for dimension |
 | `Y_2IAI_5_ESH` | Family Type | Product type grouping for dimension |
 | `Y_2J31_5_ESH` | Family Type Name | Display name for product type dimension |
+| `Y_3021_5_ESH` | Product Type (alt) | Product type category used in product mix aggregation |
+| `Y_9952_5_ESH` | Brand (alt) | Brand field used in product mix aggregation |
+| `Y_2075_5_ESH` | Product Family | Product family grouping for product mix |
+| `Y_5380_5_ESH` | Country of Origin | Country of origin for product mix |
+| `Y_9967_5_ESH` | FS vs Retail flag | `'Y'` = Retail, anything else = Food Service |
+
+## Standard Fields Used
+
+| Field | Purpose |
+|-------|---------|
+| `TUNITNAME` | Unit of measure name (MaxLength 3, e.g. "cs", "ea", "lb"). Can be empty — default to `'units'` |
 
 ## Important
 

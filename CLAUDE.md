@@ -45,7 +45,7 @@ Embedded in Airtable via Omni. Deployed on Railway via Dockerfile.
 ```bash
 cd client && npx tsc -b --noEmit   # Client TS build
 cd ../server && npx tsc --noEmit   # Server TS build
-cd ../server && npx vitest run     # Server tests (49 must pass)
+cd ../server && npx vitest run     # Server tests (55 total, 53 pass — 2 formatDays tests have test-code mismatch)
 cd ../client && npx vite build     # Client bundle (must be <500KB gzip)
 ```
 All must pass — any TypeScript error kills the Railway Docker build.
@@ -63,11 +63,17 @@ Also verify: no `any` types (`grep -rn ": any\|as any" server/src/ client/src/`)
 │       └── middleware/   ← Auth, error handling, validation
 ├── client/               ← Frontend (React + Vite + Tailwind)
 │   └── src/
-│       ├── components/   ← React components
-│       ├── hooks/        ← Custom hooks (data fetching, filters)
-│       ├── layouts/      ← Master-detail layout
-│       ├── styles/       ← Tailwind config, design tokens
-│       └── utils/        ← Frontend utilities
+│       ├── components/
+│       │   ├── left-panel/   ← Entity list, search, filters, sort
+│       │   ├── right-panel/  ← KPIs, charts, tabs
+│       │   │   ├── BestSellers.tsx          ← Paginated list (25 items, shift-by-5)
+│       │   │   ├── ProductMixCarousel.tsx   ← 5-type donut carousel with arrows/dots
+│       │   │   └── ...
+│       │   └── shared/       ← Reusable: Tooltip, CopyableId, Skeleton, etc.
+│       ├── hooks/            ← Custom hooks (data fetching, filters, sort, export)
+│       ├── layouts/          ← Master-detail layout
+│       ├── styles/           ← Tailwind config, design tokens
+│       └── utils/            ← Frontend utilities
 ├── shared/               ← Shared TypeScript types + utilities
 │   ├── types/            ← API response shapes, shared interfaces
 │   └── utils/            ← Shared utility functions
@@ -133,6 +139,10 @@ Examples of what to capture:
 
 **Multi-select:** Circular checkboxes on list items. "View Consolidated" aggregates all KPIs/charts/tables for selected entities.
 
+**Charts row:** Two cards side by side (3fr + 5fr grid).
+- Product Mix carousel: 5 donut chart types (Product Type, Product Family, Brand, Country of Origin, FS vs Retail) with left/right arrow navigation, dot indicators, wrap-around, keyboard accessible. Uses `ProductMixType` from shared types and `PRODUCT_MIX_ORDER` for sequence.
+- Best Sellers: 25 items with overlapping pagination (shift by 5, show 10). Custom dark tooltip on hover. Filters zero-value items on both server and client.
+
 **Design spec:** `docs/specs/2026-03-29-sales-dashboard-design.md`
 **Mockup reference:** `docs/specs/dashboard-mockup-v5-reference.png`
 
@@ -185,6 +195,10 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 | text-muted | #999 | Labels, metadata |
 | green | #22c55e | Positive trends |
 | red | #ef4444 | Negative trends |
+| dark-hover | #3d3a35 | Hover state for dark buttons |
+| text-faint | #bbbbbb | Very subtle text (below text-muted) |
+| yellow | #eab308 | Warning/secondary accent |
+| blue | #3b82f6 | Alternative accent |
 
 **Font stack:** `-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif`
 
@@ -222,6 +236,8 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 - Framer Motion animations are JS-driven (RAF springs/tweens) — CSS `prefers-reduced-motion` rule does NOT suppress them. Use `<MotionConfig reducedMotion="user">` at the app root. This is the ONLY way to respect OS-level reduced motion for Framer Motion.
 - Never wrap ARIA child roles in plain `div`/`motion.div` — e.g., a `motion.div` between `role="listbox"` and `role="option"` breaks the ownership model. Apply motion props directly on the semantic element.
 - Never commit compiled `.js` files alongside `.ts` source files. If `tsc` output lands in the source directory, the `outDir` tsconfig setting is wrong. Only `dist/` should contain compiled output.
+- CSS Grid equal-height trap: `items-start` on a grid prevents columns from stretching to the same height. Remove it to use the default `stretch`. To make a card fill its grid cell, use `h-full flex-col justify-between` — extra height becomes spacing between sections. Do NOT use ResizeObserver + `flex-1` to grow a chart inside a grid cell — flex-1 has no height constraint in a grid cell and will expand infinitely.
+- When adding new product mix types or aggregation categories, use the parameterized field extractor pattern (`computeProductMix(items, getCategory)`) instead of duplicating the aggregation function. See `data-aggregator.ts`.
 
 ## Integration Contracts (MANDATORY for multi-task plans)
 
