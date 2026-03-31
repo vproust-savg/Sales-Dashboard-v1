@@ -93,9 +93,17 @@ export const MOCK_DASHBOARD: DashboardPayload = {
     orders: { values: [4, 6, 7, 5, 8, 6] },
   },
   orders: [
-    { date: '2026-03-28T00:00:00Z', orderNumber: 'SO-26-0142', itemCount: 8, amount: 12400, marginPercent: 18.2, marginAmount: 2257, status: 'Delivered' },
-    { date: '2026-03-15T00:00:00Z', orderNumber: 'SO-26-0128', itemCount: 5, amount: 8900, marginPercent: 20.1, marginAmount: 1789, status: 'Pending' },
-    { date: '2026-02-28T00:00:00Z', orderNumber: 'SO-26-0098', itemCount: 12, amount: 18200, marginPercent: 16.5, marginAmount: 3003, status: 'Processing' },
+    { date: '2026-03-28T00:00:00Z', orderNumber: 'SO-26-0142', itemCount: 8, amount: 12400, marginPercent: 18.2, marginAmount: 2257, status: 'Closed', items: [
+      { productName: 'Kraft Mailer Box', sku: 'PKG-KM-300', quantity: 50, unit: 'cs', unitPrice: 124, lineTotal: 6200, marginPercent: 19.5 },
+      { productName: 'Bubble Wrap Roll', sku: 'PKG-BW-1200', quantity: 30, unit: 'ea', unitPrice: 206.67, lineTotal: 6200, marginPercent: 16.8 },
+    ] },
+    { date: '2026-03-15T00:00:00Z', orderNumber: 'SO-26-0128', itemCount: 5, amount: 8900, marginPercent: 20.1, marginAmount: 1789, status: 'Partially Filled', items: [
+      { productName: 'Corrugated Sheet A4', sku: 'PKG-CS-A4', quantity: 100, unit: 'ea', unitPrice: 89, lineTotal: 8900, marginPercent: 20.1 },
+    ] },
+    { date: '2026-02-28T00:00:00Z', orderNumber: 'SO-26-0098', itemCount: 12, amount: 18200, marginPercent: 16.5, marginAmount: 3003, status: 'Open', items: [
+      { productName: 'Packing Tape Clear', sku: 'PKG-PT-CLR', quantity: 200, unit: 'ea', unitPrice: 45.5, lineTotal: 9100, marginPercent: 18.2 },
+      { productName: 'Stretch Film 500mm', sku: 'PKG-SF-500', quantity: 80, unit: 'ea', unitPrice: 113.75, lineTotal: 9100, marginPercent: 14.8 },
+    ] },
   ],
   items: [
     {
