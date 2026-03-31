@@ -10,6 +10,7 @@ import { priorityClient } from '../services/priority-instance.js';
 import { fetchCustomers } from '../services/priority-queries.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
+import { redis } from '../cache/redis-client.js';
 import type { EntityListItem } from '@shared/types/dashboard';
 import type { RawCustomer } from '../services/priority-queries.js';
 import type { ApiResponse } from '@shared/types/api-responses';
@@ -24,6 +25,26 @@ export const entitiesRouter = Router();
 entitiesRouter.get('/entities', validateQuery(querySchema), async (_req, res, next) => {
   try {
     const { groupBy, period } = res.locals.query as z.infer<typeof querySchema>;
+
+    // WHY: Check for enriched entities first (populated by fetch-all endpoint).
+    // If found, return entities with real metrics instead of null stubs.
+    const fullKey = cacheKey('entities_full', period, groupBy);
+    const fullResult = await redis.get(fullKey);
+    if (fullResult !== null) {
+      const envelope = typeof fullResult === 'string' ? JSON.parse(fullResult) : fullResult;
+      const fullResponse: ApiResponse<{ entities: EntityListItem[]; yearsAvailable: string[] }> = {
+        data: (envelope as { data: { entities: EntityListItem[]; yearsAvailable: string[] } }).data,
+        meta: {
+          cached: true,
+          cachedAt: (envelope as { cachedAt: string }).cachedAt,
+          period,
+          dimension: groupBy,
+          entityCount: (envelope as { data: { entities: EntityListItem[] } }).data.entities.length,
+        },
+      };
+      return res.json(fullResponse);
+    }
+
     const summaryKey = cacheKey('entities_summary', period, groupBy);
 
     // WHY: Check for pre-computed entity summaries first (set by warm cache or previous request).
@@ -61,18 +82,18 @@ entitiesRouter.get('/entities', validateQuery(querySchema), async (_req, res, ne
   }
 });
 
-/** Build EntityListItem[] from customers with revenue=0 (no order data needed) */
+/** Build EntityListItem[] from customers with null metrics (no order data loaded) */
 function buildCustomerStubs(customers: RawCustomer[]): EntityListItem[] {
   return customers.map(c => ({
     id: c.CUSTNAME,
     name: c.CUSTDES,
     meta1: [c.ZONEDES, c.AGENTNAME].filter(Boolean).join(' \u00B7 '),
-    meta2: '0 orders',
-    revenue: 0,
-    orderCount: 0,
-    avgOrder: 0,
-    marginPercent: 0,
-    marginAmount: 0,
+    meta2: null,           // WHY: null signals "not loaded" — client hides this
+    revenue: null,
+    orderCount: null,
+    avgOrder: null,
+    marginPercent: null,
+    marginAmount: null,
     frequency: null,
     lastOrderDate: null,
     rep: c.AGENTNAME || null,
