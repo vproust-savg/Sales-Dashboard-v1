@@ -8,14 +8,14 @@ export interface EntityListItem {
   id: string;
   name: string;
   meta1: string;        // Line 2 left (e.g., zone + rep, or SKU + brand)
-  meta2: string;        // Line 2 right (e.g., "22 orders")
-  revenue: number;      // For sort + display
-  orderCount: number;   // For sort + display
+  meta2: string | null;  // Line 2 right (e.g., "22 orders"), null when not loaded
+  revenue: number | null;      // null when metrics not loaded
+  orderCount: number | null;   // null when metrics not loaded
   // WHY: Enrichment fields enable client-side filter + sort on all spec-defined fields.
   // Computed by dimension-grouper from the same order data already fetched.
-  avgOrder: number;                // revenue / orderCount, 0 when no orders
-  marginPercent: number;           // (totalProfit / totalRevenue) * 100
-  marginAmount: number;            // total profit in dollars
+  avgOrder: number | null;                // revenue / orderCount, null when not loaded
+  marginPercent: number | null;           // (totalProfit / totalRevenue) * 100
+  marginAmount: number | null;            // total profit in dollars
   frequency: number | null;        // orders per month, null when period < 1 month
   lastOrderDate: string | null;    // ISO date of most recent order, null when no orders
   rep: string | null;              // sales agent name (customer dimension only, null otherwise)
@@ -165,6 +165,23 @@ export type Dimension = 'customer' | 'zone' | 'vendor' | 'brand' | 'product_type
 
 /** Period selection */
 export type Period = 'ytd' | string;  // 'ytd' or a year like '2025'
+
+/** Load state for the "All {Dimension}" fetch — per dimension+period */
+export type EntityListLoadState = 'not-loaded' | 'loading' | 'loaded' | 'error';
+
+/** Filter params for the fetch-all dialog — narrows the server-side OData query */
+export interface FetchAllFilters {
+  agentName?: string;
+  zone?: string;
+  customerType?: string;
+}
+
+/** SSE progress events from GET /api/sales/fetch-all */
+export type SSEProgressEvent =
+  | { phase: 'fetching'; rowsFetched: number; estimatedTotal: number }
+  | { phase: 'incremental'; message: string; rowsFetched: number }
+  | { phase: 'merging'; message: string }
+  | { phase: 'processing'; message: string };
 
 /** The full dashboard payload returned by GET /api/sales/dashboard */
 export interface DashboardPayload {
