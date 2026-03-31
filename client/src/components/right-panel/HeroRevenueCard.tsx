@@ -39,7 +39,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod }: HeroReve
           </span>
           {changePercent !== null && (
             <span className="text-[12px] font-medium" style={{ color: trendColor }}>
-              {formatPercent(changePercent, { showSign: true })} vs previous year
+              {formatPercent(changePercent, { showSign: true })} vs same period last year
             </span>
           )}
         </div>

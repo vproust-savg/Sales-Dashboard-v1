@@ -16,14 +16,23 @@ export function computeKPIs(
   prevItems: RawOrderItem[],
   period: string,
 ): KPIs {
+  const now = new Date();
   const totalRevenue = orders.reduce((sum, o) => sum + o.TOTPRICE, 0);
-  const prevRevenue = prevOrders.reduce((sum, o) => sum + o.TOTPRICE, 0);
+  // WHY: For YTD, compare only against the same months last year (apples-to-apples).
+  // prevOrders covers the full previous year; filter to same cutoff date for fair comparison.
+  const prevRevenue = period === 'ytd'
+    ? prevOrders
+        .filter(o => {
+          const d = new Date(o.CURDATE);
+          return d.getUTCMonth() < now.getUTCMonth()
+            || (d.getUTCMonth() === now.getUTCMonth() && d.getUTCDate() <= now.getUTCDate());
+        })
+        .reduce((sum, o) => sum + o.TOTPRICE, 0)
+    : prevOrders.reduce((sum, o) => sum + o.TOTPRICE, 0);
   const orderCount = orders.length;
 
   const totalItemRevenue = items.reduce((sum, i) => sum + i.QPRICE, 0);
   const totalProfit = items.reduce((sum, i) => sum + i.QPROFIT, 0);
-
-  const now = new Date();
   const monthsInPeriod = period === 'ytd'
     ? Math.max(1, now.getUTCMonth() + 1)
     : 12;
