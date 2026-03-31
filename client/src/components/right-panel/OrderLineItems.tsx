@@ -4,7 +4,7 @@
 // EXPORTS: OrderLineItems
 
 import type { OrderLineItem } from '@shared/types/dashboard';
-import { formatCurrency, formatPercent } from '@shared/utils/formatting';
+import { formatCurrency } from '@shared/utils/formatting';
 import { CopyableId } from '../shared/CopyableId';
 
 interface OrderLineItemsProps {
@@ -12,7 +12,7 @@ interface OrderLineItemsProps {
 }
 
 /** WHY: SKU first — B2B users scan by SKU code, not product name */
-const COLUMNS = ['SKU', 'Product', 'Qty', 'Unit Price', 'Line Total', 'Margin %'] as const;
+const COLUMNS = ['SKU', 'Product', 'Qty', 'Unit Price', 'Line Total'] as const;
 
 export function OrderLineItems({ items }: OrderLineItemsProps) {
   if (items.length === 0) {
@@ -62,11 +62,8 @@ export function OrderLineItems({ items }: OrderLineItemsProps) {
               <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right whitespace-nowrap">
                 {formatCurrency(item.unitPrice)}
               </td>
-              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-primary)] font-medium tabular-nums text-right whitespace-nowrap">
+              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-primary)] font-medium tabular-nums text-right pr-[var(--spacing-3xl)] whitespace-nowrap">
                 {formatCurrency(item.lineTotal)}
-              </td>
-              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right pr-[var(--spacing-3xl)] whitespace-nowrap">
-                {formatPercent(item.marginPercent)}
               </td>
             </tr>
           ))}
