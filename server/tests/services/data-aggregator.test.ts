@@ -256,4 +256,70 @@ describe('aggregateOrders', () => {
     expect(result.orders).toHaveLength(1);
     expect(result.orders[0].orderNumber).toBe('O1');
   });
+
+  // --- Batch B: Line items in OrderRow ---
+
+  it('includes line items array on each order row', () => {
+    const orders = [makeOrder({
+      ORDNAME: 'O1',
+      ORDERITEMS_SUBFORM: [
+        makeItem({ PARTNAME: 'SKU-A', QPRICE: 3000 }),
+        makeItem({ PARTNAME: 'SKU-B', QPRICE: 1000 }),
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.orders[0].items).toHaveLength(2);
+  });
+
+  it('maps line item fields to OrderLineItem shape', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [
+        makeItem({
+          PDES: 'Olive Oil 1L',
+          PARTNAME: 'OIL-1L',
+          TQUANT: 24,
+          TUNITNAME: 'cs',
+          PRICE: 60,
+          QPRICE: 1440,
+          PERCENT: 28.33,
+        }),
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    const item = result.orders[0].items[0];
+    expect(item.productName).toBe('Olive Oil 1L');
+    expect(item.sku).toBe('OIL-1L');
+    expect(item.quantity).toBe(24);
+    expect(item.unit).toBe('cs');
+    expect(item.unitPrice).toBe(60);
+    expect(item.lineTotal).toBe(1440);
+    expect(item.marginPercent).toBeCloseTo(28.33);
+  });
+
+  it('sorts line items by lineTotal descending', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [
+        makeItem({ PARTNAME: 'SKU-A', QPRICE: 500 }),
+        makeItem({ PARTNAME: 'SKU-B', QPRICE: 2000 }),
+        makeItem({ PARTNAME: 'SKU-C', QPRICE: 800 }),
+      ],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    const skus = result.orders[0].items.map(i => i.sku);
+    expect(skus).toEqual(['SKU-B', 'SKU-C', 'SKU-A']);
+  });
+
+  it('defaults unit to "units" when TUNITNAME is empty on line item', () => {
+    const orders = [makeOrder({
+      ORDERITEMS_SUBFORM: [makeItem({ TUNITNAME: '' })],
+    })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.orders[0].items[0].unit).toBe('units');
+  });
+
+  it('returns empty items array when order has no ORDERITEMS_SUBFORM', () => {
+    const orders = [makeOrder({ ORDERITEMS_SUBFORM: [] })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.orders[0].items).toEqual([]);
+  });
 });

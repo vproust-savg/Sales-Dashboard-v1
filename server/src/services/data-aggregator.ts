@@ -119,6 +119,17 @@ function buildOrderRows(orders: RawOrder[]): OrderRow[] {
       marginPercent: computeOrderMarginPct(o),
       marginAmount: (o.ORDERITEMS_SUBFORM ?? []).reduce((s, i) => s + i.QPROFIT, 0),
       status: o.ORDSTATUSDES as OrderRow['status'],
+      items: (o.ORDERITEMS_SUBFORM ?? [])
+        .map(i => ({
+          productName: i.PDES,
+          sku: i.PARTNAME,
+          quantity: i.TQUANT,
+          unit: i.TUNITNAME || 'units',
+          unitPrice: i.PRICE,
+          lineTotal: i.QPRICE,
+          marginPercent: i.PERCENT,
+        }))
+        .sort((a, b) => b.lineTotal - a.lineTotal),
     }));
     // WHY: Client-side OrdersTable handles sorting — users can change direction
 }

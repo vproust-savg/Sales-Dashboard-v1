@@ -1,7 +1,7 @@
 // FILE: shared/types/dashboard.ts
 // PURPOSE: Shared types for dashboard data exchanged between server and client
 // USED BY: server/services/data-aggregator.ts, client/hooks/useDashboardData.ts
-// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER, TopSellerItem, OrderRow, ItemCategory, Contact
+// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER, TopSellerItem, OrderLineItem, OrderRow, ItemCategory, Contact
 
 /** One entity in the left-panel list (customer, zone, vendor, brand, product type, or product) */
 export interface EntityListItem {
@@ -111,6 +111,17 @@ export interface SparklineData {
   values: number[];  // 6 monthly values, most recent last
 }
 
+/** One line item inside an expanded order row */
+export interface OrderLineItem {
+  productName: string;   // PDES
+  sku: string;           // PARTNAME
+  quantity: number;      // TQUANT
+  unit: string;          // TUNITNAME, fallback "units"
+  unitPrice: number;     // PRICE
+  lineTotal: number;     // QPRICE
+  marginPercent: number; // PERCENT
+}
+
 /** One order row in the Orders tab — spec Section 13.6 */
 export interface OrderRow {
   date: string;           // ISO date
@@ -120,6 +131,7 @@ export interface OrderRow {
   marginPercent: number;
   marginAmount: number;
   status: 'Open' | 'Closed' | 'Partially Filled';
+  items: OrderLineItem[];
 }
 
 /** Category + products for the Items tab accordion — spec Section 4.4 */
