@@ -45,7 +45,7 @@ Embedded in Airtable via Omni. Deployed on Railway via Dockerfile.
 ```bash
 cd client && npx tsc -b --noEmit   # Client TS build
 cd ../server && npx tsc --noEmit   # Server TS build
-cd ../server && npx vitest run     # Server tests (55 total, 53 pass — 2 formatDays tests have test-code mismatch)
+cd ../server && npx vitest run     # Server tests (63 total, 61 pass — 2 formatDays tests have test-code mismatch)
 cd ../client && npx vite build     # Client bundle (must be <500KB gzip)
 ```
 All must pass — any TypeScript error kills the Railway Docker build.
