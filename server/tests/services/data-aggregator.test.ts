@@ -144,16 +144,16 @@ describe('aggregateOrders', () => {
     expect(result.kpis.revenueChangePercent).toBeNull();
   });
 
-  it('maps order statuses to dashboard labels', () => {
+  it('passes Priority ORDSTATUSDES through as status', () => {
     const orders = [
       makeOrder({ ORDNAME: 'O1', ORDSTATUSDES: 'Closed' }),
       makeOrder({ ORDNAME: 'O2', ORDSTATUSDES: 'Open' }),
       makeOrder({ ORDNAME: 'O3', ORDSTATUSDES: 'Partially Filled' }),
     ];
     const result = aggregateOrders(orders, [], 'ytd');
-    expect(result.orders[0].status).toBe('Delivered');
-    expect(result.orders[1].status).toBe('Processing');
-    expect(result.orders[2].status).toBe('Pending');
+    expect(result.orders[0].status).toBe('Closed');
+    expect(result.orders[1].status).toBe('Open');
+    expect(result.orders[2].status).toBe('Partially Filled');
   });
 
   it('builds Food Service vs Retail mix from Y_9967_5_ESH', () => {

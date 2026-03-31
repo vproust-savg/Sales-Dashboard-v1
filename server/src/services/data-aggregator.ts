@@ -5,7 +5,6 @@
 
 import type { KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, TopSellerItem, OrderRow, ItemCategory, SparklineData } from '@shared/types/dashboard';
 import type { RawOrder, RawOrderItem } from './priority-queries.js';
-import { ORDER_STATUS_MAP } from '../config/constants.js';
 import { computeKPIs, computeMonthlyRevenue, computeSparklines } from './kpi-aggregator.js';
 
 interface AggregateResult {
@@ -119,7 +118,7 @@ function buildOrderRows(orders: RawOrder[]): OrderRow[] {
       amount: o.TOTPRICE,
       marginPercent: computeOrderMarginPct(o),
       marginAmount: (o.ORDERITEMS_SUBFORM ?? []).reduce((s, i) => s + i.QPROFIT, 0),
-      status: (ORDER_STATUS_MAP[o.ORDSTATUSDES] ?? 'Processing') as OrderRow['status'],
+      status: o.ORDSTATUSDES as OrderRow['status'],
     }));
     // WHY: Client-side OrdersTable handles sorting — users can change direction
 }

@@ -60,12 +60,5 @@ export const CONTACT_SELECT = [
   'NAME', 'POSITIONDES', 'PHONENUM', 'CELLPHONE', 'EMAIL', 'INACTIVE',
 ].join(',');
 
-/** Order status mapping — spec Section 10.4 */
-export const ORDER_STATUS_MAP: Record<string, 'Delivered' | 'Pending' | 'Processing'> = {
-  Closed: 'Delivered',
-  'Partially Filled': 'Pending',
-  Open: 'Processing',
-};
-
 /** Statuses to exclude from dashboard — spec Section 10.4 */
 export const EXCLUDED_STATUSES = ['Canceled'];

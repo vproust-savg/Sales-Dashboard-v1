@@ -119,7 +119,7 @@ export interface OrderRow {
   amount: number;
   marginPercent: number;
   marginAmount: number;
-  status: 'Delivered' | 'Pending' | 'Processing';
+  status: 'Open' | 'Closed' | 'Partially Filled';
 }
 
 /** Category + products for the Items tab accordion — spec Section 4.4 */
