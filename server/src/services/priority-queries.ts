@@ -26,17 +26,21 @@ export interface RawOrderItem {
   PDES: string;
   PARTNAME: string;
   TQUANT: number;
+  TUNITNAME: string;      // Unit of measure (e.g., "cs", "ea", "lb")
   QPRICE: number;
   PRICE: number;
   PURCHASEPRICE: number;
   QPROFIT: number;
   PERCENT: number;
-  Y_1159_5_ESH: string;  // Vendor code
-  Y_1530_5_ESH: string;  // Vendor name
-  Y_9952_5_ESH: string;  // Brand
-  Y_3020_5_ESH: string;  // Family type code
-  Y_3021_5_ESH: string;  // Family type name
-  Y_17936_5_ESH: string; // Vendor part number
+  Y_1159_5_ESH: string;   // Vendor code
+  Y_1530_5_ESH: string;   // Vendor name
+  Y_9952_5_ESH: string;   // Brand
+  Y_3020_5_ESH: string;   // Family type code
+  Y_3021_5_ESH: string;   // Family type name
+  Y_17936_5_ESH: string;  // Vendor part number
+  Y_2075_5_ESH: string;   // Product Family
+  Y_5380_5_ESH: string;   // Country of Origin
+  Y_9967_5_ESH: string;   // Food Service vs Retail (Y = Retail)
 }
 
 export interface RawCustomer {

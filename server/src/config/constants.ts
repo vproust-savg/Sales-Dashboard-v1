@@ -37,10 +37,11 @@ export const ORDER_SELECT = [
 
 /** Priority ORDERITEMS_SUBFORM fields — spec Section 18.2 */
 export const ORDERITEM_SELECT = [
-  'PDES', 'PARTNAME', 'TQUANT', 'QPRICE', 'PRICE',
+  'PDES', 'PARTNAME', 'TQUANT', 'TUNITNAME', 'QPRICE', 'PRICE',
   'PURCHASEPRICE', 'QPROFIT', 'PERCENT',
   'Y_1159_5_ESH', 'Y_1530_5_ESH', 'Y_9952_5_ESH',
   'Y_3020_5_ESH', 'Y_3021_5_ESH', 'Y_17936_5_ESH',
+  'Y_2075_5_ESH', 'Y_5380_5_ESH', 'Y_9967_5_ESH',
 ].join(',');
 
 /** Lighter set for previous-year queries (only what's needed for trends) */
