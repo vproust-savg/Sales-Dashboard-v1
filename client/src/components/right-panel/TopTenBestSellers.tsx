@@ -5,6 +5,7 @@
 
 import type { TopSellerItem } from '@shared/types/dashboard';
 import { formatCurrency } from '@shared/utils/formatting';
+import { CopyableId } from '../shared/CopyableId';
 
 interface TopTenBestSellersProps {
   data: TopSellerItem[];
@@ -38,12 +39,7 @@ function SellerRow({ item }: { item: TopSellerItem }) {
         >
           {item.name}
         </p>
-        <p
-          className="truncate text-[10px] text-[var(--color-text-faint)]"
-          title={item.sku}
-        >
-          {item.sku}
-        </p>
+        <CopyableId value={item.sku} label="SKU" className="block truncate text-[10px] text-[var(--color-text-faint)]" />
       </div>
 
       {/* Revenue + units — spec: right-aligned */}

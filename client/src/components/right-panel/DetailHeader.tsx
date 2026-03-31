@@ -4,6 +4,7 @@
 // EXPORTS: DetailHeader
 
 import type { EntityListItem, Period } from '@shared/types/dashboard';
+import { CopyableId } from '../shared/CopyableId';
 import { PeriodSelector } from './PeriodSelector';
 
 interface DetailHeaderProps {
@@ -38,7 +39,8 @@ export function DetailHeader({
             className="mt-[var(--spacing-2xs)] truncate text-[11px] text-[var(--color-text-muted)]"
             title={subtitle}
           >
-            {entity?.id} &middot; {subtitle} &middot; {entity?.meta2}
+            {entity?.id && <CopyableId value={entity.id} label="ID" className="inline text-[11px] text-[var(--color-text-muted)]" />}
+            {' '}&middot; {subtitle} &middot; {entity?.meta2}
           </p>
         )}
       </div>

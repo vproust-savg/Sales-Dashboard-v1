@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ItemCategory } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
+import { CopyableId } from '../shared/CopyableId';
 import { EmptyState } from '../shared/EmptyState';
 
 interface ItemsAccordionProps {
@@ -145,9 +146,7 @@ function CategoryRow({ category, isExpanded, onToggle }: CategoryRowProps) {
                     <span className="block text-[12px] text-[var(--color-text-secondary)] truncate">
                       {product.name}
                     </span>
-                    <span className="block text-[10px] text-[var(--color-text-faint)]">
-                      {product.sku}
-                    </span>
+                    <CopyableId value={product.sku} label="SKU" className="block text-[10px] text-[var(--color-text-faint)]" />
                   </div>
                   <span className="w-24 text-right text-[12px] tabular-nums text-[var(--color-text-secondary)]">
                     {formatCurrency(product.value)}

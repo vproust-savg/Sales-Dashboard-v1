@@ -6,6 +6,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'framer-motion';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
+import { CopyToastProvider } from './components/shared/CopyToast';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { useDashboardState } from './hooks/useDashboardState';
 
@@ -31,7 +32,9 @@ export function App() {
         {/* WHY: reducedMotion="user" tells Framer Motion to respect OS-level
          *  prefers-reduced-motion setting, suppressing all motion.* animations */}
         <MotionConfig reducedMotion="user">
-          <DashboardApp />
+          <CopyToastProvider>
+            <DashboardApp />
+          </CopyToastProvider>
         </MotionConfig>
       </QueryClientProvider>
     </ErrorBoundary>

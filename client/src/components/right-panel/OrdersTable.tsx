@@ -5,6 +5,7 @@
 
 import type { OrderRow } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent, formatDate } from '@shared/utils/formatting';
+import { CopyableId } from '../shared/CopyableId';
 import { EmptyState } from '../shared/EmptyState';
 
 interface OrdersTableProps {
@@ -60,7 +61,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 {formatDate(order.date)}
               </td>
               <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] font-medium text-[var(--color-text-primary)]">
-                {order.orderNumber}
+                <CopyableId value={order.orderNumber} label="Order #" />
               </td>
               <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-secondary)] text-center">
                 {order.itemCount}
