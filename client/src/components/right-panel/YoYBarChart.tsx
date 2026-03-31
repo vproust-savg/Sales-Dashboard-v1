@@ -6,7 +6,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { MonthlyRevenue } from '@shared/types/dashboard';
-import { formatCurrencyCompact } from '@shared/utils/formatting';
+import { formatCurrency, formatCurrencyCompact } from '@shared/utils/formatting';
 
 interface YoYBarChartProps {
   data: MonthlyRevenue[];
@@ -155,6 +155,36 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
             </g>
           );
         })}
+
+        {/* Tooltip — appears above hovered bar pair */}
+        {hoveredMonth !== null && (() => {
+          const m = calendarData[hoveredMonth];
+          const groupWidth = (400 - Y_LABEL_WIDTH) / 12;
+          const tooltipX = Y_LABEL_WIDTH + hoveredMonth * groupWidth + groupWidth / 2;
+          const tallestBar = Math.max(m.currentYear, m.previousYear);
+          const tooltipY = BAR_AREA_HEIGHT - (tallestBar / niceMax) * BAR_AREA_HEIGHT - 8;
+          const currText = formatCurrency(Math.round(m.currentYear));
+          const prevText = formatCurrency(Math.round(m.previousYear));
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <rect
+                x={tooltipX - 48}
+                y={tooltipY - 28}
+                width={96}
+                height={28}
+                rx={4}
+                fill="var(--color-dark)"
+                opacity={0.95}
+              />
+              <text x={tooltipX} y={tooltipY - 16} textAnchor="middle" fill="white" fontSize={9} fontWeight={600} fontFamily="var(--font-sans)">
+                {currText}
+              </text>
+              <text x={tooltipX} y={tooltipY - 6} textAnchor="middle" fill="var(--color-gold-muted)" fontSize={8} fontFamily="var(--font-sans)">
+                prev: {prevText}
+              </text>
+            </g>
+          );
+        })()}
 
         {/* Legend */}
         <g transform={`translate(${Y_LABEL_WIDTH}, ${CHART_HEIGHT - 4})`}>
