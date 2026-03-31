@@ -48,7 +48,7 @@ function groupByCustomer(orders: RawOrder[], customers: RawCustomer[], periodMon
     return {
       id,
       name: cust?.CUSTDES ?? id,
-      meta1: [cust?.ZONEDES, cust?.AGENTDES].filter(Boolean).join(' \u00B7 '),
+      meta1: [cust?.ZONEDES, cust?.AGENTNAME].filter(Boolean).join(' \u00B7 '),
       meta2: `${g.orderCount} orders`,
       revenue: g.revenue,
       orderCount: g.orderCount,
@@ -57,9 +57,9 @@ function groupByCustomer(orders: RawOrder[], customers: RawCustomer[], periodMon
       marginAmount: g.profit,
       frequency: periodMonths >= 1 ? g.orderCount / periodMonths : null,
       lastOrderDate: lastDate,
-      rep: cust?.AGENTDES ?? null,
+      rep: cust?.AGENTNAME ?? null,
       zone: cust?.ZONEDES ?? null,
-      customerType: cust?.CTYPEDES ?? null,
+      customerType: cust?.CTYPENAME ?? null,
     };
   });
 }

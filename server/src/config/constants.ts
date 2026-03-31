@@ -30,13 +30,13 @@ export const CACHE_TTLS = {
 /** Priority ORDERS fields — spec Section 18.1 */
 export const ORDER_SELECT = [
   'ORDNAME', 'CURDATE', 'ORDSTATUSDES', 'TOTPRICE',
-  'CUSTNAME', 'CUSTDES', 'AGENTCODE', 'AGENTDES',
+  'CUSTNAME', 'AGENTCODE', 'AGENTNAME',
 ].join(',');
 
 /** Priority ORDERITEMS_SUBFORM fields — spec Section 18.2 */
 export const ORDERITEM_SELECT = [
-  'PARTDES', 'PARTNAME', 'TQUANT', 'QPRICE', 'PRICE',
-  'PURCHASEPRICE', 'COST', 'QPROFIT', 'PERCENT',
+  'PDES', 'PARTNAME', 'TQUANT', 'QPRICE', 'PRICE',
+  'PURCHASEPRICE', 'QPROFIT', 'PERCENT',
   'Y_1159_5_ESH', 'Y_1530_5_ESH', 'Y_9952_5_ESH',
   'Y_3020_5_ESH', 'Y_3021_5_ESH', 'Y_17936_5_ESH',
 ].join(',');
@@ -49,7 +49,7 @@ export const ORDERITEM_SELECT_PREV = [
 /** Priority CUSTOMERS fields — spec Section 18.3 */
 export const CUSTOMER_SELECT = [
   'CUSTNAME', 'CUSTDES', 'ZONECODE', 'ZONEDES',
-  'AGENTCODE', 'AGENTDES', 'CREATEDDATE', 'CTYPECODE', 'CTYPEDES',
+  'AGENTCODE', 'AGENTNAME', 'CREATEDDATE', 'CTYPECODE', 'CTYPENAME',
 ].join(',');
 
 /** Priority CUSTPERSONNEL_SUBFORM fields — spec Section 18.4 */

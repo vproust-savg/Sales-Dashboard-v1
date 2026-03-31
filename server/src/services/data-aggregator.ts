@@ -76,7 +76,7 @@ function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
       existing.units += item.TQUANT;
     } else {
       bySku.set(item.PARTNAME, {
-        name: item.PARTDES,
+        name: item.PDES,
         sku: item.PARTNAME,
         revenue: item.QPRICE,
         units: item.TQUANT,
@@ -134,7 +134,7 @@ function buildItemCategories(items: RawOrderItem[]): ItemCategory[] {
           existing.value += item.QPRICE;
           existing.profit += item.QPROFIT;
         } else {
-          bySku.set(item.PARTNAME, { name: item.PARTDES, sku: item.PARTNAME, value: item.QPRICE, profit: item.QPROFIT });
+          bySku.set(item.PARTNAME, { name: item.PDES, sku: item.PARTNAME, value: item.QPRICE, profit: item.QPROFIT });
         }
       });
 

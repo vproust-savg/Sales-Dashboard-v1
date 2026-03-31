@@ -104,7 +104,7 @@ export function groupByProduct(orders: RawOrder[], periodMonths: number): Entity
   const groups = new Map<string, ItemGroup & { brand: string }>();
 
   orders.forEach(o => (o.ORDERITEMS_SUBFORM ?? []).forEach(item => {
-    const g = groups.get(item.PARTNAME) ?? { name: item.PARTDES, brand: item.Y_9952_5_ESH, revenue: 0, profit: 0, productIds: new Set(), orderIds: new Set(), dates: [] };
+    const g = groups.get(item.PARTNAME) ?? { name: item.PDES, brand: item.Y_9952_5_ESH, revenue: 0, profit: 0, productIds: new Set(), orderIds: new Set(), dates: [] };
     g.revenue += item.QPRICE;
     g.profit += item.QPROFIT;
     g.productIds.add(item.PARTNAME);

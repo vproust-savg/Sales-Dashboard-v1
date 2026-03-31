@@ -17,20 +17,18 @@ export interface RawOrder {
   ORDSTATUSDES: string;
   TOTPRICE: number;
   CUSTNAME: string;
-  CUSTDES: string;
   AGENTCODE: string;
-  AGENTDES: string;
+  AGENTNAME: string;
   ORDERITEMS_SUBFORM: RawOrderItem[];
 }
 
 export interface RawOrderItem {
-  PARTDES: string;
+  PDES: string;
   PARTNAME: string;
   TQUANT: number;
   QPRICE: number;
   PRICE: number;
   PURCHASEPRICE: number;
-  COST: number;
   QPROFIT: number;
   PERCENT: number;
   Y_1159_5_ESH: string;  // Vendor code
@@ -47,10 +45,10 @@ export interface RawCustomer {
   ZONECODE: string;
   ZONEDES: string;
   AGENTCODE: string;
-  AGENTDES: string;
+  AGENTNAME: string;
   CREATEDDATE: string;
   CTYPECODE: string;
-  CTYPEDES: string;
+  CTYPENAME: string;
 }
 
 export interface RawContact {
