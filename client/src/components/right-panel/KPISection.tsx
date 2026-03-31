@@ -3,6 +3,7 @@
 // USED BY: RightPanel.tsx
 // EXPORTS: KPISection
 
+import { useState } from 'react';
 import type { KPIs, MonthlyRevenue, SparklineData, Period } from '@shared/types/dashboard';
 import {
   formatCurrency,
@@ -35,6 +36,7 @@ function yoyChange(current: number, prevYear: number): number | null {
 }
 
 export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, activePeriod }: KPISectionProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const activity = getActivityStatus(kpis.lastOrderDays);
   const pLabel = activePeriod === 'ytd' ? '(YTD)' : `(${activePeriod})`;
   const ob = kpis.ordersBreakdown;
@@ -44,9 +46,10 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
   const fb = kpis.frequencyBreakdown;
 
   return (
+    <div className="flex flex-col gap-[var(--spacing-sm)]">
     <div className="grid grid-cols-2 gap-[var(--spacing-base)] max-lg:grid-cols-1">
       {/* Hero card — spans full height of grid */}
-      <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} />
+      <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} showDetails={showDetails} />
 
       {/* 2x3 KPI grid — stretches to match hero height */}
       <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-md)]">
@@ -58,6 +61,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           formatter={(n) => Math.round(n).toLocaleString('en-US')}
           prevYearValue={Math.round(ob.prevYear).toLocaleString('en-US')}
           changePercent={yoyChange(kpis.orders, ob.prevYear)}
+          expanded={showDetails}
           subItems={[
             { label: 'This Quarter', value: Math.round(ob.thisQuarter).toLocaleString('en-US') },
             { label: 'Last Month', value: Math.round(ob.lastMonth).toLocaleString('en-US'), suffix: ob.lastMonthName },
@@ -73,6 +77,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           formatter={(n) => kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(n))}
           prevYearValue={ab.prevYear > 0 ? formatCurrency(Math.round(ab.prevYear)) : '\u2014'}
           changePercent={yoyChange(kpis.avgOrder ?? 0, ab.prevYear)}
+          expanded={showDetails}
           subItems={[
             { label: 'This Quarter', value: ab.thisQuarter > 0 ? formatCurrency(Math.round(ab.thisQuarter)) : '\u2014' },
             { label: 'Last Month', value: ab.lastMonth > 0 ? formatCurrency(Math.round(ab.lastMonth)) : '\u2014', suffix: ab.lastMonthName },
@@ -88,6 +93,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           formatter={(n) => kpis.marginPercent === null ? '\u2014' : formatPercent(n)}
           prevYearValue={mpb.prevYear > 0 ? formatPercent(mpb.prevYear) : '\u2014'}
           changePercent={yoyChange(kpis.marginPercent ?? 0, mpb.prevYear)}
+          expanded={showDetails}
           subItems={[
             { label: 'This Quarter', value: mpb.thisQuarter > 0 ? formatPercent(mpb.thisQuarter) : '\u2014' },
             { label: 'Last Month', value: mpb.lastMonth > 0 ? formatPercent(mpb.lastMonth) : '\u2014', suffix: mpb.lastMonthName },
@@ -103,6 +109,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           formatter={(n) => formatCurrency(Math.round(n))}
           prevYearValue={formatCurrency(Math.round(mab.prevYear))}
           changePercent={yoyChange(kpis.marginAmount, mab.prevYear)}
+          expanded={showDetails}
           subItems={[
             { label: 'This Quarter', value: formatCurrency(Math.round(mab.thisQuarter)) },
             { label: 'Last Month', value: formatCurrency(Math.round(mab.lastMonth)), suffix: mab.lastMonthName },
@@ -118,6 +125,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           formatter={(n) => kpis.frequency === null ? '\u2014' : formatFrequency(n)}
           prevYearValue={fb.prevYear > 0 ? formatFrequency(fb.prevYear) : '\u2014'}
           changePercent={yoyChange(kpis.frequency ?? 0, fb.prevYear)}
+          expanded={showDetails}
           subItems={[
             { label: 'This Quarter', value: fb.thisQuarter > 0 ? formatFrequency(fb.thisQuarter) : '\u2014' },
             { label: 'Last Month', value: Math.round(fb.lastMonth).toLocaleString('en-US'), suffix: fb.lastMonthName },
@@ -134,6 +142,26 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           statusDot={activity}
         />
       </div>
+    </div>
+
+    {/* Toggle button — centered pill below the KPI grid */}
+    <button
+      type="button"
+      onClick={() => setShowDetails((prev) => !prev)}
+      className="mx-auto flex cursor-pointer items-center gap-[var(--spacing-xs)] rounded-full bg-[var(--color-gold-subtle)] px-[var(--spacing-2xl)] py-[var(--spacing-xs)] text-[10px] font-medium text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-[var(--color-gold-muted)] hover:text-[var(--color-text-secondary)]"
+    >
+      {showDetails ? 'Hide details' : 'Show details'}
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        fill="none"
+        className={`transition-transform duration-200 ${showDetails ? 'rotate-180' : ''}`}
+        aria-hidden="true"
+      >
+        <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
     </div>
   );
 }

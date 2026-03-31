@@ -3,6 +3,7 @@
 // USED BY: KPISection.tsx
 // EXPORTS: HeroRevenueCard
 
+import { motion, AnimatePresence } from 'framer-motion';
 import type { KPIs, MonthlyRevenue, Period } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
@@ -12,9 +13,11 @@ interface HeroRevenueCardProps {
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
   activePeriod: Period;
+  /** WHY: Global toggle from KPISection controls sub-items visibility */
+  showDetails: boolean;
 }
 
-export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod }: HeroRevenueCardProps) {
+export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails }: HeroRevenueCardProps) {
   const changePercent = kpis.revenueChangePercent;
   const isPositive = changePercent !== null && changePercent >= 0;
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
@@ -58,12 +61,36 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod }: HeroReve
         </div>
       </div>
 
-      {/* Sub-items row */}
-      <div className="mt-[var(--spacing-md)] flex gap-[var(--spacing-3xl)]">
-        <SubItem label="This Quarter" value={kpis.thisQuarterRevenue} />
-        <SubItem label="Last Month" value={kpis.lastMonthRevenue} suffix={kpis.lastMonthName} />
-        <SubItem label="Best Month" value={kpis.bestMonth.amount} suffix={kpis.bestMonth.name} />
-      </div>
+      {/* Sub-items row — controlled by global toggle */}
+      <AnimatePresence initial={false}>
+        {showDetails ? (
+          <motion.div
+            key="sub-items"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="mt-[var(--spacing-md)] flex gap-[var(--spacing-3xl)]">
+              <SubItem label="This Quarter" value={kpis.thisQuarterRevenue} />
+              <SubItem label="Last Month" value={kpis.lastMonthRevenue} suffix={kpis.lastMonthName} />
+              <SubItem label="Best Month" value={kpis.bestMonth.amount} suffix={kpis.bestMonth.name} />
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="hint"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex justify-center pt-[var(--spacing-sm)]"
+          >
+            <span className="text-[10px] tracking-[3px] text-[var(--color-gold-muted)]">&#183;&#183;&#183;</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* YoY bar chart */}
       <div className="mt-[var(--spacing-lg)]">
