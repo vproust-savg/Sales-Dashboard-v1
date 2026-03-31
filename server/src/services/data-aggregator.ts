@@ -23,15 +23,18 @@ export function aggregateOrders(
   prevOrders: RawOrder[],
   period: string,
 ): AggregateResult {
-  const allItems = currentOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
+  /** WHY: $0 orders are noise — no revenue, no margin contribution. Filter before all downstream
+   * consumers so both order rows and KPI counts are consistent. Negative totals (credit memos) kept. */
+  const nonZeroOrders = currentOrders.filter(o => o.TOTPRICE !== 0);
+  const allItems = nonZeroOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
   const prevItems = prevOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
 
-  const kpis = computeKPIs(currentOrders, prevOrders, allItems, prevItems, period);
-  const monthlyRevenue = computeMonthlyRevenue(currentOrders, prevOrders);
+  const kpis = computeKPIs(nonZeroOrders, prevOrders, allItems, prevItems, period);
+  const monthlyRevenue = computeMonthlyRevenue(nonZeroOrders, prevOrders);
   const productMixes = computeAllProductMixes(allItems);
   const topSellers = computeTopSellers(allItems);
-  const sparklines = computeSparklines(currentOrders);
-  const orders = buildOrderRows(currentOrders);
+  const sparklines = computeSparklines(nonZeroOrders);
+  const orders = buildOrderRows(nonZeroOrders);
   const items = buildItemCategories(allItems);
 
   return { kpis, monthlyRevenue, productMixes, topSellers, sparklines, orders, items };

@@ -225,4 +225,35 @@ describe('aggregateOrders', () => {
     expect(result.productMixes.productType).toHaveLength(1);
     expect(result.productMixes.productType[0].category).toBe('Packaging');
   });
+
+  // --- Batch A: Zero-amount filter ---
+
+  it('excludes orders with TOTPRICE === 0 from orders array', () => {
+    const orders = [
+      makeOrder({ ORDNAME: 'O1', TOTPRICE: 5000 }),
+      makeOrder({ ORDNAME: 'O2', TOTPRICE: 0 }),
+      makeOrder({ ORDNAME: 'O3', TOTPRICE: 1000 }),
+    ];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.orders).toHaveLength(2);
+    expect(result.orders.map(o => o.orderNumber)).not.toContain('O2');
+  });
+
+  it('excludes zero-amount orders from KPI order count', () => {
+    const orders = [
+      makeOrder({ ORDNAME: 'O1', TOTPRICE: 5000 }),
+      makeOrder({ ORDNAME: 'O2', TOTPRICE: 0 }),
+    ];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.kpis.orders).toBe(1);
+  });
+
+  it('keeps orders with negative TOTPRICE (credit memos)', () => {
+    const orders = [
+      makeOrder({ ORDNAME: 'O1', TOTPRICE: -500 }),
+    ];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.orders).toHaveLength(1);
+    expect(result.orders[0].orderNumber).toBe('O1');
+  });
 });
