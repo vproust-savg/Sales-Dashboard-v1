@@ -17,7 +17,7 @@ const COLUMNS = ['SKU', 'Product', 'Qty', 'Unit Price', 'Line Total'] as const;
 export function OrderLineItems({ items }: OrderLineItemsProps) {
   if (items.length === 0) {
     return (
-      <div className="mx-[var(--spacing-3xl)] my-[var(--spacing-sm)] rounded-[var(--radius-sm)] bg-[var(--color-gold-hover)] py-[var(--spacing-base)] pl-[var(--spacing-3xl)]">
+      <div className="ml-[var(--spacing-3xl)] mr-[var(--spacing-base)] my-[var(--spacing-sm)] border-l-[1.5px] border-l-[var(--color-gold-muted)] py-[var(--spacing-base)] pl-[var(--spacing-3xl)]">
         <span className="text-[12px] text-[var(--color-text-muted)]">
           No line item details available.
         </span>
@@ -26,7 +26,7 @@ export function OrderLineItems({ items }: OrderLineItemsProps) {
   }
 
   return (
-    <div className="mx-[var(--spacing-3xl)] my-[var(--spacing-sm)] rounded-[var(--radius-sm)] bg-[var(--color-gold-hover)] border border-[var(--color-gold-subtle)] overflow-x-auto">
+    <div className="ml-[var(--spacing-3xl)] mr-[var(--spacing-base)] my-[var(--spacing-sm)] border-l-[1.5px] border-l-[var(--color-gold-muted)] overflow-x-auto">
       <table className="w-full min-w-[600px] border-collapse">
         <thead>
           <tr>
