@@ -3,7 +3,7 @@
 // USED BY: server/src/routes/dashboard.ts
 // EXPORTS: aggregateOrders
 
-import type { KPIs, MonthlyRevenue, ProductMixSegment, TopSellerItem, OrderRow, ItemCategory, SparklineData } from '@shared/types/dashboard';
+import type { KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, TopSellerItem, OrderRow, ItemCategory, SparklineData } from '@shared/types/dashboard';
 import type { RawOrder, RawOrderItem } from './priority-queries.js';
 import { ORDER_STATUS_MAP } from '../config/constants.js';
 import { computeKPIs, computeMonthlyRevenue, computeSparklines } from './kpi-aggregator.js';
@@ -11,7 +11,7 @@ import { computeKPIs, computeMonthlyRevenue, computeSparklines } from './kpi-agg
 interface AggregateResult {
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
-  productMix: ProductMixSegment[];
+  productMixes: Record<ProductMixType, ProductMixSegment[]>;
   topSellers: TopSellerItem[];
   sparklines: Record<string, SparklineData>;
   orders: OrderRow[];
@@ -28,25 +28,29 @@ export function aggregateOrders(
 
   const kpis = computeKPIs(currentOrders, prevOrders, allItems, prevItems, period);
   const monthlyRevenue = computeMonthlyRevenue(currentOrders, prevOrders);
-  const productMix = computeProductMix(allItems);
+  const productMixes = computeAllProductMixes(allItems);
   const topSellers = computeTopSellers(allItems);
   const sparklines = computeSparklines(currentOrders);
   const orders = buildOrderRows(currentOrders);
   const items = buildItemCategories(allItems);
 
-  return { kpis, monthlyRevenue, productMix, topSellers, sparklines, orders, items };
+  return { kpis, monthlyRevenue, productMixes, topSellers, sparklines, orders, items };
 }
 
-/** Spec Section 20.2 — Group by family type, max 7 segments */
-function computeProductMix(items: RawOrderItem[]): ProductMixSegment[] {
+/** Spec Section 20.2 — Group items by a category field, max 7 segments */
+function computeProductMix(
+  items: RawOrderItem[],
+  getCategory: (item: RawOrderItem) => string,
+): ProductMixSegment[] {
   const byCategory = new Map<string, number>();
   items.forEach(item => {
-    const cat = item.Y_3021_5_ESH || 'Other';
+    const cat = getCategory(item) || 'Other';
     byCategory.set(cat, (byCategory.get(cat) ?? 0) + item.QPRICE);
   });
 
   const total = items.reduce((sum, i) => sum + i.QPRICE, 0);
   const sorted = [...byCategory.entries()]
+    .filter(([, value]) => value > 0)
     .sort(([, a], [, b]) => b - a)
     .map(([category, value]) => ({
       category,
@@ -54,7 +58,6 @@ function computeProductMix(items: RawOrderItem[]): ProductMixSegment[] {
       percentage: total > 0 ? Math.round((value / total) * 100) : 0,
     }));
 
-  // Collapse 7+ into "Other"
   if (sorted.length > 7) {
     const top6 = sorted.slice(0, 6);
     const rest = sorted.slice(6);
@@ -66,9 +69,20 @@ function computeProductMix(items: RawOrderItem[]): ProductMixSegment[] {
   return sorted;
 }
 
-/** Spec Section 22.5 — Top 10 by revenue, aggregated by SKU */
+/** Compute all 5 product mix breakdowns in a single pass concept */
+function computeAllProductMixes(items: RawOrderItem[]): Record<ProductMixType, ProductMixSegment[]> {
+  return {
+    productType: computeProductMix(items, i => i.Y_3021_5_ESH),
+    productFamily: computeProductMix(items, i => i.Y_2075_5_ESH),
+    brand: computeProductMix(items, i => i.Y_9952_5_ESH),
+    countryOfOrigin: computeProductMix(items, i => i.Y_5380_5_ESH),
+    foodServiceRetail: computeProductMix(items, i => i.Y_9967_5_ESH === 'Y' ? 'Retail' : 'Food Service'),
+  };
+}
+
+/** Spec Section 22.5 — Top 25 by revenue, aggregated by SKU, with unit of measure */
 function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
-  const bySku = new Map<string, { name: string; sku: string; revenue: number; units: number }>();
+  const bySku = new Map<string, { name: string; sku: string; revenue: number; units: number; unit: string }>();
   items.forEach(item => {
     const existing = bySku.get(item.PARTNAME);
     if (existing) {
@@ -80,13 +94,15 @@ function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
         sku: item.PARTNAME,
         revenue: item.QPRICE,
         units: item.TQUANT,
+        unit: item.TUNITNAME || 'units',
       });
     }
   });
 
   return [...bySku.values()]
+    .filter(item => item.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 10)
+    .slice(0, 25)
     .map((item, i) => ({ ...item, rank: i + 1 }));
 }
 
