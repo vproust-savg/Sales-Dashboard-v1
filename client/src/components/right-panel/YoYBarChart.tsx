@@ -10,22 +10,19 @@ import { formatCurrency, formatCurrencyCompact } from '@shared/utils/formatting'
 
 interface YoYBarChartProps {
   data: MonthlyRevenue[];
-  /** WHY: Dynamic height from parent's ResizeObserver so chart fills flex container */
-  chartHeight?: number;
 }
 
-const MIN_CHART_HEIGHT = 120;
+const CHART_HEIGHT = 120;
 const Y_LABEL_WIDTH = 36;
 const X_LABEL_HEIGHT = 16;
 const LEGEND_HEIGHT = 20;
+const BAR_AREA_HEIGHT = CHART_HEIGHT - X_LABEL_HEIGHT - LEGEND_HEIGHT;
 const BAR_RADIUS = 2;
 
 /** WHY calendar order: spec 20.1 says chart always shows Jan-Dec regardless of fiscal year */
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export function YoYBarChart({ data, chartHeight: chartHeightProp }: YoYBarChartProps) {
-  const CHART_HEIGHT = Math.max(chartHeightProp ?? MIN_CHART_HEIGHT, MIN_CHART_HEIGHT);
-  const BAR_AREA_HEIGHT = CHART_HEIGHT - X_LABEL_HEIGHT - LEGEND_HEIGHT;
+export function YoYBarChart({ data }: YoYBarChartProps) {
   const [hoveredMonth, setHoveredMonth] = useState<number | null>(null);
 
   const calendarData = useMemo(() => {
@@ -55,10 +52,10 @@ export function YoYBarChart({ data, chartHeight: chartHeightProp }: YoYBarChartP
   }, [niceMax]);
 
   return (
-    <div className="h-full w-full" role="img" aria-label="Year-over-year revenue bar chart">
+    <div className="w-full" role="img" aria-label="Year-over-year revenue bar chart">
       <svg
         width="100%"
-        height="100%"
+        height={CHART_HEIGHT}
         viewBox={`0 0 400 ${CHART_HEIGHT}`}
         preserveAspectRatio="none"
         className="overflow-visible"

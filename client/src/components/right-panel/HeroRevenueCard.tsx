@@ -3,7 +3,6 @@
 // USED BY: KPISection.tsx
 // EXPORTS: HeroRevenueCard
 
-import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KPIs, MonthlyRevenue, Period } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
@@ -23,23 +22,8 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
   const isPositive = changePercent !== null && changePercent >= 0;
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 
-  /** WHY ResizeObserver: chart container grows via flex-1 when card stretches in the grid;
-   *  we measure the actual height so the SVG viewBox stays in sync (no text distortion) */
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [chartHeight, setChartHeight] = useState(120);
-  useEffect(() => {
-    const el = chartRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const h = Math.round(entry.contentRect.height);
-      if (h > 0) setChartHeight(h);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   return (
-    <div className="group/hero flex h-full flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
+    <div className="group/hero flex flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
       {/* Top row: revenue value (left) + previous year (right) */}
       <div className="flex items-start justify-between">
         {/* Left: label + value + trend */}
@@ -124,9 +108,9 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
         )}
       </AnimatePresence>
 
-      {/* YoY bar chart — flex-1 fills available vertical space in the grid cell */}
-      <div ref={chartRef} className="mt-[var(--spacing-lg)] min-h-0 flex-1">
-        <YoYBarChart data={monthlyRevenue} chartHeight={chartHeight} />
+      {/* YoY bar chart */}
+      <div className="mt-[var(--spacing-lg)]">
+        <YoYBarChart data={monthlyRevenue} />
       </div>
     </div>
   );

@@ -51,8 +51,8 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
 
   return (
     <div className="flex flex-col gap-[var(--spacing-sm)]">
-    <div className="grid grid-cols-2 gap-[var(--spacing-base)] max-lg:grid-cols-1">
-      {/* Hero card — spans full height of grid */}
+    <div className="grid grid-cols-2 items-start gap-[var(--spacing-base)] max-lg:grid-cols-1">
+      {/* Hero card — content-sized, not stretched to match KPI grid */}
       <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} showDetails={showDetails} />
 
       {/* 2x3 KPI grid — stretches to match hero height */}
