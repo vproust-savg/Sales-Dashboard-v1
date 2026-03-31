@@ -80,7 +80,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
         </div>
 
         {/* YoY bar chart */}
-        <div className="mt-[var(--spacing-lg)]">
+        <div className="mt-[var(--spacing-2xl)]">
           <YoYBarChart data={monthlyRevenue} />
         </div>
       </div>
