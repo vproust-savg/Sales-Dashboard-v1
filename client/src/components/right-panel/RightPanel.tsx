@@ -4,7 +4,7 @@
 // EXPORTS: RightPanel
 
 import type {
-  EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment,
+  EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType,
   TopSellerItem, SparklineData, OrderRow, ItemCategory, Contact, Period,
 } from '@shared/types/dashboard';
 import { DetailHeader } from './DetailHeader';
@@ -16,7 +16,7 @@ interface RightPanelProps {
   entity: EntityListItem | null;
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
-  productMix: ProductMixSegment[];
+  productMixes: Record<ProductMixType, ProductMixSegment[]>;
   topSellers: TopSellerItem[];
   sparklines: Record<string, SparklineData>;
   orders: OrderRow[];
@@ -29,7 +29,7 @@ interface RightPanelProps {
 }
 
 export function RightPanel({
-  entity, kpis, monthlyRevenue, productMix, topSellers,
+  entity, kpis, monthlyRevenue, productMixes, topSellers,
   sparklines, orders, items, contacts, yearsAvailable, activePeriod,
   onPeriodChange, onExport,
 }: RightPanelProps) {
@@ -48,7 +48,7 @@ export function RightPanel({
         sparklines={sparklines}
         activePeriod={activePeriod}
       />
-      <ChartsRow productMix={productMix} topSellers={topSellers} />
+      <ChartsRow productMixes={productMixes} topSellers={topSellers} />
       <TabsSection orders={orders} items={items} contacts={contacts} />
     </>
   );

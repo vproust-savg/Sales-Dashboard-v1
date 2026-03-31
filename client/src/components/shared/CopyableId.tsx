@@ -1,6 +1,6 @@
 // FILE: client/src/components/shared/CopyableId.tsx
 // PURPOSE: Inline click-to-copy button for IDs, SKUs, order numbers — copies to clipboard + triggers toast
-// USED BY: DetailHeader, TopTenBestSellers, ItemsAccordion, OrdersTable
+// USED BY: DetailHeader, BestSellers, ItemsAccordion, OrdersTable
 // EXPORTS: CopyableId
 
 import { useCallback } from 'react';

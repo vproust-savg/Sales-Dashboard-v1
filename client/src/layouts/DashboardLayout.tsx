@@ -167,7 +167,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                   entity={activeEntity}
                   kpis={dashboard.kpis}
                   monthlyRevenue={dashboard.monthlyRevenue}
-                  productMix={dashboard.productMix}
+                  productMixes={dashboard.productMixes}
                   topSellers={dashboard.topSellers}
                   sparklines={dashboard.sparklines}
                   orders={dashboard.orders}
