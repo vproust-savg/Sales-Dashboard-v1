@@ -27,6 +27,9 @@ export const CACHE_TTLS = {
   years_available: 60 * 60,       // 1 hour
   entities_summary: 15 * 60,      // 15 min — lightweight left-panel list
   entity_detail: 10 * 60,         // 10 min — per-entity dashboard detail
+  entities_full: 365 * 24 * 60 * 60,    // 365 days — enriched entity list with metrics
+  orders_raw: 365 * 24 * 60 * 60,       // 365 days — raw order rows for incremental refresh
+  orders_raw_meta: 365 * 24 * 60 * 60,  // 365 days — metadata (lastFetchDate, rowCount)
 } as const;
 
 /** Priority ORDERS fields — spec Section 18.1 */
