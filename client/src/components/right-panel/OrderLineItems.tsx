@@ -11,12 +11,13 @@ interface OrderLineItemsProps {
   items: OrderLineItem[];
 }
 
-const COLUMNS = ['Product', 'SKU', 'Qty', 'Unit Price', 'Line Total', 'Margin %'] as const;
+/** WHY: SKU first — B2B users scan by SKU code, not product name */
+const COLUMNS = ['SKU', 'Product', 'Qty', 'Unit Price', 'Line Total', 'Margin %'] as const;
 
 export function OrderLineItems({ items }: OrderLineItemsProps) {
   if (items.length === 0) {
     return (
-      <div className="bg-[var(--color-bg-page)] py-[var(--spacing-base)]" style={{ paddingLeft: '48px' }}>
+      <div className="mx-[var(--spacing-3xl)] my-[var(--spacing-md)] rounded-[var(--radius-base)] bg-[var(--color-bg-card)] border-l-[3px] border-l-[var(--color-gold-primary)] py-[var(--spacing-base)] pl-[var(--spacing-3xl)]">
         <span className="text-[12px] text-[var(--color-text-muted)]">
           No line item details available.
         </span>
@@ -25,8 +26,8 @@ export function OrderLineItems({ items }: OrderLineItemsProps) {
   }
 
   return (
-    <div className="bg-[var(--color-bg-page)]">
-      <table className="w-full border-collapse">
+    <div className="mx-[var(--spacing-3xl)] my-[var(--spacing-md)] rounded-[var(--radius-base)] bg-[var(--color-bg-card)] border-l-[3px] border-l-[var(--color-gold-primary)] shadow-[var(--shadow-card)] overflow-x-auto">
+      <table className="w-full min-w-[600px] border-collapse">
         <thead>
           <tr>
             {COLUMNS.map((col, i) => (
@@ -34,7 +35,9 @@ export function OrderLineItems({ items }: OrderLineItemsProps) {
                 key={col}
                 className={`py-[var(--spacing-sm)] text-[10px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide ${
                   i <= 1 ? 'text-left' : 'text-right'
-                } ${i === 0 ? 'pl-[48px] pr-[var(--spacing-base)]' : 'px-[var(--spacing-base)]'}`}
+                } ${i === 0 ? 'pl-[var(--spacing-3xl)] pr-[var(--spacing-base)]' : 'px-[var(--spacing-base)]'} ${
+                  i === COLUMNS.length - 1 ? 'pr-[var(--spacing-3xl)]' : ''
+                }`}
               >
                 {col}
               </th>
@@ -45,24 +48,24 @@ export function OrderLineItems({ items }: OrderLineItemsProps) {
           {items.map((item) => (
             <tr
               key={item.sku}
-              className="border-t border-[var(--color-gold-subtle)]/50"
+              className="border-t border-[var(--color-gold-subtle)]"
             >
-              <td className="pl-[48px] pr-[var(--spacing-base)] py-[var(--spacing-sm)] text-[12px] text-[var(--color-text-secondary)] truncate max-w-[200px]">
+              <td className="pl-[var(--spacing-3xl)] pr-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px]">
+                <CopyableId value={item.sku} label="SKU" className="text-[var(--color-text-muted)]" />
+              </td>
+              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-secondary)]">
                 {item.productName}
               </td>
-              <td className="px-[var(--spacing-base)] py-[var(--spacing-sm)] text-[12px]">
-                <CopyableId value={item.sku} label="SKU" className="text-[var(--color-text-faint)]" />
-              </td>
-              <td className="px-[var(--spacing-base)] py-[var(--spacing-sm)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right">
+              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right whitespace-nowrap">
                 {item.quantity} {item.unit}
               </td>
-              <td className="px-[var(--spacing-base)] py-[var(--spacing-sm)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right">
+              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right whitespace-nowrap">
                 {formatCurrency(item.unitPrice)}
               </td>
-              <td className="px-[var(--spacing-base)] py-[var(--spacing-sm)] text-[12px] text-[var(--color-text-primary)] tabular-nums text-right">
+              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-primary)] font-medium tabular-nums text-right whitespace-nowrap">
                 {formatCurrency(item.lineTotal)}
               </td>
-              <td className="px-[var(--spacing-base)] py-[var(--spacing-sm)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right pr-[var(--spacing-3xl)]">
+              <td className="px-[var(--spacing-base)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-secondary)] tabular-nums text-right pr-[var(--spacing-3xl)] whitespace-nowrap">
                 {formatPercent(item.marginPercent)}
               </td>
             </tr>
