@@ -23,61 +23,69 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 
   return (
-    <div className="group/hero flex flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
-      {/* Top row: revenue value (left) + previous year (right) */}
-      <div className="flex items-start justify-between">
-        {/* Left: label + value + trend */}
-        <div className="flex flex-col">
-          <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
-            Total Revenue ({activePeriod === 'ytd' ? 'YTD' : activePeriod})
-          </span>
-          <span
-            className="tabular-nums text-[30px] font-[800] leading-tight tracking-[-1px] text-[var(--color-text-primary)]"
-            style={{ fontFeatureSettings: "'tnum'" }}
-          >
-            <AnimatedNumber
-              value={kpis.totalRevenue}
-              formatter={(n) => formatCurrency(Math.round(n))}
-            />
-          </span>
-          {changePercent !== null && (
-            <span className="text-[12px] font-medium" style={{ color: trendColor }}>
-              {formatPercent(changePercent, { showSign: true })}
-              <span className="opacity-0 transition-opacity duration-150 group-hover/hero:opacity-100">
-                {' '}vs same period last year
-              </span>
+    <div className="group/hero flex h-full flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
+      {/* Top section: header + chart */}
+      <div>
+        {/* Top row: revenue value (left) + previous year (right) */}
+        <div className="flex items-start justify-between">
+          {/* Left: label + value + trend */}
+          <div className="flex flex-col">
+            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+              Total Revenue ({activePeriod === 'ytd' ? 'YTD' : activePeriod})
             </span>
-          )}
+            <span
+              className="tabular-nums text-[30px] font-[800] leading-tight tracking-[-1px] text-[var(--color-text-primary)]"
+              style={{ fontFeatureSettings: "'tnum'" }}
+            >
+              <AnimatedNumber
+                value={kpis.totalRevenue}
+                formatter={(n) => formatCurrency(Math.round(n))}
+              />
+            </span>
+            {changePercent !== null && (
+              <span className="text-[12px] font-medium" style={{ color: trendColor }}>
+                {formatPercent(changePercent, { showSign: true })}
+                <span className="opacity-0 transition-opacity duration-150 group-hover/hero:opacity-100">
+                  {' '}vs same period last year
+                </span>
+              </span>
+            )}
+          </div>
+
+          {/* Right: previous year — same-period + full year */}
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-normal text-[var(--color-text-faint)]">
+                {activePeriod === 'ytd' ? `YTD ${new Date().getFullYear() - 1}` : `${parseInt(activePeriod, 10) - 1}`}
+              </span>
+              <span className="text-[16px] font-semibold text-[var(--color-text-faint)]">
+                <AnimatedNumber
+                  value={kpis.prevYearRevenue}
+                  formatter={(n) => formatCurrency(Math.round(n))}
+                />
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-normal text-[var(--color-text-faint)]">
+                Full {activePeriod === 'ytd' ? new Date().getFullYear() - 1 : parseInt(activePeriod, 10) - 1}
+              </span>
+              <span className="text-[14px] font-semibold text-[var(--color-text-faint)]">
+                <AnimatedNumber
+                  value={kpis.prevYearRevenueFull}
+                  formatter={(n) => formatCurrency(Math.round(n))}
+                />
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Right: previous year — same-period + full year */}
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] font-normal text-[var(--color-text-faint)]">
-              {activePeriod === 'ytd' ? `YTD ${new Date().getFullYear() - 1}` : `${parseInt(activePeriod, 10) - 1}`}
-            </span>
-            <span className="text-[16px] font-semibold text-[var(--color-text-faint)]">
-              <AnimatedNumber
-                value={kpis.prevYearRevenue}
-                formatter={(n) => formatCurrency(Math.round(n))}
-              />
-            </span>
-          </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] font-normal text-[var(--color-text-faint)]">
-              Full {activePeriod === 'ytd' ? new Date().getFullYear() - 1 : parseInt(activePeriod, 10) - 1}
-            </span>
-            <span className="text-[14px] font-semibold text-[var(--color-text-faint)]">
-              <AnimatedNumber
-                value={kpis.prevYearRevenueFull}
-                formatter={(n) => formatCurrency(Math.round(n))}
-              />
-            </span>
-          </div>
+        {/* YoY bar chart */}
+        <div className="mt-[var(--spacing-lg)]">
+          <YoYBarChart data={monthlyRevenue} />
         </div>
       </div>
 
-      {/* Sub-items row — controlled by global toggle */}
+      {/* Bottom section: sub-items with separator — controlled by global toggle */}
       <AnimatePresence initial={false}>
         {showDetails ? (
           <motion.div
@@ -88,7 +96,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
             transition={{ duration: 0.25, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="mt-[var(--spacing-md)] flex gap-[var(--spacing-3xl)]">
+            <div className="mt-[var(--spacing-sm)] flex gap-[var(--spacing-3xl)] border-t border-[var(--color-gold-subtle)] pt-[var(--spacing-sm)]">
               <SubItem label="This Quarter" value={kpis.thisQuarterRevenue} />
               <SubItem label="Last Month" value={kpis.lastMonthRevenue} suffix={kpis.lastMonthName} />
               <SubItem label="Best Month" value={kpis.bestMonth.amount} suffix={kpis.bestMonth.name} />
@@ -107,11 +115,6 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* YoY bar chart */}
-      <div className="mt-[var(--spacing-lg)]">
-        <YoYBarChart data={monthlyRevenue} />
-      </div>
     </div>
   );
 }
