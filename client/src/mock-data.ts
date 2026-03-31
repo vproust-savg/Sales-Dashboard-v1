@@ -17,6 +17,7 @@ export const MOCK_DASHBOARD: DashboardPayload = {
     totalRevenue: 240200, prevYearRevenue: 213800,
     revenueChangePercent: 12.4, revenueChangeAmount: 26400,
     thisQuarterRevenue: 68400, lastQuarterRevenue: 62100,
+    lastMonthRevenue: 21000, lastMonthName: 'Feb',
     bestMonth: { name: 'Sep', amount: 32400 },
     orders: 32, ordersChange: 4,
     avgOrder: 7506, marginPercent: 18.4, marginAmount: 44200,

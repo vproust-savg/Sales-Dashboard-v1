@@ -40,7 +40,9 @@ export function DetailHeader({
             title={subtitle}
           >
             {entity?.id && <CopyableId value={entity.id} label="ID" className="inline text-[11px] text-[var(--color-text-muted)]" />}
-            {' '}&middot; {subtitle}{entity?.customerType && <> &middot; {entity.customerType}</>}
+            {entity?.zone && <> &middot; {entity.zone}</>}
+            {entity?.customerType && <> &middot; {entity.customerType}</>}
+            {entity?.rep && <> &middot; {entity.rep}</>}
           </p>
         )}
       </div>

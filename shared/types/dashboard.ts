@@ -31,6 +31,8 @@ export interface KPIs {
   revenueChangeAmount: number;
   thisQuarterRevenue: number;
   lastQuarterRevenue: number;
+  lastMonthRevenue: number;
+  lastMonthName: string;           // e.g. "Feb" — label for the sub-item
   bestMonth: { name: string; amount: number };
   orders: number;
   ordersChange: number;          // vs prev quarter

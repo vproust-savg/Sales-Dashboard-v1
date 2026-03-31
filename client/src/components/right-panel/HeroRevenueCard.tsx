@@ -3,7 +3,7 @@
 // USED BY: KPISection.tsx
 // EXPORTS: HeroRevenueCard
 
-import type { KPIs, MonthlyRevenue } from '@shared/types/dashboard';
+import type { KPIs, MonthlyRevenue, Period } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { YoYBarChart } from './YoYBarChart';
@@ -11,9 +11,10 @@ import { YoYBarChart } from './YoYBarChart';
 interface HeroRevenueCardProps {
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
+  activePeriod: Period;
 }
 
-export function HeroRevenueCard({ kpis, monthlyRevenue }: HeroRevenueCardProps) {
+export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod }: HeroRevenueCardProps) {
   const changePercent = kpis.revenueChangePercent;
   const isPositive = changePercent !== null && changePercent >= 0;
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
@@ -25,7 +26,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue }: HeroRevenueCardProps) 
         {/* Left: label + value + trend */}
         <div className="flex flex-col">
           <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
-            Total Revenue (12 months)
+            Total Revenue ({activePeriod === 'ytd' ? 'YTD' : activePeriod})
           </span>
           <span
             className="tabular-nums text-[30px] font-[800] leading-tight tracking-[-1px] text-[var(--color-text-primary)]"
@@ -60,8 +61,8 @@ export function HeroRevenueCard({ kpis, monthlyRevenue }: HeroRevenueCardProps) 
       {/* Sub-items row */}
       <div className="mt-[var(--spacing-md)] flex gap-[var(--spacing-3xl)]">
         <SubItem label="This Quarter" value={kpis.thisQuarterRevenue} />
+        <SubItem label="Last Month" value={kpis.lastMonthRevenue} suffix={kpis.lastMonthName} />
         <SubItem label="Best Month" value={kpis.bestMonth.amount} suffix={kpis.bestMonth.name} />
-        <SubItem label="Previous Year" value={kpis.prevYearRevenue} />
       </div>
 
       {/* YoY bar chart */}

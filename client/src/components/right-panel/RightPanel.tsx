@@ -46,6 +46,7 @@ export function RightPanel({
         kpis={kpis}
         monthlyRevenue={monthlyRevenue}
         sparklines={sparklines}
+        activePeriod={activePeriod}
       />
       <ChartsRow productMix={productMix} topSellers={topSellers} />
       <TabsSection orders={orders} items={items} contacts={contacts} />

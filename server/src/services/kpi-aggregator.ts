@@ -44,6 +44,20 @@ export function computeKPIs(
   orders.forEach(o => { monthRevenues[new Date(o.CURDATE).getUTCMonth()] += o.TOTPRICE; });
   const bestMonthIdx = monthRevenues.indexOf(Math.max(...monthRevenues));
 
+  // Last month — WHY: if current month is January, last month is December from prev year
+  const prevMonthIdx = now.getUTCMonth() - 1;
+  let lastMonthRevenue: number;
+  let lastMonthName: string;
+  if (prevMonthIdx >= 0) {
+    lastMonthRevenue = monthRevenues[prevMonthIdx];
+    lastMonthName = MONTH_NAMES[prevMonthIdx];
+  } else {
+    lastMonthRevenue = prevOrders
+      .filter(o => new Date(o.CURDATE).getUTCMonth() === 11)
+      .reduce((sum, o) => sum + o.TOTPRICE, 0);
+    lastMonthName = 'Dec';
+  }
+
   // Last order
   const dates = orders.map(o => new Date(o.CURDATE).getTime());
   const lastOrderDate = dates.length > 0 ? Math.max(...dates) : null;
@@ -69,6 +83,8 @@ export function computeKPIs(
     revenueChangeAmount: totalRevenue - prevRevenue,
     thisQuarterRevenue,
     lastQuarterRevenue,
+    lastMonthRevenue,
+    lastMonthName,
     bestMonth: { name: MONTH_NAMES[bestMonthIdx] ?? 'N/A', amount: monthRevenues[bestMonthIdx] ?? 0 },
     orders: orderCount,
     ordersChange: orderCount - prevOrders.length,

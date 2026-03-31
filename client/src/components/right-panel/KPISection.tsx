@@ -3,7 +3,7 @@
 // USED BY: RightPanel.tsx
 // EXPORTS: KPISection
 
-import type { KPIs, MonthlyRevenue, SparklineData } from '@shared/types/dashboard';
+import type { KPIs, MonthlyRevenue, SparklineData, Period } from '@shared/types/dashboard';
 import {
   formatCurrency,
   formatPercent,
@@ -18,6 +18,7 @@ interface KPISectionProps {
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
   sparklines: Record<string, SparklineData>;
+  activePeriod: Period;
 }
 
 /** WHY activity status here: spec 10.3 defines dot color thresholds by days since last order */
@@ -34,13 +35,13 @@ function getTrendColor(value: number | null): 'green' | 'red' | 'neutral' {
   return value >= 0 ? 'green' : 'red';
 }
 
-export function KPISection({ kpis, monthlyRevenue, sparklines }: KPISectionProps) {
+export function KPISection({ kpis, monthlyRevenue, sparklines, activePeriod }: KPISectionProps) {
   const activity = getActivityStatus(kpis.lastOrderDays);
 
   return (
     <div className="grid grid-cols-2 gap-[var(--spacing-base)] max-lg:grid-cols-1">
       {/* Hero card — spans full height of grid */}
-      <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} />
+      <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} />
 
       {/* 2x3 KPI grid — stretches to match hero height */}
       <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-md)]">
@@ -72,9 +73,9 @@ export function KPISection({ kpis, monthlyRevenue, sparklines }: KPISectionProps
           value={kpis.marginPercent ?? 0}
           formatter={(n) => kpis.marginPercent === null ? '\u2014' : formatPercent(n)}
           secondaryValue={formatCurrency(kpis.marginAmount)}
-          changeValue={kpis.marginChangepp !== null ? formatPercentPoints(kpis.marginChangepp) : null}
-          changeLabel="vs target"
-          changeColor={getTrendColor(kpis.marginChangepp)}
+          changeValue={null}
+          changeLabel=""
+          changeColor="neutral"
         />
 
         {/* 4. Frequency */}
