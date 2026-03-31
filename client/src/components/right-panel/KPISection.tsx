@@ -7,7 +7,6 @@ import type { KPIs, MonthlyRevenue, SparklineData, Period } from '@shared/types/
 import {
   formatCurrency,
   formatPercent,
-  formatPercentPoints,
   formatFrequency,
   formatDays,
 } from '@shared/utils/formatting';
@@ -67,18 +66,27 @@ export function KPISection({ kpis, monthlyRevenue, sparklines, activePeriod }: K
           sparklineData={sparklines.revenue?.values}
         />
 
-        {/* 3. Margin — special: two values per spec 22.4 */}
+        {/* 3. Margin % */}
         <KPICard
-          label="Margin"
+          label="Margin %"
           value={kpis.marginPercent ?? 0}
           formatter={(n) => kpis.marginPercent === null ? '\u2014' : formatPercent(n)}
-          secondaryValue={formatCurrency(kpis.marginAmount)}
           changeValue={null}
           changeLabel=""
           changeColor="neutral"
         />
 
-        {/* 4. Frequency */}
+        {/* 4. Margin $ */}
+        <KPICard
+          label="Margin $"
+          value={kpis.marginAmount}
+          formatter={(n) => formatCurrency(Math.round(n))}
+          changeValue={null}
+          changeLabel=""
+          changeColor="neutral"
+        />
+
+        {/* 5. Frequency */}
         <KPICard
           label="Frequency"
           value={kpis.frequency ?? 0}
@@ -88,7 +96,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines, activePeriod }: K
           changeColor={getTrendColor(kpis.frequencyChange)}
         />
 
-        {/* 5. Last Order — special: activity status dot per spec 10.3 */}
+        {/* 6. Last Order — activity status dot per spec 10.3 */}
         <KPICard
           label="Last Order"
           value={kpis.lastOrderDays ?? 0}
@@ -97,16 +105,6 @@ export function KPISection({ kpis, monthlyRevenue, sparklines, activePeriod }: K
           changeLabel=""
           changeColor="neutral"
           statusDot={activity}
-        />
-
-        {/* 6. Fill Rate */}
-        <KPICard
-          label="Fill Rate"
-          value={kpis.fillRate ?? 0}
-          formatter={(n) => kpis.fillRate === null ? '\u2014' : formatPercent(n)}
-          changeValue={kpis.fillRateChangepp !== null ? formatPercentPoints(kpis.fillRateChangepp) : null}
-          changeLabel="vs prev year"
-          changeColor={getTrendColor(kpis.fillRateChangepp)}
         />
       </div>
     </div>
