@@ -23,7 +23,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 
   return (
-    <div className="flex flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
+    <div className="group/hero flex flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
       {/* Top row: revenue value (left) + previous year (right) */}
       <div className="flex items-start justify-between">
         {/* Left: label + value + trend */}
@@ -42,7 +42,10 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
           </span>
           {changePercent !== null && (
             <span className="text-[12px] font-medium" style={{ color: trendColor }}>
-              {formatPercent(changePercent, { showSign: true })} vs same period last year
+              {formatPercent(changePercent, { showSign: true })}
+              <span className="opacity-0 transition-opacity duration-150 group-hover/hero:opacity-100">
+                {' '}vs same period last year
+              </span>
             </span>
           )}
         </div>

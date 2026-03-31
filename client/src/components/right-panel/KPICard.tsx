@@ -47,10 +47,13 @@ export function KPICard({
           </span>
           {changePercent !== undefined && changePercent !== null && (
             <span
-              className="text-[9px] font-medium opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100"
+              className="text-[9px] font-medium"
               style={{ color: changePercent >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}
             >
-              {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}% vs same period last year
+              {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%
+              <span className="opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100">
+                {' '}vs same period last year
+              </span>
             </span>
           )}
           {statusDot && (
