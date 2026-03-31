@@ -1,7 +1,7 @@
 // FILE: shared/types/dashboard.ts
 // PURPOSE: Shared types for dashboard data exchanged between server and client
 // USED BY: server/services/data-aggregator.ts, client/hooks/useDashboardData.ts
-// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, TopSellerItem, OrderRow, ItemCategory, Contact
+// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER, TopSellerItem, OrderRow, ItemCategory, Contact
 
 /** One entity in the left-panel list (customer, zone, vendor, brand, product type, or product) */
 export interface EntityListItem {
@@ -86,7 +86,25 @@ export interface TopSellerItem {
   sku: string;
   revenue: number;
   units: number;
+  unit: string;           // Unit of measure from TUNITNAME (e.g., "cs", "ea", "lb")
 }
+
+/** The 5 donut categorizations for the product mix carousel */
+export type ProductMixType = 'productType' | 'productFamily' | 'brand' | 'countryOfOrigin' | 'foodServiceRetail';
+
+/** Human-readable labels for each mix type — used by carousel UI */
+export const PRODUCT_MIX_LABELS: Record<ProductMixType, string> = {
+  productType: 'Product Type',
+  productFamily: 'Product Family',
+  brand: 'Brand',
+  countryOfOrigin: 'Country of Origin',
+  foodServiceRetail: 'FS vs Retail',
+};
+
+/** Ordered list of mix types for carousel navigation */
+export const PRODUCT_MIX_ORDER: ProductMixType[] = [
+  'productType', 'productFamily', 'brand', 'countryOfOrigin', 'foodServiceRetail',
+];
 
 /** KPI sparkline data — spec Section 20.3 */
 export interface SparklineData {
@@ -141,7 +159,7 @@ export interface DashboardPayload {
   entities: EntityListItem[];
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
-  productMix: ProductMixSegment[];
+  productMixes: Record<ProductMixType, ProductMixSegment[]>;
   topSellers: TopSellerItem[];
   sparklines: Record<string, SparklineData>;
   orders: OrderRow[];
