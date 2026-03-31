@@ -18,6 +18,9 @@ interface KPICardProps {
   value: number;
   formatter: (n: number) => string;
   prevYearValue?: string;
+  prevYearFullValue?: string;
+  prevYearLabel?: string;      // e.g. "YTD 2025"
+  prevYearFullLabel?: string;  // e.g. "Full 2025"
   /** YoY change line — e.g. "-22.4% vs same period last year" */
   changePercent?: number | null;
   subItems?: KPISubItem[];
@@ -28,7 +31,8 @@ interface KPICardProps {
 }
 
 export function KPICard({
-  label, periodLabel, value, formatter, prevYearValue, changePercent, subItems, expanded, statusDot,
+  label, periodLabel, value, formatter, prevYearValue, prevYearFullValue,
+  prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot,
 }: KPICardProps) {
   const hasSubItems = subItems && subItems.length > 0;
 
@@ -64,9 +68,17 @@ export function KPICard({
           )}
         </div>
         {prevYearValue && (
-          <div className="flex flex-col items-end shrink-0">
-            <span className="text-[8px] font-normal text-[var(--color-text-faint)]">Prev Year</span>
-            <span className="text-[11px] font-semibold text-[var(--color-text-faint)]">{prevYearValue}</span>
+          <div className="flex flex-col items-end shrink-0 gap-0.5">
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] font-normal text-[var(--color-text-faint)]">{prevYearLabel ?? 'Prev Year'}</span>
+              <span className="text-[11px] font-semibold text-[var(--color-text-faint)]">{prevYearValue}</span>
+            </div>
+            {prevYearFullValue && (
+              <div className="flex flex-col items-end">
+                <span className="text-[8px] font-normal text-[var(--color-text-faint)]">{prevYearFullLabel ?? 'Full Year'}</span>
+                <span className="text-[11px] font-semibold text-[var(--color-text-faint)]">{prevYearFullValue}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -25,7 +25,8 @@ export interface EntityListItem {
 
 /** Per-metric breakdown for KPI cards — mirrors the hero card sub-items pattern */
 export interface KPIMetricBreakdown {
-  prevYear: number;
+  prevYear: number;      // same-period previous year (apples-to-apples)
+  prevYearFull: number;  // full previous year (all 12 months)
   thisQuarter: number;
   lastMonth: number;
   lastMonthName: string;
@@ -35,7 +36,8 @@ export interface KPIMetricBreakdown {
 /** KPI values for the right panel — spec Section 10.1 */
 export interface KPIs {
   totalRevenue: number;
-  prevYearRevenue: number;
+  prevYearRevenue: number;       // same-period previous year
+  prevYearRevenueFull: number;   // full previous year (all 12 months)
   revenueChangePercent: number | null;  // null when no prev year
   revenueChangeAmount: number;
   thisQuarterRevenue: number;

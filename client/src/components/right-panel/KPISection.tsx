@@ -39,6 +39,10 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
   const [showDetails, setShowDetails] = useState(false);
   const activity = getActivityStatus(kpis.lastOrderDays);
   const pLabel = activePeriod === 'ytd' ? '(YTD)' : `(${activePeriod})`;
+  // WHY: Dynamic year labels for the two-line prev year display
+  const prevYr = activePeriod === 'ytd' ? new Date().getFullYear() - 1 : parseInt(activePeriod, 10) - 1;
+  const pyLabel = activePeriod === 'ytd' ? `YTD ${prevYr}` : `${prevYr}`;
+  const pyFullLabel = `Full ${prevYr}`;
   const ob = kpis.ordersBreakdown;
   const ab = kpis.avgOrderBreakdown;
   const mpb = kpis.marginPercentBreakdown;
@@ -60,6 +64,9 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.orders}
           formatter={(n) => Math.round(n).toLocaleString('en-US')}
           prevYearValue={Math.round(ob.prevYear).toLocaleString('en-US')}
+          prevYearFullValue={Math.round(ob.prevYearFull).toLocaleString('en-US')}
+          prevYearLabel={pyLabel}
+          prevYearFullLabel={pyFullLabel}
           changePercent={yoyChange(kpis.orders, ob.prevYear)}
           expanded={showDetails}
           subItems={[
@@ -76,6 +83,9 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.avgOrder ?? 0}
           formatter={(n) => kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(n))}
           prevYearValue={ab.prevYear > 0 ? formatCurrency(Math.round(ab.prevYear)) : '\u2014'}
+          prevYearFullValue={ab.prevYearFull > 0 ? formatCurrency(Math.round(ab.prevYearFull)) : '\u2014'}
+          prevYearLabel={pyLabel}
+          prevYearFullLabel={pyFullLabel}
           changePercent={yoyChange(kpis.avgOrder ?? 0, ab.prevYear)}
           expanded={showDetails}
           subItems={[
@@ -92,6 +102,9 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.marginPercent ?? 0}
           formatter={(n) => kpis.marginPercent === null ? '\u2014' : formatPercent(n)}
           prevYearValue={mpb.prevYear > 0 ? formatPercent(mpb.prevYear) : '\u2014'}
+          prevYearFullValue={mpb.prevYearFull > 0 ? formatPercent(mpb.prevYearFull) : '\u2014'}
+          prevYearLabel={pyLabel}
+          prevYearFullLabel={pyFullLabel}
           changePercent={yoyChange(kpis.marginPercent ?? 0, mpb.prevYear)}
           expanded={showDetails}
           subItems={[
@@ -108,6 +121,9 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.marginAmount}
           formatter={(n) => formatCurrency(Math.round(n))}
           prevYearValue={formatCurrency(Math.round(mab.prevYear))}
+          prevYearFullValue={formatCurrency(Math.round(mab.prevYearFull))}
+          prevYearLabel={pyLabel}
+          prevYearFullLabel={pyFullLabel}
           changePercent={yoyChange(kpis.marginAmount, mab.prevYear)}
           expanded={showDetails}
           subItems={[
@@ -124,6 +140,9 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           value={kpis.frequency ?? 0}
           formatter={(n) => kpis.frequency === null ? '\u2014' : formatFrequency(n)}
           prevYearValue={fb.prevYear > 0 ? formatFrequency(fb.prevYear) : '\u2014'}
+          prevYearFullValue={fb.prevYearFull > 0 ? formatFrequency(fb.prevYearFull) : '\u2014'}
+          prevYearLabel={pyLabel}
+          prevYearFullLabel={pyFullLabel}
           changePercent={yoyChange(kpis.frequency ?? 0, fb.prevYear)}
           expanded={showDetails}
           subItems={[
