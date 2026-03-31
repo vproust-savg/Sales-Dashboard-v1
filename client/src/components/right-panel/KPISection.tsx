@@ -29,13 +29,14 @@ function getActivityStatus(days: number | null): { color: string; label: string 
   return { color: 'var(--color-red)', label: 'At risk' };
 }
 
-function getTrendColor(value: number | null): 'green' | 'red' | 'neutral' {
-  if (value === null) return 'neutral';
-  return value >= 0 ? 'green' : 'red';
-}
-
-export function KPISection({ kpis, monthlyRevenue, sparklines, activePeriod }: KPISectionProps) {
+export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, activePeriod }: KPISectionProps) {
   const activity = getActivityStatus(kpis.lastOrderDays);
+  const pLabel = activePeriod === 'ytd' ? '(YTD)' : `(${activePeriod})`;
+  const ob = kpis.ordersBreakdown;
+  const ab = kpis.avgOrderBreakdown;
+  const mpb = kpis.marginPercentBreakdown;
+  const mab = kpis.marginAmountBreakdown;
+  const fb = kpis.frequencyBreakdown;
 
   return (
     <div className="grid grid-cols-2 gap-[var(--spacing-base)] max-lg:grid-cols-1">
@@ -47,63 +48,79 @@ export function KPISection({ kpis, monthlyRevenue, sparklines, activePeriod }: K
         {/* 1. Orders */}
         <KPICard
           label="Orders"
+          periodLabel={pLabel}
           value={kpis.orders}
           formatter={(n) => Math.round(n).toLocaleString('en-US')}
-          changeValue={kpis.ordersChange !== null ? `${kpis.ordersChange > 0 ? '+' : ''}${kpis.ordersChange}` : null}
-          changeLabel="this quarter"
-          changeColor={getTrendColor(kpis.ordersChange)}
-          sparklineData={sparklines.orders?.values}
+          prevYearValue={Math.round(ob.prevYear).toLocaleString('en-US')}
+          subItems={[
+            { label: 'This Quarter', value: Math.round(ob.thisQuarter).toLocaleString('en-US') },
+            { label: 'Last Month', value: Math.round(ob.lastMonth).toLocaleString('en-US'), suffix: ob.lastMonthName },
+            { label: 'Best Month', value: Math.round(ob.bestMonth.value).toLocaleString('en-US'), suffix: ob.bestMonth.name },
+          ]}
         />
 
         {/* 2. Avg. Order */}
         <KPICard
           label="Avg. Order"
+          periodLabel={pLabel}
           value={kpis.avgOrder ?? 0}
           formatter={(n) => kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(n))}
-          changeValue={null}
-          changeLabel=""
-          changeColor="neutral"
-          sparklineData={sparklines.revenue?.values}
+          prevYearValue={ab.prevYear > 0 ? formatCurrency(Math.round(ab.prevYear)) : '\u2014'}
+          subItems={[
+            { label: 'This Quarter', value: ab.thisQuarter > 0 ? formatCurrency(Math.round(ab.thisQuarter)) : '\u2014' },
+            { label: 'Last Month', value: ab.lastMonth > 0 ? formatCurrency(Math.round(ab.lastMonth)) : '\u2014', suffix: ab.lastMonthName },
+            { label: 'Best Month', value: ab.bestMonth.value > 0 ? formatCurrency(Math.round(ab.bestMonth.value)) : '\u2014', suffix: ab.bestMonth.name },
+          ]}
         />
 
         {/* 3. Margin % */}
         <KPICard
           label="Margin %"
+          periodLabel={pLabel}
           value={kpis.marginPercent ?? 0}
           formatter={(n) => kpis.marginPercent === null ? '\u2014' : formatPercent(n)}
-          changeValue={null}
-          changeLabel=""
-          changeColor="neutral"
+          prevYearValue={mpb.prevYear > 0 ? formatPercent(mpb.prevYear) : '\u2014'}
+          subItems={[
+            { label: 'This Quarter', value: mpb.thisQuarter > 0 ? formatPercent(mpb.thisQuarter) : '\u2014' },
+            { label: 'Last Month', value: mpb.lastMonth > 0 ? formatPercent(mpb.lastMonth) : '\u2014', suffix: mpb.lastMonthName },
+            { label: 'Best Month', value: mpb.bestMonth.value > 0 ? formatPercent(mpb.bestMonth.value) : '\u2014', suffix: mpb.bestMonth.name },
+          ]}
         />
 
         {/* 4. Margin $ */}
         <KPICard
           label="Margin $"
+          periodLabel={pLabel}
           value={kpis.marginAmount}
           formatter={(n) => formatCurrency(Math.round(n))}
-          changeValue={null}
-          changeLabel=""
-          changeColor="neutral"
+          prevYearValue={formatCurrency(Math.round(mab.prevYear))}
+          subItems={[
+            { label: 'This Quarter', value: formatCurrency(Math.round(mab.thisQuarter)) },
+            { label: 'Last Month', value: formatCurrency(Math.round(mab.lastMonth)), suffix: mab.lastMonthName },
+            { label: 'Best Month', value: formatCurrency(Math.round(mab.bestMonth.value)), suffix: mab.bestMonth.name },
+          ]}
         />
 
         {/* 5. Frequency */}
         <KPICard
           label="Frequency"
+          periodLabel={pLabel}
           value={kpis.frequency ?? 0}
           formatter={(n) => kpis.frequency === null ? '\u2014' : formatFrequency(n)}
-          changeValue={kpis.frequencyChange !== null ? `${kpis.frequencyChange > 0 ? '+' : ''}${kpis.frequencyChange.toFixed(1)}` : null}
-          changeLabel="vs avg"
-          changeColor={getTrendColor(kpis.frequencyChange)}
+          prevYearValue={fb.prevYear > 0 ? formatFrequency(fb.prevYear) : '\u2014'}
+          subItems={[
+            { label: 'This Quarter', value: fb.thisQuarter > 0 ? formatFrequency(fb.thisQuarter) : '\u2014' },
+            { label: 'Last Month', value: Math.round(fb.lastMonth).toLocaleString('en-US'), suffix: fb.lastMonthName },
+            { label: 'Best Month', value: Math.round(fb.bestMonth.value).toLocaleString('en-US'), suffix: fb.bestMonth.name },
+          ]}
         />
 
         {/* 6. Last Order — activity status dot per spec 10.3 */}
         <KPICard
           label="Last Order"
+          periodLabel={pLabel}
           value={kpis.lastOrderDays ?? 0}
           formatter={(n) => kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(n))}
-          changeValue={null}
-          changeLabel=""
-          changeColor="neutral"
           statusDot={activity}
         />
       </div>

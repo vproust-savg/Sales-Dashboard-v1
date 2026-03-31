@@ -23,6 +23,15 @@ export interface EntityListItem {
   customerType: string | null;     // customer type (customer dimension only, null otherwise)
 }
 
+/** Per-metric breakdown for KPI cards — mirrors the hero card sub-items pattern */
+export interface KPIMetricBreakdown {
+  prevYear: number;
+  thisQuarter: number;
+  lastMonth: number;
+  lastMonthName: string;
+  bestMonth: { name: string; value: number };
+}
+
 /** KPI values for the right panel — spec Section 10.1 */
 export interface KPIs {
   totalRevenue: number;
@@ -45,6 +54,12 @@ export interface KPIs {
   lastOrderDays: number | null;  // null when no orders
   fillRate: number | null;       // 0-100, null when no items ordered
   fillRateChangepp: number | null;
+  // Per-metric breakdowns for KPI cards (this quarter, last month, best month, prev year)
+  ordersBreakdown: KPIMetricBreakdown;
+  avgOrderBreakdown: KPIMetricBreakdown;
+  marginPercentBreakdown: KPIMetricBreakdown;
+  marginAmountBreakdown: KPIMetricBreakdown;
+  frequencyBreakdown: KPIMetricBreakdown;
 }
 
 /** One month in the YoY bar chart — spec Section 20.1 */

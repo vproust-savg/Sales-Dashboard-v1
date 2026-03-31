@@ -3,7 +3,7 @@
 // USED BY: server/src/services/data-aggregator.ts
 // EXPORTS: computeKPIs, computeMonthlyRevenue, computeSparklines, MONTH_NAMES
 
-import type { KPIs, MonthlyRevenue, SparklineData } from '@shared/types/dashboard';
+import type { KPIs, KPIMetricBreakdown, MonthlyRevenue, SparklineData } from '@shared/types/dashboard';
 import type { RawOrder, RawOrderItem } from './priority-queries.js';
 
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -48,9 +48,23 @@ export function computeKPIs(
     .filter(o => { const d = new Date(o.CURDATE); return d >= prevQStart && d < qStart; })
     .reduce((sum, o) => sum + o.TOTPRICE, 0);
 
-  // Best month
+  // Monthly buckets for all metrics — WHY: derive breakdown sub-items per metric
   const monthRevenues = new Array(12).fill(0) as number[];
-  orders.forEach(o => { monthRevenues[new Date(o.CURDATE).getUTCMonth()] += o.TOTPRICE; });
+  const monthOrderCounts = new Array(12).fill(0) as number[];
+  const monthProfit = new Array(12).fill(0) as number[];
+  const monthItemRevenue = new Array(12).fill(0) as number[];
+  orders.forEach(o => {
+    const m = new Date(o.CURDATE).getUTCMonth();
+    monthRevenues[m] += o.TOTPRICE;
+    monthOrderCounts[m] += 1;
+    // WHY: profit/margin per month derived from order's nested items, not flat items array
+    (o.ORDERITEMS_SUBFORM ?? []).forEach(i => {
+      monthProfit[m] += i.QPROFIT;
+      monthItemRevenue[m] += i.QPRICE;
+    });
+  });
+
+  // Best month (revenue)
   const bestMonthIdx = monthRevenues.indexOf(Math.max(...monthRevenues));
 
   // Last month — WHY: if current month is January, last month is December from prev year
@@ -85,6 +99,28 @@ export function computeKPIs(
   const prevMarginPct = prevItemRevenue > 0 ? (prevProfit / prevItemRevenue) * 100 : null;
   const currentMarginPct = totalItemRevenue > 0 ? (totalProfit / totalItemRevenue) * 100 : null;
 
+  // --- Per-metric breakdowns (mirrors hero card sub-items) ---
+  // WHY: same prevOrders filtering for same-period comparison as the revenue prevRevenue above
+  const prevSamePeriod = period === 'ytd'
+    ? prevOrders.filter(o => {
+        const d = new Date(o.CURDATE);
+        return d.getUTCMonth() < now.getUTCMonth()
+          || (d.getUTCMonth() === now.getUTCMonth() && d.getUTCDate() <= now.getUTCDate());
+      })
+    : prevOrders;
+  const prevOrderCount = prevSamePeriod.length;
+  const prevSamePeriodRevenue = prevSamePeriod.reduce((s, o) => s + o.TOTPRICE, 0);
+  const prevSamePeriodProfit = prevSamePeriod.reduce((s, o) =>
+    s + (o.ORDERITEMS_SUBFORM ?? []).reduce((ps, i) => ps + i.QPROFIT, 0), 0);
+  const prevSamePeriodItemRev = prevSamePeriod.reduce((s, o) =>
+    s + (o.ORDERITEMS_SUBFORM ?? []).reduce((ps, i) => ps + i.QPRICE, 0), 0);
+
+  const ordersBreakdown = buildBreakdown(monthOrderCounts, prevOrderCount, currentQuarter, qStart, orders, prevMonthIdx, prevOrders, 'count');
+  const avgOrderBreakdown = buildAvgOrderBreakdown(monthRevenues, monthOrderCounts, prevSamePeriodRevenue, prevOrderCount, currentQuarter, prevMonthIdx);
+  const marginPercentBreakdown = buildMarginPctBreakdown(monthProfit, monthItemRevenue, prevSamePeriodProfit, prevSamePeriodItemRev, currentQuarter, prevMonthIdx);
+  const marginAmountBreakdown = buildBreakdown(monthProfit, prevSamePeriodProfit, currentQuarter, qStart, orders, prevMonthIdx, prevOrders, 'sum');
+  const frequencyBreakdown = buildFrequencyBreakdown(monthOrderCounts, prevOrderCount, prevSamePeriod.length, monthsInPeriod, currentQuarter, prevMonthIdx);
+
   return {
     totalRevenue,
     prevYearRevenue: prevRevenue,
@@ -103,10 +139,15 @@ export function computeKPIs(
     marginChangepp: currentMarginPct !== null && prevMarginPct !== null
       ? currentMarginPct - prevMarginPct : null,
     frequency: orderCount > 0 ? orderCount / monthsInPeriod : null,
-    frequencyChange: null, // Computed on client from avg across all entities
+    frequencyChange: null,
     lastOrderDays,
-    fillRate: null, // Requires delivered qty data not yet mapped
+    fillRate: null,
     fillRateChangepp: null,
+    ordersBreakdown,
+    avgOrderBreakdown,
+    marginPercentBreakdown,
+    marginAmountBreakdown,
+    frequencyBreakdown,
   };
 }
 
@@ -147,5 +188,98 @@ export function computeSparklines(orders: RawOrder[]): Record<string, SparklineD
   return {
     revenue: { values: months.map(m => revenueByMonth.get(m) ?? 0) },
     orders: { values: months.map(m => ordersByMonth.get(m) ?? 0) },
+  };
+}
+
+/* --- Breakdown helpers for KPI cards --- */
+
+/** WHY: Generic breakdown builder for simple sum/count metrics */
+function buildBreakdown(
+  monthlyValues: number[], prevYearTotal: number, currentQuarter: number,
+  _qStart: Date, _orders: RawOrder[], prevMonthIdx: number, _prevOrders: RawOrder[],
+  _type: 'sum' | 'count',
+): KPIMetricBreakdown {
+  const qStartMonth = currentQuarter * 3;
+  const thisQuarter = monthlyValues.slice(qStartMonth, qStartMonth + 3).reduce((a, b) => a + b, 0);
+  const lastMonth = prevMonthIdx >= 0 ? monthlyValues[prevMonthIdx] : 0;
+  const lastMonthName = prevMonthIdx >= 0 ? MONTH_NAMES[prevMonthIdx] : 'Dec';
+  const bestVal = Math.max(...monthlyValues);
+  const bestIdx = monthlyValues.indexOf(bestVal);
+  return {
+    prevYear: prevYearTotal,
+    thisQuarter,
+    lastMonth,
+    lastMonthName,
+    bestMonth: { name: MONTH_NAMES[bestIdx] ?? 'N/A', value: bestVal },
+  };
+}
+
+/** Avg order = revenue / orders per period bucket */
+function buildAvgOrderBreakdown(
+  monthRevenues: number[], monthOrders: number[], prevRevenue: number, prevOrders: number,
+  currentQuarter: number, prevMonthIdx: number,
+): KPIMetricBreakdown {
+  const qStart = currentQuarter * 3;
+  const qRev = monthRevenues.slice(qStart, qStart + 3).reduce((a, b) => a + b, 0);
+  const qOrd = monthOrders.slice(qStart, qStart + 3).reduce((a, b) => a + b, 0);
+  const lmRev = prevMonthIdx >= 0 ? monthRevenues[prevMonthIdx] : 0;
+  const lmOrd = prevMonthIdx >= 0 ? monthOrders[prevMonthIdx] : 0;
+  // Best month by avg order (only months with orders)
+  let bestAvg = 0; let bestIdx = 0;
+  for (let i = 0; i < 12; i++) {
+    const avg = monthOrders[i] > 0 ? monthRevenues[i] / monthOrders[i] : 0;
+    if (avg > bestAvg) { bestAvg = avg; bestIdx = i; }
+  }
+  return {
+    prevYear: prevOrders > 0 ? prevRevenue / prevOrders : 0,
+    thisQuarter: qOrd > 0 ? qRev / qOrd : 0,
+    lastMonth: lmOrd > 0 ? lmRev / lmOrd : 0,
+    lastMonthName: prevMonthIdx >= 0 ? MONTH_NAMES[prevMonthIdx] : 'Dec',
+    bestMonth: { name: MONTH_NAMES[bestIdx] ?? 'N/A', value: bestAvg },
+  };
+}
+
+/** Margin % = profit / item revenue per period bucket */
+function buildMarginPctBreakdown(
+  monthProfit: number[], monthItemRev: number[], prevProfit: number, prevItemRev: number,
+  currentQuarter: number, prevMonthIdx: number,
+): KPIMetricBreakdown {
+  const qStart = currentQuarter * 3;
+  const qProfit = monthProfit.slice(qStart, qStart + 3).reduce((a, b) => a + b, 0);
+  const qItemRev = monthItemRev.slice(qStart, qStart + 3).reduce((a, b) => a + b, 0);
+  const lmProfit = prevMonthIdx >= 0 ? monthProfit[prevMonthIdx] : 0;
+  const lmItemRev = prevMonthIdx >= 0 ? monthItemRev[prevMonthIdx] : 0;
+  let bestPct = 0; let bestIdx = 0;
+  for (let i = 0; i < 12; i++) {
+    const pct = monthItemRev[i] > 0 ? (monthProfit[i] / monthItemRev[i]) * 100 : 0;
+    if (pct > bestPct) { bestPct = pct; bestIdx = i; }
+  }
+  return {
+    prevYear: prevItemRev > 0 ? (prevProfit / prevItemRev) * 100 : 0,
+    thisQuarter: qItemRev > 0 ? (qProfit / qItemRev) * 100 : 0,
+    lastMonth: lmItemRev > 0 ? (lmProfit / lmItemRev) * 100 : 0,
+    lastMonthName: prevMonthIdx >= 0 ? MONTH_NAMES[prevMonthIdx] : 'Dec',
+    bestMonth: { name: MONTH_NAMES[bestIdx] ?? 'N/A', value: bestPct },
+  };
+}
+
+/** Frequency = orders per month */
+function buildFrequencyBreakdown(
+  monthOrders: number[], _prevTotal: number, prevOrderCount: number, monthsInPeriod: number,
+  currentQuarter: number, prevMonthIdx: number,
+): KPIMetricBreakdown {
+  const qStart = currentQuarter * 3;
+  const qOrders = monthOrders.slice(qStart, qStart + 3).reduce((a, b) => a + b, 0);
+  const lm = prevMonthIdx >= 0 ? monthOrders[prevMonthIdx] : 0;
+  let bestVal = 0; let bestIdx = 0;
+  for (let i = 0; i < 12; i++) {
+    if (monthOrders[i] > bestVal) { bestVal = monthOrders[i]; bestIdx = i; }
+  }
+  return {
+    prevYear: monthsInPeriod > 0 ? prevOrderCount / monthsInPeriod : 0,
+    thisQuarter: qOrders / 3,
+    lastMonth: lm,
+    lastMonthName: prevMonthIdx >= 0 ? MONTH_NAMES[prevMonthIdx] : 'Dec',
+    bestMonth: { name: MONTH_NAMES[bestIdx] ?? 'N/A', value: bestVal },
   };
 }

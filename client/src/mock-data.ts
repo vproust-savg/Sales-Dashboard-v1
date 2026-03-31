@@ -23,6 +23,11 @@ export const MOCK_DASHBOARD: DashboardPayload = {
     avgOrder: 7506, marginPercent: 18.4, marginAmount: 44200,
     marginChangepp: -1.2, frequency: 2.7, frequencyChange: 0.3,
     lastOrderDays: 4, fillRate: 94.2, fillRateChangepp: 1.8,
+    ordersBreakdown: { prevYear: 28, thisQuarter: 10, lastMonth: 4, lastMonthName: 'Feb', bestMonth: { name: 'Sep', value: 6 } },
+    avgOrderBreakdown: { prevYear: 7636, thisQuarter: 6840, lastMonth: 5250, lastMonthName: 'Feb', bestMonth: { name: 'Jan', value: 8500 } },
+    marginPercentBreakdown: { prevYear: 19.6, thisQuarter: 17.2, lastMonth: 16.1, lastMonthName: 'Feb', bestMonth: { name: 'Jul', value: 22.3 } },
+    marginAmountBreakdown: { prevYear: 41900, thisQuarter: 11770, lastMonth: 3381, lastMonthName: 'Feb', bestMonth: { name: 'Sep', value: 6500 } },
+    frequencyBreakdown: { prevYear: 2.3, thisQuarter: 3.3, lastMonth: 4, lastMonthName: 'Feb', bestMonth: { name: 'Sep', value: 5 } },
   },
   monthlyRevenue: [
     { month: 'Apr', monthIndex: 3, currentYear: 15000, previousYear: 12000 },
