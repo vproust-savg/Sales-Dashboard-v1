@@ -32,7 +32,10 @@ export function buildODataUrl(baseUrl: string, entity: string, opts: ODataUrlOpt
   if (opts.skip !== undefined) params.push(`$skip=${opts.skip}`);
   if (opts.orderby) params.push(`$orderby=${encodeURIComponent(opts.orderby)}`);
 
-  let url = `${baseUrl}/${entity}`;
+  // WHY: baseUrl may or may not end with '/'. Strip trailing slash to avoid double-slash
+  // (e.g., "…/a012226//ORDERS") which causes Priority to return 404.
+  const base = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  let url = `${base}/${entity}`;
   if (params.length > 0) url += '?' + params.join('&');
 
   // WHY: $expand contains nested OData syntax with ( ) $ = characters.
