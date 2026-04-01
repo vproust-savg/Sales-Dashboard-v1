@@ -1,0 +1,194 @@
+// FILE: server/src/routes/fetch-all.ts
+// PURPOSE: SSE endpoint for full data fetch with progress — supports incremental refresh + filters
+// USED BY: client/hooks/useFetchAll.ts via EventSource
+// EXPORTS: fetchAllRouter
+
+import { Router } from 'express';
+import { z } from 'zod';
+import { validateQuery } from '../middleware/request-validator.js';
+import { priorityClient } from '../services/priority-instance.js';
+import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
+import type { RawOrder } from '../services/priority-queries.js';
+import { aggregateOrders } from '../services/data-aggregator.js';
+import { groupByDimension } from '../services/dimension-grouper.js';
+import { cachedFetch } from '../cache/cache-layer.js';
+import { cacheKey, getTTL } from '../cache/cache-keys.js';
+import { redis } from '../cache/redis-client.js';
+import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
+
+const querySchema = z.object({
+  groupBy: z.enum(['customer', 'zone', 'vendor', 'brand', 'product_type', 'product']).default('customer'),
+  period: z.string().default('ytd'),
+  agentName: z.string().optional(),
+  zone: z.string().optional(),
+  customerType: z.string().optional(),
+  refresh: z.enum(['true', 'false']).optional(),
+});
+
+export const fetchAllRouter = Router();
+
+fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) => {
+  const { groupBy, period, agentName, zone, customerType, refresh }
+    = res.locals.query as z.infer<typeof querySchema>;
+  const forceRefresh = refresh === 'true';
+
+  // SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Connection': 'keep-alive',
+    'Cache-Control': 'no-cache',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const sendEvent = (event: string, data: unknown) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    const filterHash = buildFilterHash(agentName, zone, customerType);
+    const rawKey = cacheKey('orders_raw', period, `${groupBy}:${filterHash}`);
+    const metaKey = cacheKey('orders_raw_meta', period, `${groupBy}:${filterHash}`);
+
+    // Date ranges
+    const now = new Date();
+    const year = period === 'ytd' ? now.getFullYear() : parseInt(period, 10);
+    const startDate = `${year}-01-01T00:00:00Z`;
+    const endDate = `${year + 1}-01-01T00:00:00Z`;
+
+    // Build OData filter from dialog dropdowns
+    const extraFilter = buildODataFilter(agentName);
+
+    // Check for cached raw orders (incremental refresh)
+    let orders: RawOrder[];
+    if (!forceRefresh) {
+      const cached = await tryIncrementalRefresh(rawKey, metaKey, startDate, endDate, extraFilter, sendEvent);
+      if (cached) {
+        orders = cached;
+      } else {
+        orders = await fullFetch(startDate, endDate, extraFilter, sendEvent);
+      }
+    } else {
+      // Force refresh: delete cache, do full fetch
+      await redis.del(rawKey);
+      await redis.del(metaKey);
+      orders = await fullFetch(startDate, endDate, extraFilter, sendEvent);
+    }
+
+    // Cache raw orders + metadata
+    sendEvent('progress', { phase: 'processing', message: 'Computing metrics...' });
+    const rawEnvelope = { data: orders, cachedAt: new Date().toISOString() };
+    await redis.set(rawKey, JSON.stringify(rawEnvelope), { ex: getTTL('orders_raw') });
+    const metaEnvelope = {
+      data: { lastFetchDate: new Date().toISOString(), rowCount: orders.length, filterHash },
+      cachedAt: new Date().toISOString(),
+    };
+    await redis.set(metaKey, JSON.stringify(metaEnvelope), { ex: getTTL('orders_raw_meta') });
+
+    // Aggregate
+    const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
+    const prevEndDate = `${year}-01-01T00:00:00Z`;
+    const prevOrders = await cachedFetch(
+      cacheKey('orders_year', String(year - 1)), getTTL('orders_year'),
+      () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter),
+    );
+    const customers = await cachedFetch(
+      cacheKey('customers', 'all'), getTTL('customers'),
+      () => fetchCustomers(priorityClient),
+    );
+
+    const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
+    const entities = groupByDimension(groupBy as Dimension, orders, customers.data, periodMonths);
+    const aggregate = aggregateOrders(orders, prevOrders.data, period);
+
+    const years = new Set(orders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
+    prevOrders.data.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
+
+    const payload: DashboardPayload = {
+      entities,
+      ...aggregate,
+      yearsAvailable: [...years].sort().reverse(),
+    };
+
+    // Cache aggregated results
+    const fullKey = cacheKey('entities_full', period, groupBy);
+    const fullEnvelope = { data: { entities, yearsAvailable: payload.yearsAvailable }, cachedAt: new Date().toISOString() };
+    await redis.set(fullKey, JSON.stringify(fullEnvelope), { ex: getTTL('entities_full') });
+
+    const detailKey = cacheKey('entity_detail', period, `${groupBy}:ALL:${filterHash}`);
+    const detailEnvelope = { data: payload, cachedAt: new Date().toISOString() };
+    await redis.set(detailKey, JSON.stringify(detailEnvelope), { ex: getTTL('entities_full') });
+
+    sendEvent('complete', payload);
+    res.end();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    sendEvent('error', { message });
+    res.end();
+  }
+});
+
+async function fullFetch(
+  startDate: string, endDate: string, extraFilter: string | undefined,
+  sendEvent: (event: string, data: unknown) => void,
+): Promise<RawOrder[]> {
+  sendEvent('progress', { phase: 'fetching', rowsFetched: 0, estimatedTotal: 0 });
+  return fetchOrders(priorityClient, startDate, endDate, true, extraFilter);
+}
+
+async function tryIncrementalRefresh(
+  rawKey: string, metaKey: string,
+  startDate: string, endDate: string, extraFilter: string | undefined,
+  sendEvent: (event: string, data: unknown) => void,
+): Promise<RawOrder[] | null> {
+  const rawCached = await redis.get(rawKey);
+  const metaCached = await redis.get(metaKey);
+  if (!rawCached || !metaCached) return null;
+
+  const rawEnvelope = typeof rawCached === 'string' ? JSON.parse(rawCached) : rawCached;
+  const metaEnvelope = typeof metaCached === 'string' ? JSON.parse(metaCached) : metaCached;
+  const lastFetchDate = new Date((metaEnvelope as { data: { lastFetchDate: string } }).data.lastFetchDate);
+  const cachedOrders: RawOrder[] = (rawEnvelope as { data: RawOrder[] }).data;
+
+  // If fetched today, use as-is
+  const today = new Date();
+  if (lastFetchDate.toDateString() === today.toDateString()) {
+    sendEvent('progress', { phase: 'processing', message: 'Using cached data from today...' });
+    return cachedOrders;
+  }
+
+  // Incremental: fetch since lastFetchDate - 1 day
+  const sinceDate = new Date(lastFetchDate);
+  sinceDate.setDate(sinceDate.getDate() - 1);
+  const sinceDateStr = sinceDate.toISOString().split('T')[0] + 'T00:00:00Z';
+  sendEvent('progress', { phase: 'incremental', message: `Fetching orders since ${sinceDate.toLocaleDateString()}...`, rowsFetched: 0 });
+
+  const newOrders = await fetchOrders(priorityClient, sinceDateStr, endDate, true, extraFilter);
+  sendEvent('progress', { phase: 'merging', message: `Merging ${newOrders.length} new orders with ${cachedOrders.length} cached...` });
+
+  // Deduplicate by ORDNAME — new version wins
+  const orderMap = new Map<string, RawOrder>();
+  cachedOrders.forEach(o => orderMap.set(o.ORDNAME, o));
+  newOrders.forEach(o => orderMap.set(o.ORDNAME, o));
+
+  // Filter to date range (remove orders from before startDate in case of overlap)
+  const startTime = new Date(startDate).getTime();
+  const merged = [...orderMap.values()].filter(o => new Date(o.CURDATE).getTime() >= startTime);
+  return merged;
+}
+
+// WHY: Zone and customerType filter at CUSTOMERS level, but we query ORDERS.
+// For agentName, we can filter directly on ORDERS.AGENTNAME.
+// Zone/customerType handled post-fetch by groupByDimension filtering.
+function buildODataFilter(agentName?: string): string | undefined {
+  if (!agentName) return undefined;
+  const escaped = agentName.replace(/'/g, "''");
+  return `AGENTNAME eq '${escaped}'`;
+}
+
+function buildFilterHash(agentName?: string, zone?: string, customerType?: string): string {
+  const parts: string[] = [];
+  if (agentName) parts.push(`agent=${agentName}`);
+  if (zone) parts.push(`zone=${zone}`);
+  if (customerType) parts.push(`type=${customerType}`);
+  return parts.length > 0 ? parts.join('&') : 'all';
+}
