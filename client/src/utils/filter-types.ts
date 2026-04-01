@@ -50,6 +50,11 @@ export const OPERATORS_BY_TYPE: Record<FieldType, FilterOperator[]> = {
   text: ['equals', 'not_equals', 'contains', 'is_empty'],
 };
 
+/** Fields that require "All" data to be loaded before they can be used for filtering/sorting */
+export const METRIC_FILTER_FIELDS: Set<FilterField> = new Set([
+  'revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency',
+]);
+
 /** WHY: Not all fields exist on all dimensions — rep/zone/customerType only on customers */
 export const DIMENSION_FILTER_FIELDS: Record<Dimension, FilterField[]> = {
   customer: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name', 'rep', 'zone', 'customerType'],

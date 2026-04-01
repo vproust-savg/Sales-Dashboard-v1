@@ -21,8 +21,8 @@ export function aggregateForConsolidated(
     return { entities: [] };
   }
 
-  const totalRevenue = filteredEntities.reduce((sum, e) => sum + e.revenue, 0);
-  const totalOrders = filteredEntities.reduce((sum, e) => sum + e.orderCount, 0);
+  const totalRevenue = filteredEntities.reduce((sum, e) => sum + (e.revenue ?? 0), 0);
+  const totalOrders = filteredEntities.reduce((sum, e) => sum + (e.orderCount ?? 0), 0);
 
   return {
     entities: filteredEntities,

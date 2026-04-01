@@ -7,11 +7,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 interface SelectionBarProps {
   selectedCount: number;
+  dataLoaded: boolean;
   onViewConsolidated: () => void;
   onClear: () => void;
 }
 
-export function SelectionBar({ selectedCount, onViewConsolidated, onClear }: SelectionBarProps) {
+export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, onClear }: SelectionBarProps) {
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
@@ -49,12 +50,15 @@ export function SelectionBar({ selectedCount, onViewConsolidated, onClear }: Sel
             </button>
             <button
               type="button"
-              onClick={onViewConsolidated}
-              className="
+              onClick={dataLoaded ? onViewConsolidated : undefined}
+              disabled={!dataLoaded}
+              title={dataLoaded ? undefined : 'Load all data first to view consolidated'}
+              className={`
                 h-[36px] rounded-[var(--radius-base)] bg-[var(--color-dark)]
                 px-[var(--spacing-lg)] py-[5px] text-[11px] font-medium text-white
-                transition-colors duration-150 hover:bg-[var(--color-dark-hover)]
-              "
+                transition-colors duration-150
+                ${dataLoaded ? 'hover:bg-[var(--color-dark-hover)]' : 'cursor-not-allowed opacity-50'}
+              `}
             >
               View Consolidated
             </button>

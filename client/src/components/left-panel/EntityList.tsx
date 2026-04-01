@@ -14,6 +14,7 @@ interface EntityListProps {
   onCheck: (id: string) => void;
   dimensionLabel: string;
   totalCount: number;
+  dataLoaded: boolean;
 }
 
 export function EntityList({
@@ -24,6 +25,7 @@ export function EntityList({
   onCheck,
   dimensionLabel,
   totalCount,
+  dataLoaded,
 }: EntityListProps) {
   return (
     <div
@@ -32,7 +34,9 @@ export function EntityList({
       {/* WHY: sticky header stays visible while scrolling the entity list */}
       <div className="sticky top-0 z-10 border-b border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)]">
         <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-          {dimensionLabel} ({entities.length} of {totalCount})
+          {dataLoaded
+            ? `${dimensionLabel} (${entities.length} of ${totalCount})`
+            : dimensionLabel}
         </span>
       </div>
 
