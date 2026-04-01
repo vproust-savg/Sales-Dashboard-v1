@@ -3,8 +3,9 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: EntityList
 
-import type { EntityListItem as EntityListItemType } from '@shared/types/dashboard';
+import type { EntityListItem as EntityListItemType, EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
 import { EntityListItem } from './EntityListItem';
+import { AllEntityEntry } from './AllEntityEntry';
 
 interface EntityListProps {
   entities: EntityListItemType[];
@@ -15,6 +16,12 @@ interface EntityListProps {
   dimensionLabel: string;
   totalCount: number;
   dataLoaded: boolean;
+  allLabel: string;
+  fetchAllLoadState: EntityListLoadState;
+  allDashboard: DashboardPayload | null;
+  entitiesWithOrders: number;
+  onAllClick: () => void;
+  onRefresh: () => void;
 }
 
 export function EntityList({
@@ -26,6 +33,12 @@ export function EntityList({
   dimensionLabel,
   totalCount,
   dataLoaded,
+  allLabel,
+  fetchAllLoadState,
+  allDashboard,
+  entitiesWithOrders,
+  onAllClick,
+  onRefresh,
 }: EntityListProps) {
   return (
     <div
@@ -39,6 +52,17 @@ export function EntityList({
             : dimensionLabel}
         </span>
       </div>
+
+      {/* WHY: AllEntityEntry pinned above scrollable list — not inside listbox (separate control) */}
+      <AllEntityEntry
+        label={allLabel}
+        loadState={fetchAllLoadState}
+        isActive={activeId === '__ALL__'}
+        aggregateData={allDashboard}
+        entitiesWithOrders={entitiesWithOrders}
+        onClick={onAllClick}
+        onRefresh={onRefresh}
+      />
 
       {/* WHY: live region announces list count changes to screen readers */}
       <div aria-live="polite" className="sr-only">

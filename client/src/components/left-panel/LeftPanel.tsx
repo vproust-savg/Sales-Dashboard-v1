@@ -4,7 +4,7 @@
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: LeftPanel
 
-import type { EntityListItem, Dimension } from '@shared/types/dashboard';
+import type { EntityListItem, Dimension, EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
 import type { FilterCondition } from '../../hooks/useFilters';
 import type { SortField, SortDirection } from '../../hooks/useSort';
 import { DIMENSION_CONFIG } from '../../utils/dimension-config';
@@ -31,6 +31,12 @@ interface LeftPanelProps {
   sortField: SortField;
   sortDirection: SortDirection;
   sortActive: boolean;
+  dataLoaded: boolean;
+  fetchAllLoadState: EntityListLoadState;
+  allDashboard: DashboardPayload | null;
+  entitiesWithOrders: number;
+  onAllClick: () => void;
+  onRefresh: () => void;
 
   // Actions
   onDimensionChange: (dim: Dimension) => void;
@@ -50,7 +56,8 @@ interface LeftPanelProps {
 export function LeftPanel({
   entities, totalCount, activeDimension, activeEntityId, selectedEntityIds,
   searchTerm, filterOpen, filterCount, filterConditions,
-  sortField, sortDirection, sortActive,
+  sortField, sortDirection, sortActive, dataLoaded,
+  fetchAllLoadState, allDashboard, entitiesWithOrders, onAllClick, onRefresh,
   onDimensionChange, onEntitySelect, onEntityCheck, onClearSelection,
   onViewConsolidated, onSearchChange, onFilterToggle,
   onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters,
@@ -76,7 +83,7 @@ export function LeftPanel({
         sortActive={sortActive}
         filterCount={filterCount}
         onFilterToggle={onFilterToggle}
-        onSortToggle={() => onSort(sortField === 'revenue' && sortDirection === 'desc' ? 'name' : 'revenue')}
+        onSortToggle={() => onSort(sortField === 'id' && sortDirection === 'asc' ? 'name' : 'id')}
       />
 
       <FilterPanel
@@ -100,12 +107,20 @@ export function LeftPanel({
           onCheck={onEntityCheck}
           dimensionLabel={config.label}
           totalCount={totalCount}
+          dataLoaded={dataLoaded}
+          allLabel={config.allLabel}
+          fetchAllLoadState={fetchAllLoadState}
+          allDashboard={allDashboard}
+          entitiesWithOrders={entitiesWithOrders}
+          onAllClick={onAllClick}
+          onRefresh={onRefresh}
         />
 
         {/* WHY: absolute positioning keeps the bar at the bottom of the list container */}
         <div className="absolute bottom-0 left-0 right-0">
           <SelectionBar
             selectedCount={selectedEntityIds.length}
+            dataLoaded={dataLoaded}
             onViewConsolidated={onViewConsolidated}
             onClear={onClearSelection}
           />

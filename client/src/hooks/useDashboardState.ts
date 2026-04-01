@@ -12,6 +12,7 @@ import { useEntitySelection } from './useEntitySelection';
 import { useSearch } from './useSearch';
 import { useFilters } from './useFilters';
 import { useSort } from './useSort';
+import { useFetchAll } from './useFetchAll';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
@@ -34,6 +35,12 @@ export function useDashboardState() {
     clearAll: clearFilters, togglePanel: toggleFilterPanel,
   } = useFilters();
   const { sortField, sortDirection, setSort, resetSort } = useSort();
+  const {
+    loadState: fetchAllLoadState, progress: fetchAllProgress,
+    allDashboard, error: fetchAllError,
+    startFetchAll, abortFetch,
+  } = useFetchAll(activeDimension, activePeriod);
+  const dataLoaded = fetchAllLoadState === 'loaded';
 
   // --- Spec Section 13.1: Dimension switch resets ALL other state ---
   const switchDimension = useCallback((dim: Dimension) => {
@@ -42,7 +49,8 @@ export function useDashboardState() {
     resetSearch();
     clearFilters();
     resetSort();
-  }, [rawSwitchDimension, resetSelection, resetSearch, clearFilters, resetSort]);
+    abortFetch();
+  }, [rawSwitchDimension, resetSelection, resetSearch, clearFilters, resetSort, abortFetch]);
 
   // --- Stage 1: Lightweight entity list (fast — no orders needed) ---
   const entitiesQuery = useEntities({
@@ -99,11 +107,12 @@ export function useDashboardState() {
     // Data
     dashboard: finalDashboard,
     entities: processedEntities,
+    allEntities: entitiesData?.entities ?? [],
     contacts: contactsQuery.data ?? [],
     isLoading: entitiesQuery.isLoading,
     isDetailLoading: detailQuery.isLoading,
     loadingStage,
-    error: entitiesQuery.error?.message ?? detailQuery.error?.message ?? null,
+    error: entitiesQuery.error?.message ?? detailQuery.error?.message ?? fetchAllError ?? null,
     meta,
     yearsAvailable: entitiesData?.yearsAvailable ?? dashboard?.yearsAvailable ?? [],
 
@@ -118,6 +127,10 @@ export function useDashboardState() {
     filterCount,
     sortField,
     sortDirection,
+    dataLoaded,
+    fetchAllLoadState,
+    fetchAllProgress,
+    allDashboard,
 
     // Actions
     switchDimension,
@@ -133,5 +146,7 @@ export function useDashboardState() {
     clearFilters,
     toggleFilterPanel,
     setSort,
+    startFetchAll,
+    abortFetch,
   };
 }
