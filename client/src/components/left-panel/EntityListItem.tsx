@@ -16,7 +16,8 @@ interface EntityListItemProps {
 }
 
 /** WHY: separate formatter avoids importing a utility for a simple "$X,XXX" pattern */
-function formatRevenue(value: number): string {
+function formatRevenue(value: number | null): string | null {
+  if (value === null) return null;
   if (value >= 1000) {
     return `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}K`;
   }
@@ -92,17 +93,31 @@ export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck
           <span className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
             {entity.name}
           </span>
-          <span className="shrink-0 text-[13px] font-bold tabular-nums text-[var(--color-text-primary)]">
-            {formatRevenue(entity.revenue)}
-          </span>
+          {formatRevenue(entity.revenue) !== null && (
+            <motion.span
+              initial={{ opacity: 0, x: 4 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2 }}
+              className="shrink-0 text-[13px] font-bold tabular-nums text-[var(--color-text-primary)]"
+            >
+              {formatRevenue(entity.revenue)}
+            </motion.span>
+          )}
         </div>
         <div className="flex items-center justify-between">
           <span className="truncate text-[11px] text-[var(--color-text-muted)]">
             {entity.meta1}
           </span>
-          <span className="shrink-0 text-[11px] text-[var(--color-text-muted)]">
-            {entity.meta2}
-          </span>
+          {entity.meta2 !== null && (
+            <motion.span
+              initial={{ opacity: 0, x: 4 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2, delay: 0.05 }}
+              className="shrink-0 text-[11px] text-[var(--color-text-muted)]"
+            >
+              {entity.meta2}
+            </motion.span>
+          )}
         </div>
       </div>
     </motion.div>
