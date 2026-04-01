@@ -14,22 +14,24 @@ export function sortEntities(
 ): EntityListItem[] {
   const getValue = (e: EntityListItem): number | string => {
     switch (field) {
+      case 'id':
+        return e.id.toLowerCase();
       case 'name':
         return e.name.toLowerCase();
       case 'revenue':
-        return e.revenue;
+        return e.revenue ?? -Infinity;      // WHY: null sorts last
       case 'orders':
-        return e.orderCount;
+        return e.orderCount ?? -Infinity;
       case 'avgOrder':
-        return e.avgOrder;
+        return e.avgOrder ?? -Infinity;
       case 'marginPercent':
-        return e.marginPercent;
+        return e.marginPercent ?? -Infinity;
       case 'frequency':
-        return e.frequency ?? -Infinity; // WHY: null sorts last
+        return e.frequency ?? -Infinity;
       case 'lastOrder':
         return e.lastOrderDate ? new Date(e.lastOrderDate).getTime() : -Infinity;
       default:
-        return e.revenue;
+        return e.revenue ?? -Infinity;
     }
   };
 

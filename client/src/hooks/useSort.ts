@@ -6,6 +6,7 @@
 import { useReducer, useCallback } from 'react';
 
 export type SortField =
+  | 'id'
   | 'name'
   | 'revenue'
   | 'orders'
@@ -25,7 +26,7 @@ type SortAction =
   | { type: 'toggle'; field: SortField }
   | { type: 'reset' };
 
-const INITIAL_STATE: SortState = { field: 'revenue', direction: 'desc' };
+const INITIAL_STATE: SortState = { field: 'id', direction: 'asc' };
 
 // WHY: useReducer instead of two useState calls eliminates stale closure risk
 // where setSortDirection was called inside setSortField's updater function.
