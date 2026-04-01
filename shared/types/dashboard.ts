@@ -171,9 +171,9 @@ export type EntityListLoadState = 'not-loaded' | 'loading' | 'loaded' | 'error';
 
 /** Filter params for the fetch-all dialog — narrows the server-side OData query */
 export interface FetchAllFilters {
-  agentName?: string;
-  zone?: string;
-  customerType?: string;
+  agentName?: string[];
+  zone?: string[];
+  customerType?: string[];
 }
 
 /** SSE progress events from GET /api/sales/fetch-all */

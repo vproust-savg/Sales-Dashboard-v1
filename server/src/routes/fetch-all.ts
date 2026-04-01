@@ -16,12 +16,13 @@ import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 
+// WHY: Filter params arrive as comma-separated strings (multi-select UI)
 const querySchema = z.object({
   groupBy: z.enum(['customer', 'zone', 'vendor', 'brand', 'product_type', 'product']).default('customer'),
   period: z.string().default('ytd'),
-  agentName: z.string().optional(),
-  zone: z.string().optional(),
-  customerType: z.string().optional(),
+  agentName: z.string().optional(),   // comma-separated agent names
+  zone: z.string().optional(),         // comma-separated zone names
+  customerType: z.string().optional(), // comma-separated customer types
   refresh: z.enum(['true', 'false']).optional(),
 });
 
@@ -181,8 +182,14 @@ async function tryIncrementalRefresh(
 // Zone/customerType handled post-fetch by groupByDimension filtering.
 function buildODataFilter(agentName?: string): string | undefined {
   if (!agentName) return undefined;
-  const escaped = agentName.replace(/'/g, "''");
-  return `AGENTNAME eq '${escaped}'`;
+  const names = agentName.split(',').map(n => n.trim()).filter(Boolean);
+  if (names.length === 0) return undefined;
+  if (names.length === 1) {
+    return `AGENTNAME eq '${names[0].replace(/'/g, "''")}'`;
+  }
+  // WHY: Multiple agents → OR clause: (AGENTNAME eq 'A' or AGENTNAME eq 'B')
+  const clauses = names.map(n => `AGENTNAME eq '${n.replace(/'/g, "''")}'`);
+  return `(${clauses.join(' or ')})`;
 }
 
 function buildFilterHash(agentName?: string, zone?: string, customerType?: string): string {

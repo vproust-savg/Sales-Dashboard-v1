@@ -48,9 +48,9 @@ export function useFetchAll(dimension: Dimension, period: Period): FetchAllRetur
     setLoadStateMap(prev => new Map(prev).set(stateKey, 'loading'));
 
     const params = new URLSearchParams({ groupBy: dimension, period });
-    if (filters.agentName) params.set('agentName', filters.agentName);
-    if (filters.zone) params.set('zone', filters.zone);
-    if (filters.customerType) params.set('customerType', filters.customerType);
+    if (filters.agentName?.length) params.set('agentName', filters.agentName.join(','));
+    if (filters.zone?.length) params.set('zone', filters.zone.join(','));
+    if (filters.customerType?.length) params.set('customerType', filters.customerType.join(','));
     if (forceRefresh) params.set('refresh', 'true');
 
     const es = new EventSource(`/api/sales/fetch-all?${params}`);

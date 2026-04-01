@@ -49,9 +49,13 @@ export function AllEntityEntry({
         <div className="absolute left-0 top-0 h-full w-[3px] rounded-r-[2px] bg-[var(--color-gold-primary)]" />
       )}
 
-      {/* Sigma icon */}
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-bold ${iconBg} ${isLoading ? 'animate-pulse' : ''}`}>
-        &Sigma;
+      {/* Bar chart icon */}
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg} ${isLoading ? 'animate-pulse' : ''}`}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <rect x="1" y="8" width="3" height="7" rx="0.5" fill="currentColor" />
+          <rect x="6" y="4" width="3" height="11" rx="0.5" fill="currentColor" />
+          <rect x="11" y="1" width="3" height="14" rx="0.5" fill="currentColor" />
+        </svg>
       </div>
 
       {/* Text */}
@@ -61,8 +65,8 @@ export function AllEntityEntry({
           {isLoaded
             ? `${entitiesWithOrders.toLocaleString()} with orders`
             : isLoading
-              ? 'Loading...'
-              : 'Click to load all data'}
+              ? 'Generating...'
+              : 'Click to generate report'}
         </div>
       </div>
 
