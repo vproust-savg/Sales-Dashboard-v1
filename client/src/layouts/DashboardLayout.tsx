@@ -135,7 +135,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     else if (fetchAllLoadState !== 'loading') { setDialogRefresh(false); setDialogOpen(true); }
   };
   const handleRefresh = () => { setDialogRefresh(true); setDialogOpen(true); };
-  const handleDialogConfirm = (filters: FetchAllFilters) => { setDialogOpen(false); startFetchAll(filters, dialogRefresh); };
+  const handleDialogConfirm = (filters: FetchAllFilters) => { setDialogOpen(false); startFetchAll(filters, dialogRefresh); selectEntity('__ALL__'); };
 
   // WHY: When activeEntityId is '__ALL__' and data is loaded, show allDashboard
   const displayDashboard = activeEntityId === '__ALL__' && allDashboard ? allDashboard : dashboard;
