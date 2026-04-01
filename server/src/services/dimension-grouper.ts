@@ -23,7 +23,7 @@ export function groupByDimension(
   };
 
   return (groupers[dimension] ?? groupers.customer)()
-    .sort((a, b) => b.revenue - a.revenue);
+    .sort((a, b) => (b.revenue ?? 0) - (a.revenue ?? 0));
 }
 
 function groupByCustomer(orders: RawOrder[], customers: RawCustomer[], periodMonths: number): EntityListItem[] {
