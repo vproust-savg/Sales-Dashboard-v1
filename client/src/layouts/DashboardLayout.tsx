@@ -20,6 +20,7 @@ import { useExport } from '../hooks/useExport';
 export interface DashboardLayoutProps {
   dashboard: DashboardPayload | null;
   entities: EntityListItem[];
+  allEntities: EntityListItem[];
   contacts: Contact[];
   isLoading: boolean;
   isDetailLoading: boolean;
@@ -41,7 +42,6 @@ export interface DashboardLayoutProps {
   fetchAllLoadState: EntityListLoadState;
   fetchAllProgress: SSEProgressEvent | null;
   allDashboard: DashboardPayload | null;
-  allEntities: EntityListItem[];
   startFetchAll: (filters: FetchAllFilters, forceRefresh?: boolean) => void;
   abortFetch: () => void;
   switchDimension: (dim: Dimension) => void;
@@ -82,6 +82,13 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   } : null;
   const { exportCsv } = useExport(exportData);
 
+  // WHY: All hooks must be called before any early returns (React Rules of Hooks)
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogRefresh, setDialogRefresh] = useState(false);
+  const entitiesWithOrders = useMemo(
+    () => allEntities.filter(e => e.revenue !== null && e.revenue > 0).length,
+    [allEntities],
+  );
 
   if (isLoading && entities.length === 0) {
     return (
@@ -119,38 +126,16 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     );
   }
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogRefresh, setDialogRefresh] = useState(false);
-
   const activeEntity = entities.find(e => e.id === activeEntityId) ?? null;
   const totalCount = entities.length;
   const sortActive = sortField !== 'id' || sortDirection !== 'asc';
 
-  const entitiesWithOrders = useMemo(
-    () => allEntities.filter(e => e.revenue !== null && e.revenue > 0).length,
-    [allEntities],
-  );
-
   const handleAllClick = () => {
-    if (fetchAllLoadState === 'loaded') {
-      // Select "All" — show aggregate right panel
-      // For now, just deselect entity to show allDashboard
-      selectEntity('__ALL__');
-    } else if (fetchAllLoadState !== 'loading') {
-      setDialogRefresh(false);
-      setDialogOpen(true);
-    }
+    if (fetchAllLoadState === 'loaded') { selectEntity('__ALL__'); }
+    else if (fetchAllLoadState !== 'loading') { setDialogRefresh(false); setDialogOpen(true); }
   };
-
-  const handleRefresh = () => {
-    setDialogRefresh(true);
-    setDialogOpen(true);
-  };
-
-  const handleDialogConfirm = (filters: FetchAllFilters) => {
-    setDialogOpen(false);
-    startFetchAll(filters, dialogRefresh);
-  };
+  const handleRefresh = () => { setDialogRefresh(true); setDialogOpen(true); };
+  const handleDialogConfirm = (filters: FetchAllFilters) => { setDialogOpen(false); startFetchAll(filters, dialogRefresh); };
 
   // WHY: When activeEntityId is '__ALL__' and data is loaded, show allDashboard
   const displayDashboard = activeEntityId === '__ALL__' && allDashboard ? allDashboard : dashboard;
