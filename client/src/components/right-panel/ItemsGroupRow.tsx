@@ -23,7 +23,7 @@ export function ItemsGroupRow({ group, depth, isExpanded, onToggle }: ItemsGroup
       aria-expanded={isExpanded}
       aria-level={depth + 1}
       onClick={onToggle}
-      className="flex w-full items-center bg-[var(--color-gold-hover)] border-b border-[var(--color-gold-subtle)] py-[var(--spacing-base)] hover:bg-[var(--color-gold-subtle)] transition-colors duration-150"
+      className={`flex w-full items-center bg-[var(--color-gold-hover)] border-b border-[var(--color-gold-subtle)] py-[var(--spacing-base)] hover:bg-[var(--color-gold-subtle)] transition-colors duration-150${depth > 0 ? ' border-l-2 border-l-[var(--color-gold-primary)]' : ''}`}
       style={{ paddingLeft: `calc(${paddingLeft} + var(--spacing-3xl))`, paddingRight: 'var(--spacing-3xl)' }}
     >
       <svg

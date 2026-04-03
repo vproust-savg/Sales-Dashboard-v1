@@ -27,7 +27,7 @@ export function ItemsProductRow({ item, depth }: ItemsProductRowProps) {
         <span className="block text-[13px] text-[var(--color-text-primary)] truncate">
           {item.name}
         </span>
-        <CopyableId value={item.sku} label="SKU" className="block text-[11px] text-[var(--color-text-faint)]" />
+        <CopyableId value={item.sku} label="SKU" className="block text-[11px] text-[var(--color-text-muted)]" />
       </div>
       <div role="gridcell" className="w-24 text-right text-[13px] tabular-nums text-[var(--color-text-primary)]">
         {formatCurrency(item.value)}
