@@ -1,15 +1,18 @@
 // FILE: client/src/components/right-panel/ItemsToolbar.tsx
-// PURPOSE: Search + group-by dropdowns + sort dropdown + filter chips for Items tab
+// PURPOSE: Minimalist icon bar with popover panels for Items tab (search, group, sort, filter)
 // USED BY: ItemsExplorer.tsx
 // EXPORTS: ItemsToolbar
 
 import { useState, useRef, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { ItemDimensionKey, ItemFilters } from '../../utils/items-filter';
 import type { ItemSortField } from '../../utils/items-grouping';
 import type { FlatItem } from '@shared/types/dashboard';
-import { GroupDropdown, FilterChip, getNextAvailable, SORT_LABELS, FILTER_FIELDS } from './ItemsToolbarControls';
+import { SearchPanel, GroupPanel, SortPanel, FilterPanel } from './ItemsToolbarControls';
 
-interface ItemsToolbarProps {
+type PanelKey = 'search' | 'group' | 'sort' | 'filter' | null;
+
+export interface ItemsToolbarProps {
   searchTerm: string;
   onSearch: (term: string) => void;
   groupLevels: ItemDimensionKey[];
@@ -25,118 +28,118 @@ interface ItemsToolbarProps {
   filteredCount: number;
 }
 
-export function ItemsToolbar({
-  searchTerm, onSearch, groupLevels, onGroupLevelsChange,
-  sortField, sortDirection, onToggleSort,
-  filters, onSetFilter, onClearAllFilters,
-  items, totalCount, filteredCount,
-}: ItemsToolbarProps) {
-  const [localSearch, setLocalSearch] = useState(searchTerm);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+export function ItemsToolbar(props: ItemsToolbarProps) {
+  const {
+    searchTerm, onSearch, groupLevels, onGroupLevelsChange,
+    sortField, sortDirection, onToggleSort,
+    filters, onSetFilter, onClearAllFilters,
+    items, totalCount, filteredCount,
+  } = props;
 
-  /** WHY: Sync external reset (entity change) to local input */
-  useEffect(() => { setLocalSearch(searchTerm); }, [searchTerm]);
+  const [openPanel, setOpenPanel] = useState<PanelKey>(null);
+  const barRef = useRef<HTMLDivElement>(null);
 
-  function handleSearchChange(value: string) {
-    setLocalSearch(value);
-    clearTimeout(timerRef.current);
-    if (!value) { onSearch(''); return; }
-    timerRef.current = setTimeout(() => onSearch(value), 200);
-  }
+  /** WHY: Click-outside closes any open popover */
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (barRef.current && !barRef.current.contains(e.target as Node)) setOpenPanel(null);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
-  const hasActiveFilters = Object.values(filters).some(v => v && v.length > 0);
+  const toggle = (key: PanelKey) => setOpenPanel(prev => prev === key ? null : key);
+
+  const hasSearch = !!searchTerm;
+  const activeFilterCount = Object.values(filters).filter(v => v && v.length > 0).length;
   const isFiltered = totalCount !== filteredCount;
 
   return (
-    <div className="sticky top-0 z-10 bg-[var(--color-bg-card)] border-b border-[var(--color-gold-subtle)] px-[var(--spacing-3xl)] py-[var(--spacing-base)] space-y-2">
-      {/* Row 1: Search + Group By */}
-      <div className="flex items-center gap-3">
-        <SearchInput value={localSearch} onChange={handleSearchChange} />
+    <div ref={barRef} className="sticky top-0 z-10 bg-[var(--color-bg-card)] border-b border-[var(--color-gold-subtle)] px-[var(--spacing-3xl)] py-[var(--spacing-base)]">
+      <div className="flex items-center gap-2">
+        {/* Search */}
+        <ToolbarIcon panel="search" openPanel={openPanel} onToggle={toggle} badge={hasSearch ? filteredCount : null}
+          icon={<><circle cx="11" cy="11" r="6" /><path d="m15.5 15.5-3-3" /></>} />
 
-        <div className="flex items-center gap-1.5 text-[12px] text-[var(--color-text-muted)]">
-          <span>Group:</span>
-          {groupLevels.map((level, i) => (
-            <GroupDropdown
-              key={i}
-              value={level}
-              excluded={groupLevels.filter((_, j) => j !== i)}
-              onChange={val => {
-                const next = [...groupLevels];
-                if (val === 'none') { onGroupLevelsChange(next.slice(0, i)); }
-                else { next[i] = val as ItemDimensionKey; onGroupLevelsChange(next); }
-              }}
-              onRemove={i > 0 ? () => onGroupLevelsChange(groupLevels.filter((_, j) => j !== i)) : undefined}
-            />
-          ))}
-          {groupLevels.length < 3 && groupLevels.length > 0 && (
-            <button
-              type="button"
-              onClick={() => onGroupLevelsChange([...groupLevels, getNextAvailable(groupLevels)])}
-              className="px-2 py-0.5 rounded border border-dashed border-[var(--color-gold-subtle)] text-[11px] text-[var(--color-text-muted)] hover:border-[var(--color-gold-primary)]"
-            >
-              + Level
-            </button>
-          )}
-        </div>
-      </div>
+        {/* Group */}
+        <ToolbarIcon panel="group" openPanel={openPanel} onToggle={toggle} badge={groupLevels.length > 0 ? groupLevels.length : null}
+          icon={<><rect x="3" y="3" width="14" height="3" rx="1" /><rect x="5" y="9" width="10" height="3" rx="1" /><rect x="7" y="15" width="6" height="3" rx="1" /></>} />
 
-      {/* Row 2: Sort + Filter Chips + Count */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 text-[12px] text-[var(--color-text-muted)]">
-          <span>Sort:</span>
-          <select
-            value={sortField}
-            onChange={e => onToggleSort(e.target.value as ItemSortField)}
-            className="bg-transparent border border-[var(--color-gold-subtle)] rounded px-1.5 py-0.5 text-[12px] text-[var(--color-text-primary)] outline-none"
-          >
-            {Object.entries(SORT_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-          <button type="button" onClick={() => onToggleSort(sortField)} className="text-[11px] px-1 hover:text-[var(--color-text-primary)]">
-            {sortDirection === 'asc' ? '\u2191' : '\u2193'}
-          </button>
-        </div>
+        {/* Sort */}
+        <ToolbarIcon panel="sort" openPanel={openPanel} onToggle={toggle} badge={null}
+          label={sortDirection === 'asc' ? '↑' : '↓'}
+          icon={<><path d="M6 4v12M6 4l-3 3M6 4l3 3" /><path d="M14 16V4M14 16l-3-3M14 16l3-3" /></>} />
 
-        <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
-          {FILTER_FIELDS.map(field => (
-            <FilterChip key={field} field={field} items={items} activeValues={filters[field] ?? []} onChange={values => onSetFilter(field, values)} />
-          ))}
-          {hasActiveFilters && (
-            <button type="button" onClick={onClearAllFilters} className="text-[11px] text-[var(--color-gold-primary)] hover:underline whitespace-nowrap">
-              Clear all
-            </button>
-          )}
-        </div>
+        {/* Filter */}
+        <ToolbarIcon panel="filter" openPanel={openPanel} onToggle={toggle} badge={activeFilterCount > 0 ? activeFilterCount : null}
+          icon={<><path d="M3 4h14M5 9h10M7 14h6" /></>} />
 
+        {/* Spacer + filtered count */}
+        <div className="flex-1" />
         {isFiltered && (
-          <span className="text-[11px] text-[var(--color-text-muted)] whitespace-nowrap">
+          <span className="text-[11px] text-[var(--color-text-muted)]">
             {filteredCount} of {totalCount}
           </span>
         )}
       </div>
+
+      {/* Popover panels */}
+      <AnimatePresence>
+        {openPanel && (
+          <motion.div
+            key={openPanel}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-[var(--spacing-3xl)] right-[var(--spacing-3xl)] top-full mt-1 z-20 rounded-xl border border-[var(--color-gold-subtle)] bg-[var(--color-bg-card)] shadow-lg p-3"
+          >
+            {openPanel === 'search' && <SearchPanel searchTerm={searchTerm} onSearch={onSearch} />}
+            {openPanel === 'group' && <GroupPanel groupLevels={groupLevels} onGroupLevelsChange={onGroupLevelsChange} />}
+            {openPanel === 'sort' && <SortPanel sortField={sortField} sortDirection={sortDirection} onToggleSort={onToggleSort} />}
+            {openPanel === 'filter' && <FilterPanel filters={filters} onSetFilter={onSetFilter} onClearAllFilters={onClearAllFilters} items={items} />}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function SearchInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/* --- Reusable icon button --- */
+
+function ToolbarIcon({ panel, openPanel, onToggle, badge, label, icon }: {
+  panel: NonNullable<PanelKey>; openPanel: PanelKey; onToggle: (key: PanelKey) => void;
+  badge: number | null; label?: string;
+  icon: React.ReactNode;
+}) {
+  const isOpen = openPanel === panel;
+  const isActive = badge !== null || isOpen;
+
   return (
-    <div className="relative flex-1 max-w-[220px]">
-      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+    <button
+      type="button"
+      onClick={() => onToggle(panel)}
+      className={`relative w-7 h-7 rounded-full flex items-center justify-center transition-all duration-150 ${
+        isOpen
+          ? 'bg-[var(--color-gold-primary)] text-white'
+          : isActive
+            ? 'border border-[var(--color-gold-primary)] text-[var(--color-gold-primary)]'
+            : 'border border-[var(--color-gold-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-gold-primary)] hover:text-[var(--color-text-secondary)]'
+      }`}
+      aria-label={panel}
+      aria-expanded={isOpen}
+    >
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        {icon}
       </svg>
-      <input
-        type="text"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="Search items..."
-        className="w-full h-[32px] rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] border border-[var(--color-gold-subtle)] pl-8 pr-7 text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-gold-primary)]"
-      />
-      {value && (
-        <button type="button" onClick={() => onChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]" aria-label="Clear search">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3l6 6M9 3l-6 6" /></svg>
-        </button>
+      {label && !isOpen && (
+        <span className="absolute -bottom-0.5 -right-0.5 text-[8px] font-bold text-[var(--color-gold-primary)]">{label}</span>
       )}
-    </div>
+      {badge !== null && !isOpen && (
+        <span className="absolute -top-1 -right-1 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-[var(--color-gold-primary)] px-0.5 text-[8px] font-bold text-white">
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }
