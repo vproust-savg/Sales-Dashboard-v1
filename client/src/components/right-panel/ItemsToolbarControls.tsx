@@ -1,9 +1,8 @@
 // FILE: client/src/components/right-panel/ItemsToolbarControls.tsx
 // PURPOSE: Popover panel contents for Items toolbar (search, group, sort, filter)
 // USED BY: ItemsToolbar.tsx
-// EXPORTS: SearchPanel, GroupPanel, SortPanel, FilterPanel
+// EXPORTS: GroupPanel, SortPanel, FilterPanel
 
-import { useState, useRef, useEffect } from 'react';
 import type { ItemDimensionKey, ItemFilters } from '../../utils/items-filter';
 import type { ItemSortField } from '../../utils/items-grouping';
 import type { FlatItem } from '@shared/types/dashboard';
@@ -21,37 +20,6 @@ const FILTER_FIELDS: ItemDimensionKey[] = ['productType', 'productFamily', 'bran
 const ALL_DIMENSIONS: ItemDimensionKey[] = ['productType', 'productFamily', 'brand', 'countryOfOrigin', 'foodServiceRetail', 'vendor'];
 
 /* --- Search Panel --- */
-
-export function SearchPanel({ searchTerm, onSearch }: { searchTerm: string; onSearch: (term: string) => void }) {
-  const [local, setLocal] = useState(searchTerm);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setLocal(searchTerm); }, [searchTerm]);
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  function handleChange(value: string) {
-    setLocal(value);
-    clearTimeout(timerRef.current);
-    if (!value) { onSearch(''); return; }
-    timerRef.current = setTimeout(() => onSearch(value), 200);
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <svg className="shrink-0 text-[var(--color-text-muted)]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-      </svg>
-      <input ref={inputRef} type="text" value={local} onChange={e => handleChange(e.target.value)} placeholder="Search by name or SKU..."
-        className="flex-1 bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none" />
-      {local && (
-        <button type="button" onClick={() => handleChange('')} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]" aria-label="Clear">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3l6 6M9 3l-6 6" /></svg>
-        </button>
-      )}
-    </div>
-  );
-}
 
 /* --- Group Panel --- */
 

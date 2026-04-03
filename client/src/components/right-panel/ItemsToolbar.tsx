@@ -1,5 +1,5 @@
 // FILE: client/src/components/right-panel/ItemsToolbar.tsx
-// PURPOSE: Minimalist icon bar with popover panels for Items tab (search, group, sort, filter)
+// PURPOSE: Minimalist icon bar with expandable search + popover panels for Items tab
 // USED BY: ItemsExplorer.tsx
 // EXPORTS: ItemsToolbar
 
@@ -8,9 +8,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { ItemDimensionKey, ItemFilters } from '../../utils/items-filter';
 import type { ItemSortField } from '../../utils/items-grouping';
 import type { FlatItem } from '@shared/types/dashboard';
-import { SearchPanel, GroupPanel, SortPanel, FilterPanel } from './ItemsToolbarControls';
+import { GroupPanel, SortPanel, FilterPanel } from './ItemsToolbarControls';
 
-type PanelKey = 'search' | 'group' | 'sort' | 'filter' | null;
+type PanelKey = 'group' | 'sort' | 'filter' | null;
 
 export interface ItemsToolbarProps {
   searchTerm: string;
@@ -49,17 +49,14 @@ export function ItemsToolbar(props: ItemsToolbarProps) {
   }, []);
 
   const toggle = (key: PanelKey) => setOpenPanel(prev => prev === key ? null : key);
-
-  const hasSearch = !!searchTerm;
   const activeFilterCount = Object.values(filters).filter(v => v && v.length > 0).length;
   const isFiltered = totalCount !== filteredCount;
 
   return (
     <div ref={barRef} className="sticky top-0 z-10 bg-[var(--color-bg-card)] border-b border-[var(--color-gold-subtle)] px-[var(--spacing-3xl)] py-[var(--spacing-base)]">
       <div className="flex items-center gap-2">
-        {/* Search */}
-        <ToolbarIcon panel="search" openPanel={openPanel} onToggle={toggle} badge={hasSearch ? filteredCount : null}
-          icon={<><circle cx="11" cy="11" r="6" /><path d="m15.5 15.5-3-3" /></>} />
+        {/* Expandable search bar */}
+        <ExpandableSearch searchTerm={searchTerm} onSearch={onSearch} />
 
         {/* Group */}
         <ToolbarIcon panel="group" openPanel={openPanel} onToggle={toggle} badge={groupLevels.length > 0 ? groupLevels.length : null}
@@ -94,13 +91,89 @@ export function ItemsToolbar(props: ItemsToolbarProps) {
             transition={{ duration: 0.15 }}
             className="absolute left-[var(--spacing-3xl)] right-[var(--spacing-3xl)] top-full mt-1 z-20 rounded-xl border border-[var(--color-gold-subtle)] bg-[var(--color-bg-card)] shadow-lg p-3"
           >
-            {openPanel === 'search' && <SearchPanel searchTerm={searchTerm} onSearch={onSearch} />}
             {openPanel === 'group' && <GroupPanel groupLevels={groupLevels} onGroupLevelsChange={onGroupLevelsChange} />}
             {openPanel === 'sort' && <SortPanel sortField={sortField} sortDirection={sortDirection} onToggleSort={onToggleSort} />}
             {openPanel === 'filter' && <FilterPanel filters={filters} onSetFilter={onSetFilter} onClearAllFilters={onClearAllFilters} items={items} />}
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* --- Expandable search bar: compact icon → full input on click --- */
+
+function ExpandableSearch({ searchTerm, onSearch }: { searchTerm: string; onSearch: (term: string) => void }) {
+  const [expanded, setExpanded] = useState(!!searchTerm);
+  const [local, setLocal] = useState(searchTerm);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setLocal(searchTerm); if (!searchTerm) setExpanded(false); }, [searchTerm]);
+
+  function handleChange(value: string) {
+    setLocal(value);
+    clearTimeout(timerRef.current);
+    if (!value) { onSearch(''); return; }
+    timerRef.current = setTimeout(() => onSearch(value), 200);
+  }
+
+  function handleExpand() {
+    setExpanded(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }
+
+  function handleClear() {
+    setLocal('');
+    onSearch('');
+    setExpanded(false);
+  }
+
+  /** WHY: Collapse on blur only if empty — keeps search visible when text is present */
+  function handleBlur() {
+    if (!local) setExpanded(false);
+  }
+
+  return (
+    <div className="flex items-center">
+      <motion.div
+        animate={{ width: expanded ? 180 : 28 }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        className="relative h-7 flex items-center overflow-hidden rounded-full border border-[var(--color-gold-subtle)]"
+      >
+        {/* Magnifying glass — always visible */}
+        <button
+          type="button"
+          onClick={handleExpand}
+          className="absolute left-0 w-7 h-7 flex items-center justify-center shrink-0 text-[var(--color-text-muted)]"
+          aria-label="Search items"
+        >
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="9" r="6" /><path d="m14 14-3.5-3.5" />
+          </svg>
+        </button>
+
+        {/* Input — slides in from behind the icon */}
+        {expanded && (
+          <input
+            ref={inputRef}
+            type="text"
+            value={local}
+            onChange={e => handleChange(e.target.value)}
+            onBlur={handleBlur}
+            placeholder="Search..."
+            className="w-full h-full bg-transparent pl-8 pr-6 text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none"
+          />
+        )}
+
+        {/* Clear × */}
+        {expanded && local && (
+          <button type="button" onClick={handleClear}
+            className="absolute right-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]" aria-label="Clear search">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+          </button>
+        )}
+      </motion.div>
     </div>
   );
 }

@@ -34,13 +34,16 @@ export function ItemsGroupRow({ group, depth, isExpanded, onToggle }: ItemsGroup
         <path d="M5 3l4 4-4 4" stroke="var(--color-text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
 
-      <span className="flex-1 text-[13px] font-semibold text-[var(--color-text-primary)] truncate">
+      <span className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate">
         {group.label}
       </span>
 
-      <span className="mx-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--color-gold-subtle)] px-1 text-[9px] font-semibold text-[var(--color-text-muted)]">
+      <span className="ml-2 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--color-gold-subtle)] px-1 text-[9px] font-semibold text-[var(--color-text-muted)]">
         {group.totals.itemCount}
       </span>
+
+      {/* WHY: flex-1 spacer pushes metrics to the right, keeping label left-aligned */}
+      <div className="flex-1" />
 
       <span role="gridcell" className="w-24 text-right text-[13px] tabular-nums text-[var(--color-text-primary)]">
         {formatCurrency(group.totals.value)}
