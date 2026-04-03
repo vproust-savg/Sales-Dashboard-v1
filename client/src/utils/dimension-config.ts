@@ -18,7 +18,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     label: 'Customers',
     pluralLabel: 'CUSTOMERS',
     searchPlaceholder: 'Search customers...',
-    allLabel: 'Consolidated Report',
+    allLabel: 'Report',
     filterFields: [
       'Rep', 'Customer Type', 'Zone', 'Last Order Date',
       'Margin %', 'Margin $', 'Total Revenue', 'Average Order',
@@ -29,7 +29,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     label: 'Zone',
     pluralLabel: 'ZONES',
     searchPlaceholder: 'Search zones...',
-    allLabel: 'Consolidated Report',
+    allLabel: 'Report',
     filterFields: [
       'Rep', 'Last Order Date', 'Margin %', 'Margin $',
       'Total Revenue', 'Average Order', 'Frequency', 'Outstanding',
@@ -39,7 +39,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     label: 'Vendors',
     pluralLabel: 'VENDORS',
     searchPlaceholder: 'Search vendors...',
-    allLabel: 'Consolidated Report',
+    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',
@@ -49,7 +49,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     label: 'Brands',
     pluralLabel: 'BRANDS',
     searchPlaceholder: 'Search brands...',
-    allLabel: 'Consolidated Report',
+    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',
@@ -59,7 +59,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     label: 'Prod. Type',
     pluralLabel: 'PRODUCT TYPES',
     searchPlaceholder: 'Search product types...',
-    allLabel: 'Consolidated Report',
+    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',
@@ -69,7 +69,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     label: 'Products',
     pluralLabel: 'PRODUCTS',
     searchPlaceholder: 'Search products...',
-    allLabel: 'Consolidated Report',
+    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',

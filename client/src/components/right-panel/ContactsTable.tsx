@@ -10,8 +10,13 @@ interface ContactsTableProps {
   contacts: Contact[];
 }
 
-/** WHY column widths are 25% each — spec Section 22.6 mandates even distribution */
-const COLUMNS = ['Full Name', 'Position', 'Phone', 'Email'] as const;
+/** WHY column widths differ — Phone is fixed-width (~15 chars), Email needs the most room */
+const COLUMNS = [
+  { label: 'Full Name', width: 'w-[28%]' },
+  { label: 'Position', width: 'w-[20%]' },
+  { label: 'Phone', width: 'w-[15%]' },
+  { label: 'Email', width: 'w-[37%]' },
+] as const;
 
 export function ContactsTable({ contacts }: ContactsTableProps) {
   if (contacts.length === 0) {
@@ -25,15 +30,15 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
+      <table className="w-full min-w-[600px] border-collapse">
         <thead>
           <tr className="border-b border-[var(--color-gold-subtle)]">
             {COLUMNS.map((col) => (
               <th
-                key={col}
-                className="w-1/4 px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide"
+                key={col.label}
+                className={`${col.width} px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide`}
               >
-                {col}
+                {col.label}
               </th>
             ))}
           </tr>
@@ -44,16 +49,16 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
               key={contact.email || `contact-${index}`}
               className="border-b border-[var(--color-bg-page)]"
             >
-              <td className="w-1/4 px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
+              <td className="w-[28%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
                 {contact.fullName}
               </td>
-              <td className="w-1/4 px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
+              <td className="w-[20%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
                 {contact.position}
               </td>
-              <td className="w-1/4 px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
+              <td className="w-[15%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)] whitespace-nowrap">
                 {contact.phone}
               </td>
-              <td className="w-1/4 px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] truncate max-w-0">
+              <td className="w-[37%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] truncate max-w-0">
                 <a
                   href={`mailto:${contact.email}`}
                   className="text-[var(--color-gold-primary)] no-underline hover:underline"
