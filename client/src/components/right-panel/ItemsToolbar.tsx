@@ -89,7 +89,7 @@ export function ItemsToolbar(props: ItemsToolbarProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-[var(--spacing-3xl)] right-[var(--spacing-3xl)] top-full mt-1 z-20 rounded-xl border border-[var(--color-gold-subtle)] bg-[var(--color-bg-card)] shadow-lg p-3"
+            className="absolute left-[var(--spacing-3xl)] right-[var(--spacing-3xl)] top-full mt-1 z-20 rounded-xl border border-[var(--color-gold-subtle)] bg-[var(--color-bg-card)] shadow-lg p-3 max-h-[260px] overflow-y-auto"
           >
             {openPanel === 'group' && <GroupPanel groupLevels={groupLevels} onGroupLevelsChange={onGroupLevelsChange} />}
             {openPanel === 'sort' && <SortPanel sortField={sortField} sortDirection={sortDirection} onToggleSort={onToggleSort} />}
