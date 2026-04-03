@@ -4,14 +4,14 @@
 // EXPORTS: TabsSection
 
 import { useState, useRef, useCallback } from 'react';
-import type { OrderRow, ItemCategory, Contact } from '@shared/types/dashboard';
+import type { OrderRow, FlatItem, Contact } from '@shared/types/dashboard';
 import { OrdersTable } from './OrdersTable';
-import { ItemsAccordion } from './ItemsAccordion';
+import { ItemsExplorer } from './ItemsExplorer';
 import { ContactsTable } from './ContactsTable';
 
 interface TabsSectionProps {
   orders: OrderRow[];
-  items: ItemCategory[];
+  items: FlatItem[];
   contacts: Contact[];
 }
 
@@ -29,7 +29,7 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
 
   const tabs: TabDef[] = [
     { key: 'orders', label: 'Orders', count: orders.length },
-    { key: 'items', label: 'Items', count: items.reduce((sum, cat) => sum + cat.itemCount, 0) },
+    { key: 'items', label: 'Items', count: items.length },
     { key: 'contacts', label: 'Contacts', count: contacts.length },
   ];
 
@@ -119,7 +119,7 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
           aria-labelledby={`tab-${activeTab}`}
         >
           {activeTab === 'orders' && <OrdersTable orders={orders} />}
-          {activeTab === 'items' && <ItemsAccordion items={items} />}
+          {activeTab === 'items' && <ItemsExplorer items={items} />}
           {activeTab === 'contacts' && <ContactsTable contacts={contacts} />}
         </div>
       </div>

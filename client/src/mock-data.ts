@@ -106,21 +106,11 @@ export const MOCK_DASHBOARD: DashboardPayload = {
     ] },
   ],
   items: [
-    {
-      category: 'Packaging', totalValue: 91200, marginPercent: 19.2, marginAmount: 17510, itemCount: 6,
-      products: [
-        { name: 'Kraft Mailer Box 300x200', sku: 'PKG-KM-300', value: 42800, marginPercent: 21.3, marginAmount: 9116 },
-        { name: 'Corrugated Sheet A4', sku: 'PKG-CS-A4', value: 31500, marginPercent: 18.1, marginAmount: 5702 },
-        { name: 'Bubble Wrap Roll 1200mm', sku: 'PKG-BW-1200', value: 16900, marginPercent: 15.9, marginAmount: 2687 },
-      ],
-    },
-    {
-      category: 'Raw Materials', totalValue: 60000, marginPercent: 15.8, marginAmount: 9480, itemCount: 3,
-      products: [
-        { name: 'PE Film Roll 500mm', sku: 'RAW-PE-500', value: 38200, marginPercent: 16.2, marginAmount: 6188 },
-        { name: 'Stretch Wrap 450mm', sku: 'PKG-SW-450', value: 21800, marginPercent: 15.1, marginAmount: 3292 },
-      ],
-    },
+    { name: 'Kraft Mailer Box 300x200', sku: 'PKG-KM-300', value: 42800, marginPercent: 21.3, marginAmount: 9116, productType: 'Packaging', productFamily: 'Boxes', brand: 'BrandX', countryOfOrigin: 'USA', foodServiceRetail: 'Food Service', vendor: 'Vendor A' },
+    { name: 'Corrugated Sheet A4', sku: 'PKG-CS-A4', value: 31500, marginPercent: 18.1, marginAmount: 5702, productType: 'Packaging', productFamily: 'Sheets', brand: 'BrandX', countryOfOrigin: 'USA', foodServiceRetail: 'Food Service', vendor: 'Vendor A' },
+    { name: 'Bubble Wrap Roll 1200mm', sku: 'PKG-BW-1200', value: 16900, marginPercent: 15.9, marginAmount: 2687, productType: 'Packaging', productFamily: 'Wrapping', brand: 'BrandY', countryOfOrigin: 'China', foodServiceRetail: 'Retail', vendor: 'Vendor B' },
+    { name: 'PE Film Roll 500mm', sku: 'RAW-PE-500', value: 38200, marginPercent: 16.2, marginAmount: 6188, productType: 'Raw Materials', productFamily: 'Films', brand: 'BrandZ', countryOfOrigin: 'Germany', foodServiceRetail: 'Food Service', vendor: 'Vendor C' },
+    { name: 'Stretch Wrap 450mm', sku: 'PKG-SW-450', value: 21800, marginPercent: 15.1, marginAmount: 3292, productType: 'Raw Materials', productFamily: 'Wrapping', brand: 'BrandY', countryOfOrigin: 'USA', foodServiceRetail: 'Retail', vendor: 'Vendor B' },
   ],
   yearsAvailable: ['2026', '2025', '2024', '2023'],
 };
