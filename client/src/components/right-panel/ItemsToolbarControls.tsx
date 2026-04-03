@@ -1,15 +1,17 @@
 // FILE: client/src/components/right-panel/ItemsToolbarControls.tsx
-// PURPOSE: Popover panel contents for Items toolbar (search, group, sort, filter)
+// PURPOSE: Inline panel contents for Items toolbar (group, sort, filter)
 // USED BY: ItemsToolbar.tsx
 // EXPORTS: GroupPanel, SortPanel, FilterPanel
 
+import { useState, useRef, useEffect } from 'react';
+import { Reorder, useDragControls } from 'framer-motion';
 import type { ItemDimensionKey, ItemFilters } from '../../utils/items-filter';
 import type { ItemSortField } from '../../utils/items-grouping';
 import type { FlatItem } from '@shared/types/dashboard';
 
 const DIMENSION_LABELS: Record<ItemDimensionKey, string> = {
   productType: 'Product Type', productFamily: 'Product Family', brand: 'Brand',
-  countryOfOrigin: 'Country of Origin', foodServiceRetail: 'FS/Retail', vendor: 'Vendor',
+  countryOfOrigin: 'Country', foodServiceRetail: 'FS/Retail', vendor: 'Vendor',
 };
 
 const SORT_LABELS: Record<ItemSortField, string> = {
@@ -19,56 +21,117 @@ const SORT_LABELS: Record<ItemSortField, string> = {
 const FILTER_FIELDS: ItemDimensionKey[] = ['productType', 'productFamily', 'brand', 'countryOfOrigin', 'foodServiceRetail'];
 const ALL_DIMENSIONS: ItemDimensionKey[] = ['productType', 'productFamily', 'brand', 'countryOfOrigin', 'foodServiceRetail', 'vendor'];
 
-/* --- Search Panel --- */
-
-/* --- Group Panel --- */
-
 export function GroupPanel({ groupLevels, onGroupLevelsChange }: {
   groupLevels: ItemDimensionKey[]; onGroupLevelsChange: (levels: ItemDimensionKey[]) => void;
 }) {
   const getNextAvailable = () => ALL_DIMENSIONS.find(k => !groupLevels.includes(k)) ?? 'productType';
 
   return (
-    <div className="space-y-2">
-      <div className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide">Group by</div>
-      {groupLevels.map((level, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <span className="text-[11px] text-[var(--color-text-muted)] w-12">Level {i + 1}</span>
-          <select value={level} onChange={e => {
-            const val = e.target.value;
-            if (val === 'none') { onGroupLevelsChange(groupLevels.slice(0, i)); }
-            else { const next = [...groupLevels]; next[i] = val as ItemDimensionKey; onGroupLevelsChange(next); }
-          }} className="flex-1 bg-transparent border border-[var(--color-gold-subtle)] rounded px-2 py-1 text-[12px] text-[var(--color-text-primary)] outline-none">
-            {Object.entries(DIMENSION_LABELS).filter(([k]) => !groupLevels.includes(k as ItemDimensionKey) || k === level).map(([k, label]) => (
-              <option key={k} value={k}>{label}</option>
-            ))}
-            <option value="none">None</option>
-          </select>
-          {i > 0 && (
-            <button type="button" onClick={() => onGroupLevelsChange(groupLevels.filter((_, j) => j !== i))}
-              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]" aria-label="Remove level">
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 3l6 6M9 3l-6 6" /></svg>
-            </button>
-          )}
-        </div>
-      ))}
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide">Group by</span>
+        {groupLevels.length > 0 && (
+          <button type="button" onClick={() => onGroupLevelsChange([])}
+            className="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* WHY: Reorder.Group — drag-and-drop with spring physics, axis="x" for horizontal */}
+      <Reorder.Group
+        axis="x"
+        values={groupLevels}
+        onReorder={onGroupLevelsChange}
+        className="flex items-center gap-1.5 flex-wrap"
+      >
+        {groupLevels.map((level) => (
+          <GroupChip
+            key={level}
+            value={level}
+            excluded={groupLevels.filter(k => k !== level)}
+            onChange={(newVal) => {
+              if (newVal === 'none') {
+                onGroupLevelsChange(groupLevels.filter(k => k !== level));
+              } else {
+                onGroupLevelsChange(groupLevels.map(k => k === level ? newVal as ItemDimensionKey : k));
+              }
+            }}
+            onRemove={() => onGroupLevelsChange(groupLevels.filter(k => k !== level))}
+          />
+        ))}
+      </Reorder.Group>
+
       {groupLevels.length < 3 && (
         <button type="button" onClick={() => onGroupLevelsChange([...groupLevels, getNextAvailable()])}
-          className="text-[11px] text-[var(--color-gold-primary)] hover:underline">
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-dashed border-[var(--color-gold-subtle)] text-[11px] text-[var(--color-text-muted)] hover:border-[var(--color-gold-primary)] hover:text-[var(--color-gold-primary)] transition-colors">
           + Add level
-        </button>
-      )}
-      {groupLevels.length > 0 && (
-        <button type="button" onClick={() => onGroupLevelsChange([])}
-          className="text-[11px] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] ml-2">
-          Remove all
-        </button>
-      )}
+        </button>)}
     </div>
   );
 }
 
-/* --- Sort Panel --- */
+/** WHY: Reorder.Item with useDragControls — drag only from 6-dot grip handle, not from dropdown */
+function GroupChip({ value, excluded, onChange, onRemove }: {
+  value: ItemDimensionKey; excluded: ItemDimensionKey[];
+  onChange: (val: string) => void; onRemove: () => void;
+}) {
+  const controls = useDragControls();
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setPickerOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <Reorder.Item
+      value={value}
+      dragListener={false}
+      dragControls={controls}
+      className="relative flex items-center gap-1 rounded-full bg-[var(--color-gold-hover)] border border-[var(--color-gold-subtle)] pl-1 pr-1.5 py-0.5 select-none"
+      whileDrag={{ scale: 1.05, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+    >
+      {/* Grip handle — drag initiator */}
+      <div
+        onPointerDown={e => controls.start(e)}
+        className="cursor-grab active:cursor-grabbing px-0.5 text-[var(--color-text-muted)] touch-none"
+        aria-label="Drag to reorder"
+      >
+        <svg width="8" height="12" viewBox="0 0 8 12" fill="currentColor">
+          <circle cx="2" cy="2" r="1" /><circle cx="6" cy="2" r="1" />
+          <circle cx="2" cy="6" r="1" /><circle cx="6" cy="6" r="1" />
+          <circle cx="2" cy="10" r="1" /><circle cx="6" cy="10" r="1" />
+        </svg>
+      </div>
+
+      {/* Dimension label — click to change */}
+      <div ref={ref} className="relative">
+        <button type="button" onClick={() => setPickerOpen(!pickerOpen)}
+          className="text-[11px] font-medium text-[var(--color-text-primary)] hover:text-[var(--color-gold-primary)] transition-colors whitespace-nowrap">
+          {DIMENSION_LABELS[value]}
+        </button>
+
+        {pickerOpen && (
+          <div className="absolute top-full left-0 mt-1 z-30 bg-[var(--color-bg-card)] border border-[var(--color-gold-subtle)] rounded-lg shadow-lg py-1 min-w-[140px]">
+            {Object.entries(DIMENSION_LABELS).filter(([k]) => !excluded.includes(k as ItemDimensionKey)).map(([k, label]) => (
+              <button key={k} type="button" onClick={() => { onChange(k); setPickerOpen(false); }}
+                className={`block w-full text-left px-3 py-1 text-[11px] hover:bg-[var(--color-gold-hover)] transition-colors ${k === value ? 'text-[var(--color-gold-primary)] font-semibold' : 'text-[var(--color-text-primary)]'}`}>
+                {label}
+              </button>))}
+          </div>)}
+      </div>
+
+      {/* Remove × */}
+      <button type="button" onClick={onRemove}
+        className="ml-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors" aria-label="Remove">
+        <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3l6 6M9 3l-6 6" /></svg>
+      </button>
+    </Reorder.Item>
+  );
+}
 
 export function SortPanel({ sortField, sortDirection, onToggleSort }: {
   sortField: ItemSortField; sortDirection: 'asc' | 'desc'; onToggleSort: (field: ItemSortField) => void;
@@ -91,8 +154,6 @@ export function SortPanel({ sortField, sortDirection, onToggleSort }: {
     </div>
   );
 }
-
-/* --- Filter Panel --- */
 
 export function FilterPanel({ filters, onSetFilter, onClearAllFilters, items }: {
   filters: ItemFilters; onSetFilter: (field: ItemDimensionKey, values: string[]) => void;
