@@ -3,7 +3,7 @@
 // USED BY: server/src/routes/dashboard.ts
 // EXPORTS: aggregateOrders
 
-import type { KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, TopSellerItem, OrderRow, ItemCategory, SparklineData } from '@shared/types/dashboard';
+import type { KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, TopSellerItem, OrderRow, FlatItem, SparklineData } from '@shared/types/dashboard';
 import type { RawOrder, RawOrderItem } from './priority-queries.js';
 import { computeKPIs, computeMonthlyRevenue, computeSparklines } from './kpi-aggregator.js';
 
@@ -14,7 +14,7 @@ interface AggregateResult {
   topSellers: TopSellerItem[];
   sparklines: Record<string, SparklineData>;
   orders: OrderRow[];
-  items: ItemCategory[];
+  items: FlatItem[];
 }
 
 export function aggregateOrders(
@@ -34,7 +34,7 @@ export function aggregateOrders(
   const topSellers = computeTopSellers(allItems);
   const sparklines = computeSparklines(nonZeroOrders);
   const orders = buildOrderRows(nonZeroOrders);
-  const items = buildItemCategories(allItems);
+  const items = buildFlatItems(allItems);
 
   return { kpis, monthlyRevenue, productMixes, topSellers, sparklines, orders, items };
 }
@@ -141,50 +141,42 @@ function computeOrderMarginPct(order: RawOrder): number {
   return revenue > 0 ? (profit / revenue) * 100 : 0;
 }
 
-/** Spec Section 4.4 — Items grouped by category (Y_3021_5_ESH) */
-function buildItemCategories(items: RawOrderItem[]): ItemCategory[] {
-  const byCategory = new Map<string, RawOrderItem[]>();
+/** Items Tab Explorer — flat SKU-aggregated items with all category fields for client-side grouping */
+function buildFlatItems(items: RawOrderItem[]): FlatItem[] {
+  const bySku = new Map<string, { name: string; sku: string; value: number; profit: number; productType: string; productFamily: string; brand: string; countryOfOrigin: string; foodServiceRetail: string; vendor: string }>();
+
   items.forEach(item => {
-    const cat = item.Y_3021_5_ESH || 'Other';
-    if (!byCategory.has(cat)) byCategory.set(cat, []);
-    byCategory.get(cat)!.push(item);
+    const existing = bySku.get(item.PARTNAME);
+    if (existing) {
+      existing.value += item.QPRICE;
+      existing.profit += item.QPROFIT;
+    } else {
+      bySku.set(item.PARTNAME, {
+        name: item.PDES,
+        sku: item.PARTNAME,
+        value: item.QPRICE,
+        profit: item.QPROFIT,
+        productType: item.Y_3021_5_ESH || 'Other',
+        productFamily: item.Y_2075_5_ESH || 'Other',
+        brand: item.Y_9952_5_ESH || 'Other',
+        countryOfOrigin: item.Y_5380_5_ESH || 'Other',
+        foodServiceRetail: item.Y_9967_5_ESH === 'Y' ? 'Retail' : 'Food Service',
+        vendor: item.Y_1530_5_ESH || 'Other',
+      });
+    }
   });
 
-  return [...byCategory.entries()]
-    .map(([category, catItems]) => {
-      const totalValue = catItems.reduce((s, i) => s + i.QPRICE, 0);
-      const totalProfit = catItems.reduce((s, i) => s + i.QPROFIT, 0);
-
-      // Aggregate by SKU within category
-      const bySku = new Map<string, { name: string; sku: string; value: number; profit: number }>();
-      catItems.forEach(item => {
-        const existing = bySku.get(item.PARTNAME);
-        if (existing) {
-          existing.value += item.QPRICE;
-          existing.profit += item.QPROFIT;
-        } else {
-          bySku.set(item.PARTNAME, { name: item.PDES, sku: item.PARTNAME, value: item.QPRICE, profit: item.QPROFIT });
-        }
-      });
-
-      const products = [...bySku.values()]
-        .sort((a, b) => b.value - a.value)
-        .map(p => ({
-          name: p.name,
-          sku: p.sku,
-          value: p.value,
-          marginPercent: p.value > 0 ? (p.profit / p.value) * 100 : 0,
-          marginAmount: p.profit,
-        }));
-
-      return {
-        category,
-        totalValue,
-        marginPercent: totalValue > 0 ? (totalProfit / totalValue) * 100 : 0,
-        marginAmount: totalProfit,
-        itemCount: products.length,
-        products,
-      };
-    })
-    .sort((a, b) => b.totalValue - a.totalValue);
+  return [...bySku.values()].map(p => ({
+    name: p.name,
+    sku: p.sku,
+    value: p.value,
+    marginPercent: p.value > 0 ? (p.profit / p.value) * 100 : 0,
+    marginAmount: p.profit,
+    productType: p.productType,
+    productFamily: p.productFamily,
+    brand: p.brand,
+    countryOfOrigin: p.countryOfOrigin,
+    foodServiceRetail: p.foodServiceRetail,
+    vendor: p.vendor,
+  }));
 }

@@ -1,7 +1,7 @@
 // FILE: shared/types/dashboard.ts
 // PURPOSE: Shared types for dashboard data exchanged between server and client
 // USED BY: server/services/data-aggregator.ts, client/hooks/useDashboardData.ts
-// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER, TopSellerItem, OrderLineItem, OrderRow, ItemCategory, Contact
+// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER, TopSellerItem, OrderLineItem, OrderRow, FlatItem, Contact
 
 /** One entity in the left-panel list (customer, zone, vendor, brand, product type, or product) */
 export interface EntityListItem {
@@ -134,22 +134,19 @@ export interface OrderRow {
   items: OrderLineItem[];
 }
 
-/** Category + products for the Items tab accordion — spec Section 4.4 */
-export interface ItemCategory {
-  category: string;
-  totalValue: number;
-  marginPercent: number;
-  marginAmount: number;
-  itemCount: number;
-  products: ItemProduct[];
-}
-
-export interface ItemProduct {
+/** Flat item for the Items tab explorer — aggregated by SKU, enriched with category fields */
+export interface FlatItem {
   name: string;
   sku: string;
   value: number;
   marginPercent: number;
   marginAmount: number;
+  productType: string;
+  productFamily: string;
+  brand: string;
+  countryOfOrigin: string;
+  foodServiceRetail: string;
+  vendor: string;
 }
 
 /** Contact in the Contacts tab — spec Section 18.4 */
@@ -192,6 +189,6 @@ export interface DashboardPayload {
   topSellers: TopSellerItem[];
   sparklines: Record<string, SparklineData>;
   orders: OrderRow[];
-  items: ItemCategory[];
+  items: FlatItem[];
   yearsAvailable: string[];
 }

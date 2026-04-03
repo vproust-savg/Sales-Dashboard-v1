@@ -5,7 +5,7 @@
 
 import { useCallback } from 'react';
 import type {
-  KPIs, OrderRow, ItemCategory, Period,
+  KPIs, OrderRow, FlatItem, Period,
 } from '@shared/types/dashboard';
 import {
   formatCurrency, formatPercent, formatDate,
@@ -16,7 +16,7 @@ interface ExportData {
   period: Period;
   kpis: KPIs;
   orders: OrderRow[];
-  items: ItemCategory[];
+  items: FlatItem[];
 }
 
 /** WHY: escape CSV values that contain commas, quotes, or newlines */
@@ -59,19 +59,18 @@ function buildCsvContent(data: ExportData): string {
   lines.push('');
 
   // --- Items Section ---
-  lines.push('=== Items by Category ===');
-  lines.push('Category,Product,SKU,Value,Margin %,Margin $');
-  for (const cat of data.items) {
-    for (const product of cat.products) {
-      lines.push([
-        escapeCsv(cat.category),
-        escapeCsv(product.name),
-        escapeCsv(product.sku),
-        escapeCsv(formatCurrency(product.value)),
-        formatPercent(product.marginPercent),
-        escapeCsv(formatCurrency(product.marginAmount)),
-      ].join(','));
-    }
+  lines.push('=== Items ===');
+  lines.push('Product,SKU,Product Type,Brand,Value,Margin %,Margin $');
+  for (const item of data.items) {
+    lines.push([
+      escapeCsv(item.name),
+      escapeCsv(item.sku),
+      escapeCsv(item.productType),
+      escapeCsv(item.brand),
+      escapeCsv(formatCurrency(item.value)),
+      formatPercent(item.marginPercent),
+      escapeCsv(formatCurrency(item.marginAmount)),
+    ].join(','));
   }
 
   return lines.join('\n');

@@ -322,4 +322,94 @@ describe('aggregateOrders', () => {
     const result = aggregateOrders(orders, [], 'ytd');
     expect(result.orders[0].items).toEqual([]);
   });
+
+  // --- buildFlatItems (via aggregateOrders.items) ---
+
+  describe('buildFlatItems (via aggregateOrders.items)', () => {
+    it('returns empty array for order with no items', () => {
+      const orders = [makeOrder({ ORDERITEMS_SUBFORM: [] })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items).toEqual([]);
+    });
+
+    it('maps single item with all category fields', () => {
+      const orders = [makeOrder()];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items).toHaveLength(1);
+      const item = result.items[0];
+      expect(item.name).toBe('Widget A');
+      expect(item.sku).toBe('WGT-A');
+      expect(item.value).toBe(5000);
+      expect(item.productType).toBe('Packaging');
+      expect(item.productFamily).toBe('Family A');
+      expect(item.brand).toBe('BrandX');
+      expect(item.countryOfOrigin).toBe('USA');
+      expect(item.foodServiceRetail).toBe('Food Service');
+      expect(item.vendor).toBe('Vendor One');
+    });
+
+    it('aggregates same SKU across multiple items', () => {
+      const orders = [
+        makeOrder({
+          ORDNAME: 'O1',
+          ORDERITEMS_SUBFORM: [
+            makeItem({ PARTNAME: 'WGT-A', QPRICE: 3000, QPROFIT: 1200 }),
+            makeItem({ PARTNAME: 'WGT-A', QPRICE: 2000, QPROFIT: 800 }),
+          ],
+        }),
+      ];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].value).toBe(5000);
+      expect(result.items[0].marginAmount).toBe(2000);
+    });
+
+    it('defaults missing category fields to Other', () => {
+      const orders = [makeOrder({
+        ORDERITEMS_SUBFORM: [makeItem({ Y_3021_5_ESH: '', Y_9952_5_ESH: '' })],
+      })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].productType).toBe('Other');
+      expect(result.items[0].brand).toBe('Other');
+    });
+
+    it('maps Y_9967_5_ESH Y to Retail', () => {
+      const orders = [makeOrder({
+        ORDERITEMS_SUBFORM: [makeItem({ Y_9967_5_ESH: 'Y' })],
+      })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].foodServiceRetail).toBe('Retail');
+    });
+
+    it('maps Y_9967_5_ESH non-Y to Food Service', () => {
+      const orders = [makeOrder({
+        ORDERITEMS_SUBFORM: [makeItem({ Y_9967_5_ESH: 'N' })],
+      })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].foodServiceRetail).toBe('Food Service');
+    });
+
+    it('handles zero value without division error', () => {
+      const orders = [makeOrder({
+        ORDERITEMS_SUBFORM: [makeItem({ QPRICE: 0, QPROFIT: 0 })],
+      })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].marginPercent).toBe(0);
+      expect(Number.isFinite(result.items[0].marginPercent)).toBe(true);
+    });
+
+    it('produces distinct FlatItems per unique SKU', () => {
+      const orders = [makeOrder({
+        ORDERITEMS_SUBFORM: [
+          makeItem({ PARTNAME: 'A', PDES: 'Alpha' }),
+          makeItem({ PARTNAME: 'B', PDES: 'Beta' }),
+          makeItem({ PARTNAME: 'A', PDES: 'Alpha' }),
+          makeItem({ PARTNAME: 'C', PDES: 'Charlie' }),
+          makeItem({ PARTNAME: 'B', PDES: 'Beta' }),
+        ],
+      })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items).toHaveLength(3);
+    });
+  });
 });

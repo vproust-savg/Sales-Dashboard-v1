@@ -5,7 +5,7 @@
 
 import type {
   EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType,
-  TopSellerItem, SparklineData, OrderRow, ItemCategory, Contact, Period,
+  TopSellerItem, SparklineData, OrderRow, FlatItem, Contact, Period,
 } from '@shared/types/dashboard';
 import { DetailHeader } from './DetailHeader';
 import { KPISection } from './KPISection';
@@ -20,7 +20,7 @@ interface RightPanelProps {
   topSellers: TopSellerItem[];
   sparklines: Record<string, SparklineData>;
   orders: OrderRow[];
-  items: ItemCategory[];
+  items: FlatItem[];
   contacts: Contact[];
   yearsAvailable: string[];
   activePeriod: Period;
