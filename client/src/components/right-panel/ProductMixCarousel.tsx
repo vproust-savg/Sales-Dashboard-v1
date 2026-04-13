@@ -30,6 +30,36 @@ function ChevronRight() {
   );
 }
 
+/** WHY: Separate export for modal — shows larger donut with full legend, no carousel needed */
+export function ProductMixExpanded({ mixes }: ProductMixCarouselProps) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const types = PRODUCT_MIX_ORDER;
+  const activeType = types[activeIdx];
+  const segments = mixes[activeType] ?? [];
+
+  return (
+    <div className="flex flex-col gap-[var(--spacing-2xl)]">
+      <div className="flex gap-[var(--spacing-md)]">
+        {types.map((type, i) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => setActiveIdx(i)}
+            className={`cursor-pointer rounded-[var(--radius-base)] px-[var(--spacing-lg)] py-[var(--spacing-xs)] text-[12px] font-medium transition-colors ${
+              i === activeIdx ? 'bg-[var(--color-dark)] text-white' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-gold-subtle)]'
+            }`}
+          >
+            {PRODUCT_MIX_LABELS[type]}
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-center">
+        <ProductMixDonut data={segments} />
+      </div>
+    </div>
+  );
+}
+
 export function ProductMixCarousel({ mixes }: ProductMixCarouselProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [direction, setDirection] = useState(0);

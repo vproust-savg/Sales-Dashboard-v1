@@ -61,6 +61,30 @@ function SellerRow({ item }: { item: TopSellerItem }) {
   );
 }
 
+/** WHY: Modal shows full unpaginated list — up to 20 items in single column for easy scanning */
+export function BestSellersExpanded({ data }: BestSellersProps) {
+  const items = data.filter(item => item.revenue > 0).slice(0, 20);
+  return (
+    <div className="flex flex-col gap-[var(--spacing-xs)]">
+      {items.map((item) => (
+        <div key={item.sku} className="flex items-center gap-[var(--spacing-md)] border-b border-[#f5f1eb] py-[var(--spacing-md)]">
+          <span className={`flex h-6 w-6 items-center justify-center rounded-[var(--radius-md)] text-[11px] font-bold ${rankBadgeClasses(item.rank)}`}>
+            {item.rank}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13px] font-medium text-[var(--color-text-primary)]">{item.name}</div>
+            <div className="text-[10px] text-[var(--color-text-faint)]">{item.sku}</div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-[13px] font-semibold tabular-nums text-[var(--color-text-primary)]">{formatCurrency(item.revenue)}</div>
+            <div className="text-[10px] text-[var(--color-text-muted)]">{item.units.toLocaleString('en-US')} {item.unit}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** WHY page size 5: each arrow click shifts by 5 items, two columns show 10 at a time */
 const PAGE_STEP = 5;
 const VISIBLE_COUNT = 10;

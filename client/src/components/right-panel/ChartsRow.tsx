@@ -4,8 +4,10 @@
 // EXPORTS: ChartsRow
 
 import type { ProductMixSegment, ProductMixType, TopSellerItem } from '@shared/types/dashboard';
-import { ProductMixCarousel } from './ProductMixCarousel';
-import { BestSellers } from './BestSellers';
+import { ProductMixCarousel, ProductMixExpanded } from './ProductMixCarousel';
+import { BestSellers, BestSellersExpanded } from './BestSellers';
+import { useModal } from '../shared/ModalProvider';
+import { ExpandIcon } from '../shared/ExpandIcon';
 
 interface ChartsRowProps {
   productMixes: Record<ProductMixType, ProductMixSegment[]>;
@@ -13,15 +15,31 @@ interface ChartsRowProps {
 }
 
 export function ChartsRow({ productMixes, topSellers }: ChartsRowProps) {
+  const { openModal } = useModal();
+
   return (
     <div className="grid grid-cols-[3fr_5fr] gap-[var(--spacing-lg)] max-lg:grid-cols-1">
       {/* Product Mix carousel card */}
-      <div className="flex flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
+      <div
+        className="group relative flex cursor-pointer flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+        onClick={() => openModal('Product Mix', <ProductMixExpanded mixes={productMixes} />)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter') openModal('Product Mix', <ProductMixExpanded mixes={productMixes} />); }}
+      >
+        <ExpandIcon />
         <ProductMixCarousel mixes={productMixes} />
       </div>
 
-      {/* Best Sellers card — title + arrows are inside BestSellers component */}
-      <div className="flex flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
+      {/* Best Sellers card */}
+      <div
+        className="group relative flex cursor-pointer flex-col rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+        onClick={() => openModal('Best Sellers', <BestSellersExpanded data={topSellers} />)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter') openModal('Best Sellers', <BestSellersExpanded data={topSellers} />); }}
+      >
+        <ExpandIcon />
         <BestSellers data={topSellers} />
       </div>
     </div>
