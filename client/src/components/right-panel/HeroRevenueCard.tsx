@@ -3,6 +3,7 @@
 // USED BY: KPISection.tsx
 // EXPORTS: HeroRevenueCard
 
+import { type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KPIs, MonthlyRevenue, Period } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
@@ -10,6 +11,8 @@ import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { YoYBarChart } from './YoYBarChart';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { ExpandIcon } from '../shared/ExpandIcon';
+import { useHoverPeek } from '../../hooks/useHoverPeek';
+import { HoverPeek } from '../shared/HoverPeek';
 
 interface HeroRevenueCardProps {
   kpis: KPIs;
@@ -18,9 +21,11 @@ interface HeroRevenueCardProps {
   /** WHY: Global toggle from KPISection controls sub-items visibility */
   showDetails: boolean;
   onExpand?: () => void;
+  peekContent?: ReactNode;
 }
 
-export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand }: HeroRevenueCardProps) {
+export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand, peekContent }: HeroRevenueCardProps) {
+  const peek = useHoverPeek();
   const [chartRef, chartSize] = useContainerSize();
   /** WHY clamp: min 80px for usability, max 400px to prevent oversized chart on 27" */
   const chartHeight = Math.max(80, Math.min(400, chartSize.height));
@@ -29,9 +34,13 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 
   return (
+    <>
     <div
+      ref={peek.triggerRef}
+      onMouseEnter={peek.onMouseEnter}
+      onMouseLeave={peek.onMouseLeave}
       className="group relative cursor-pointer flex h-full flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]"
-      onClick={onExpand}
+      onClick={() => { peek.onMouseLeave(); onExpand?.(); }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
@@ -130,6 +139,12 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
         )}
       </AnimatePresence>
     </div>
+    {peekContent && (
+      <HoverPeek isVisible={peek.isVisible} position={peek.position} onMouseEnter={peek.onPeekMouseEnter} onMouseLeave={peek.onPeekMouseLeave}>
+        {peekContent}
+      </HoverPeek>
+    )}
+    </>
   );
 }
 

@@ -17,6 +17,7 @@ import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { ResizeDivider } from './ResizeDivider';
 import { useModal } from '../shared/ModalProvider';
 import { KPIModalContent, HeroRevenueModalContent } from './kpi-modal-content';
+import { KPIPeekContent, HeroPeekContent } from './kpi-peek-content';
 
 interface KPISectionProps {
   kpis: KPIs;
@@ -70,7 +71,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
     <div className="flex flex-col gap-[var(--spacing-sm)]">
     {/* WHY style prop: Dynamic ratio from drag — Tailwind can't use JS variables */}
     <div ref={containerRef} className="grid gap-0 max-lg:grid-cols-1 max-lg:gap-[var(--spacing-base)]" style={{ gridTemplateColumns: heroKpiGridTemplate }}>
-      <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} showDetails={showDetails} onExpand={() => openModal('Total Revenue', <HeroRevenueModalContent kpis={kpis} monthlyRevenue={monthlyRevenue} />)} />
+      <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} showDetails={showDetails} onExpand={() => openModal('Total Revenue', <HeroRevenueModalContent kpis={kpis} monthlyRevenue={monthlyRevenue} />)} peekContent={<HeroPeekContent revenue={formatCurrency(Math.round(kpis.totalRevenue))} changePercent={kpis.revenueChangePercent} thisQuarter={formatCurrency(kpis.thisQuarterRevenue)} lastMonth={formatCurrency(kpis.lastMonthRevenue)} lastMonthName={kpis.lastMonthName} bestMonth={formatCurrency(kpis.bestMonth.amount)} bestMonthName={kpis.bestMonth.name} />} />
       <ResizeDivider direction="horizontal" isDragging={isDragging} onMouseDown={handleMouseDown} onTouchStart={handleMouseDown} />
       <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-sm)]">
         {/* 1. Orders */}
@@ -87,6 +88,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
             { label: 'Best Month', value: Math.round(ob.bestMonth.value).toLocaleString('en-US'), suffix: ob.bestMonth.name },
           ]}
           onExpand={() => openModal('Orders', <KPIModalContent value={Math.round(kpis.orders).toLocaleString('en-US')} changePercent={yoyChange(kpis.orders, ob.prevYear)} prevYearValue={Math.round(ob.prevYear).toLocaleString('en-US')} prevYearFullValue={Math.round(ob.prevYearFull).toLocaleString('en-US')} prevYearLabel={pyLabel} prevYearFullLabel={pyFullLabel} subItems={[{ label: 'This Quarter', value: Math.round(ob.thisQuarter).toLocaleString('en-US') }, { label: 'Last Month', value: Math.round(ob.lastMonth).toLocaleString('en-US'), suffix: ob.lastMonthName }, { label: 'Best Month', value: Math.round(ob.bestMonth.value).toLocaleString('en-US'), suffix: ob.bestMonth.name }]} />)}
+          peekContent={<KPIPeekContent label="Orders" periodLabel={pLabel} value={Math.round(kpis.orders).toLocaleString('en-US')} changePercent={yoyChange(kpis.orders, ob.prevYear)} subItems={[{ label: 'This Quarter', value: Math.round(ob.thisQuarter).toLocaleString('en-US') }, { label: 'Last Month', value: Math.round(ob.lastMonth).toLocaleString('en-US'), suffix: ob.lastMonthName }, { label: 'Best Month', value: Math.round(ob.bestMonth.value).toLocaleString('en-US'), suffix: ob.bestMonth.name }]} />}
         />
 
         {/* 2. Avg. Order */}
@@ -103,6 +105,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
             { label: 'Best Month', value: ab.bestMonth.value > 0 ? formatCurrency(Math.round(ab.bestMonth.value)) : '\u2014', suffix: ab.bestMonth.name },
           ]}
           onExpand={() => openModal('Avg. Order', <KPIModalContent value={kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(kpis.avgOrder))} changePercent={yoyChange(kpis.avgOrder ?? 0, ab.prevYear)} prevYearValue={ab.prevYear > 0 ? formatCurrency(Math.round(ab.prevYear)) : '\u2014'} prevYearFullValue={ab.prevYearFull > 0 ? formatCurrency(Math.round(ab.prevYearFull)) : '\u2014'} prevYearLabel={pyLabel} prevYearFullLabel={pyFullLabel} subItems={[{ label: 'This Quarter', value: ab.thisQuarter > 0 ? formatCurrency(Math.round(ab.thisQuarter)) : '\u2014' }, { label: 'Last Month', value: ab.lastMonth > 0 ? formatCurrency(Math.round(ab.lastMonth)) : '\u2014', suffix: ab.lastMonthName }, { label: 'Best Month', value: ab.bestMonth.value > 0 ? formatCurrency(Math.round(ab.bestMonth.value)) : '\u2014', suffix: ab.bestMonth.name }]} />)}
+          peekContent={<KPIPeekContent label="Avg. Order" periodLabel={pLabel} value={kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(kpis.avgOrder))} changePercent={yoyChange(kpis.avgOrder ?? 0, ab.prevYear)} subItems={[{ label: 'This Quarter', value: ab.thisQuarter > 0 ? formatCurrency(Math.round(ab.thisQuarter)) : '\u2014' }, { label: 'Last Month', value: ab.lastMonth > 0 ? formatCurrency(Math.round(ab.lastMonth)) : '\u2014', suffix: ab.lastMonthName }, { label: 'Best Month', value: ab.bestMonth.value > 0 ? formatCurrency(Math.round(ab.bestMonth.value)) : '\u2014', suffix: ab.bestMonth.name }]} />}
         />
 
         {/* 3. Margin % */}
@@ -119,6 +122,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
             { label: 'Best Month', value: mpb.bestMonth.value > 0 ? formatPercent(mpb.bestMonth.value) : '\u2014', suffix: mpb.bestMonth.name },
           ]}
           onExpand={() => openModal('Margin %', <KPIModalContent value={kpis.marginPercent === null ? '\u2014' : formatPercent(kpis.marginPercent)} changePercent={yoyChange(kpis.marginPercent ?? 0, mpb.prevYear)} prevYearValue={mpb.prevYear > 0 ? formatPercent(mpb.prevYear) : '\u2014'} prevYearFullValue={mpb.prevYearFull > 0 ? formatPercent(mpb.prevYearFull) : '\u2014'} prevYearLabel={pyLabel} prevYearFullLabel={pyFullLabel} subItems={[{ label: 'This Quarter', value: mpb.thisQuarter > 0 ? formatPercent(mpb.thisQuarter) : '\u2014' }, { label: 'Last Month', value: mpb.lastMonth > 0 ? formatPercent(mpb.lastMonth) : '\u2014', suffix: mpb.lastMonthName }, { label: 'Best Month', value: mpb.bestMonth.value > 0 ? formatPercent(mpb.bestMonth.value) : '\u2014', suffix: mpb.bestMonth.name }]} />)}
+          peekContent={<KPIPeekContent label="Margin %" periodLabel={pLabel} value={kpis.marginPercent === null ? '\u2014' : formatPercent(kpis.marginPercent)} changePercent={yoyChange(kpis.marginPercent ?? 0, mpb.prevYear)} subItems={[{ label: 'This Quarter', value: mpb.thisQuarter > 0 ? formatPercent(mpb.thisQuarter) : '\u2014' }, { label: 'Last Month', value: mpb.lastMonth > 0 ? formatPercent(mpb.lastMonth) : '\u2014', suffix: mpb.lastMonthName }, { label: 'Best Month', value: mpb.bestMonth.value > 0 ? formatPercent(mpb.bestMonth.value) : '\u2014', suffix: mpb.bestMonth.name }]} />}
         />
 
         {/* 4. Margin $ */}
@@ -135,6 +139,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
             { label: 'Best Month', value: formatCurrency(Math.round(mab.bestMonth.value)), suffix: mab.bestMonth.name },
           ]}
           onExpand={() => openModal('Margin $', <KPIModalContent value={formatCurrency(Math.round(kpis.marginAmount))} changePercent={yoyChange(kpis.marginAmount, mab.prevYear)} prevYearValue={formatCurrency(Math.round(mab.prevYear))} prevYearFullValue={formatCurrency(Math.round(mab.prevYearFull))} prevYearLabel={pyLabel} prevYearFullLabel={pyFullLabel} subItems={[{ label: 'This Quarter', value: formatCurrency(Math.round(mab.thisQuarter)) }, { label: 'Last Month', value: formatCurrency(Math.round(mab.lastMonth)), suffix: mab.lastMonthName }, { label: 'Best Month', value: formatCurrency(Math.round(mab.bestMonth.value)), suffix: mab.bestMonth.name }]} />)}
+          peekContent={<KPIPeekContent label="Margin $" periodLabel={pLabel} value={formatCurrency(Math.round(kpis.marginAmount))} changePercent={yoyChange(kpis.marginAmount, mab.prevYear)} subItems={[{ label: 'This Quarter', value: formatCurrency(Math.round(mab.thisQuarter)) }, { label: 'Last Month', value: formatCurrency(Math.round(mab.lastMonth)), suffix: mab.lastMonthName }, { label: 'Best Month', value: formatCurrency(Math.round(mab.bestMonth.value)), suffix: mab.bestMonth.name }]} />}
         />
 
         {/* 5. Frequency */}
@@ -151,6 +156,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
             { label: 'Best Month', value: Math.round(fb.bestMonth.value).toLocaleString('en-US'), suffix: fb.bestMonth.name },
           ]}
           onExpand={() => openModal('Frequency', <KPIModalContent value={kpis.frequency === null ? '\u2014' : formatFrequency(kpis.frequency)} changePercent={yoyChange(kpis.frequency ?? 0, fb.prevYear)} prevYearValue={fb.prevYear > 0 ? formatFrequency(fb.prevYear) : '\u2014'} prevYearFullValue={fb.prevYearFull > 0 ? formatFrequency(fb.prevYearFull) : '\u2014'} prevYearLabel={pyLabel} prevYearFullLabel={pyFullLabel} subItems={[{ label: 'This Quarter', value: fb.thisQuarter > 0 ? formatFrequency(fb.thisQuarter) : '\u2014' }, { label: 'Last Month', value: Math.round(fb.lastMonth).toLocaleString('en-US'), suffix: fb.lastMonthName }, { label: 'Best Month', value: Math.round(fb.bestMonth.value).toLocaleString('en-US'), suffix: fb.bestMonth.name }]} />)}
+          peekContent={<KPIPeekContent label="Frequency" periodLabel={pLabel} value={kpis.frequency === null ? '\u2014' : formatFrequency(kpis.frequency)} changePercent={yoyChange(kpis.frequency ?? 0, fb.prevYear)} subItems={[{ label: 'This Quarter', value: fb.thisQuarter > 0 ? formatFrequency(fb.thisQuarter) : '\u2014' }, { label: 'Last Month', value: Math.round(fb.lastMonth).toLocaleString('en-US'), suffix: fb.lastMonthName }, { label: 'Best Month', value: Math.round(fb.bestMonth.value).toLocaleString('en-US'), suffix: fb.bestMonth.name }]} />}
         />
 
         {/* 6. Last Order — activity status dot per spec 10.3 */}
@@ -159,6 +165,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
           formatter={(n) => kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(n))}
           statusDot={activity}
           onExpand={() => openModal('Last Order', <KPIModalContent value={kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(kpis.lastOrderDays))} />)}
+          peekContent={<KPIPeekContent label="Last Order" periodLabel="" value={kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(kpis.lastOrderDays))} />}
         />
       </div>
     </div>

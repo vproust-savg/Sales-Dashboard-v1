@@ -3,9 +3,12 @@
 // USED BY: KPISection.tsx
 // EXPORTS: KPICard
 
+import { type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { ExpandIcon } from '../shared/ExpandIcon';
+import { useHoverPeek } from '../../hooks/useHoverPeek';
+import { HoverPeek } from '../shared/HoverPeek';
 
 export interface KPISubItem {
   label: string;
@@ -30,18 +33,25 @@ interface KPICardProps {
   /** WHY statusDot: Last Order card shows activity status dot per spec 10.3 */
   statusDot?: { color: string; label: string };
   onExpand?: () => void;
+  /** WHY: Peek content passed from parent — avoids duplicating card JSX inside KPICard */
+  peekContent?: ReactNode;
 }
 
 export function KPICard({
   label, periodLabel, value, formatter, prevYearValue, prevYearFullValue,
-  prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot, onExpand,
+  prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot, onExpand, peekContent,
 }: KPICardProps) {
   const hasSubItems = subItems && subItems.length > 0;
+  const peek = useHoverPeek();
 
   return (
+    <>
     <div
+      ref={peek.triggerRef}
+      onMouseEnter={peek.onMouseEnter}
+      onMouseLeave={peek.onMouseLeave}
       className="group relative cursor-pointer flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-lg)] py-[var(--spacing-sm)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
-      onClick={onExpand}
+      onClick={() => { peek.onMouseLeave(); onExpand?.(); }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
@@ -138,5 +148,11 @@ export function KPICard({
         </AnimatePresence>
       )}
     </div>
+    {peekContent && (
+      <HoverPeek isVisible={peek.isVisible} position={peek.position} onMouseEnter={peek.onPeekMouseEnter} onMouseLeave={peek.onPeekMouseLeave}>
+        {peekContent}
+      </HoverPeek>
+    )}
+    </>
   );
 }
