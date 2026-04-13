@@ -14,7 +14,7 @@
 
 ## File Map
 
-### New Files (11 files, ~580 lines total)
+### New Files (12 files, ~610 lines total)
 
 | File | Lines | Responsibility |
 |------|-------|---------------|
@@ -29,6 +29,7 @@
 | `client/src/components/left-panel/CollapsedPanel.tsx` | ~45 | Narrow 48px rail: expand button + dimension icon |
 | `client/src/components/right-panel/LayoutPresetToggle.tsx` | ~50 | 3-segment pill: Compact / Balanced / Spacious |
 | `client/src/components/right-panel/ResizeDivider.tsx` | ~35 | Invisible divider element, gold line on hover |
+| `client/src/hooks/useCardNavigation.ts` | ~30 | Arrow key navigation between card grid cells |
 
 ### Modified Files (10 files)
 
@@ -1881,9 +1882,109 @@ git commit -m "feat: responsive defaults, viewport-aware spacing, final layout w
 
 ---
 
+## Task 13: Keyboard Navigation Between Cards
+
+**Files:**
+- Create: `client/src/hooks/useCardNavigation.ts`
+- Modify: `client/src/components/right-panel/KPISection.tsx`
+
+Inspired by Grok code review — low-effort, high accessibility value.
+
+- [ ] **Step 1: Create useCardNavigation hook**
+
+```typescript
+// FILE: client/src/hooks/useCardNavigation.ts
+// PURPOSE: Arrow key navigation between KPI card grid cells
+// USED BY: KPISection.tsx
+// EXPORTS: useCardNavigation
+
+import { useState, useCallback, useEffect, useRef } from 'react';
+
+/**
+ * WHY: KPI section has a 2-column grid (hero occupies left column, 6 cards in right 2x3 grid).
+ * Navigation order: Hero(0) → Orders(1) → AvgOrder(2) → Margin%(3) → Margin$(4) → Frequency(5) → LastOrder(6)
+ * Arrow keys move through this flat index. Enter opens modal, Space triggers peek.
+ */
+export function useCardNavigation(cardCount: number) {
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const setCardRef = useCallback((index: number) => (el: HTMLDivElement | null) => {
+    cardRefs.current[index] = el;
+  }, []);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (focusedIndex === null) return;
+    /** WHY: Don't capture keys when user is typing in search/filter inputs */
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    let next = focusedIndex;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      next = Math.min(focusedIndex + 1, cardCount - 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      next = Math.max(focusedIndex - 1, 0);
+    }
+
+    if (next !== focusedIndex) {
+      setFocusedIndex(next);
+      cardRefs.current[next]?.focus();
+    }
+  }, [focusedIndex, cardCount]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const onCardFocus = useCallback((index: number) => () => setFocusedIndex(index), []);
+  const onCardBlur = useCallback(() => setFocusedIndex(null), []);
+
+  return { focusedIndex, setCardRef, onCardFocus, onCardBlur };
+}
+```
+
+- [ ] **Step 2: Integrate into KPISection**
+
+In `KPISection.tsx`, add:
+```typescript
+import { useCardNavigation } from '../../hooks/useCardNavigation';
+```
+
+Inside the component:
+```typescript
+const { setCardRef, onCardFocus, onCardBlur } = useCardNavigation(7);
+```
+
+Add `role="grid"` to the KPI section container, and pass `ref={setCardRef(i)}`, `onFocus={onCardFocus(i)}`, `onBlur={onCardBlur}`, `role="gridcell"` to each card wrapper. The hero card is index 0, then Orders=1, AvgOrder=2, etc.
+
+Each card already has `tabIndex={0}` from Task 9. The `onKeyDown` for Enter (modal) is also already wired. Add Space for peek:
+```typescript
+onKeyDown={(e) => {
+  if (e.key === 'Enter' && onExpand) onExpand();
+  // Space triggers peek (if useHoverPeek is available)
+  if (e.key === ' ') { e.preventDefault(); /* trigger peek programmatically */ }
+}}
+```
+
+- [ ] **Step 3: Verify TypeScript compiles**
+
+Run: `cd client && npx tsc -b --noEmit`
+Expected: No errors
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add client/src/hooks/useCardNavigation.ts client/src/components/right-panel/KPISection.tsx
+git commit -m "feat: keyboard navigation between KPI cards — arrow keys, Enter, Space"
+```
+
+---
+
 ## Post-Implementation Verification
 
-After all 12 tasks are complete, verify the full feature set:
+After all 13 tasks are complete, verify the full feature set:
 
 1. **Start dev servers:** `cd server && npm run dev` and `cd client && npm run dev`
 2. **Open in browser at two widths:**
@@ -1901,4 +2002,6 @@ After all 12 tasks are complete, verify the full feature set:
    - [ ] Chart height adapts when resizing sections
    - [ ] Refresh page → layout preferences persisted
    - [ ] Text sizes match original (pre-94e4028) compact values
+   - [ ] Arrow keys navigate focus between KPI cards, Enter opens modal
+   - [ ] Hero card modal chart retains hover tooltips (existing interactivity preserved)
 4. **Test in Airtable iframe:** Open the Airtable page and verify the dashboard works correctly inside the Omni embed

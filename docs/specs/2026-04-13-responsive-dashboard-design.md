@@ -447,10 +447,38 @@ interface UseDashboardLayoutReturn {
 | `ProductMixCarousel.tsx` | Add `renderModalContent` for expanded donut |
 | `BestSellers.tsx` | Add `renderModalContent` for full unpaginated list |
 
+## 10. Keyboard Navigation Between Cards
+
+Inspired by Grok code review — low-effort, high accessibility value.
+
+### Behavior
+
+- **Arrow keys** move a visible focus ring between the 7 KPI-section cards (hero + 6 KPIs) and 2 chart cards
+- **Enter** on a focused card opens its modal
+- **Space** on a focused card triggers the hover peek (positioned as if hovering)
+- **Tab** moves focus into the card's interactive children (if any), **Shift+Tab** moves back out
+- Focus ring style: `outline: 2px solid var(--color-gold-primary); outline-offset: 2px` (already defined globally for `*:focus-visible`)
+
+### Implementation
+
+- Add `tabIndex={0}` to each card wrapper (already done for modal click handlers)
+- Add a `useCardNavigation` hook (~30 lines) in KPISection that tracks focused card index and handles arrow key events
+- Navigation order: Hero → Orders → Avg Order → Margin % → Margin $ → Frequency → Last Order (left-to-right, top-to-bottom)
+- Wrap in `role="grid"` with `role="gridcell"` on each card for screen reader semantics
+
+### New file
+
+| File | Lines (est.) | Purpose |
+|------|-------------|---------|
+| `client/src/hooks/useCardNavigation.ts` | ~30 | Arrow key navigation between card grid cells |
+
+---
+
 ## Not In Scope
 
 - Drag-to-reorder cards (not needed — layout is intentionally designed)
 - Dark mode
 - Mobile-specific touch gestures beyond basic touch resize support
 - Trend sparklines in KPI modals (future enhancement)
-- Keyboard navigation between cards (future enhancement, except `[` for panel toggle and `Escape` for modal close)
+- Cross-filtering from modals (clicking chart month → filter tables; future enhancement)
+- Named custom preset saves (3 built-in presets + custom resize is sufficient for now)
