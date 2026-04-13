@@ -55,10 +55,10 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
           {/* Right: previous year — same-period + full year */}
           <div className="flex flex-col items-end gap-1">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-normal text-[var(--color-text-faint)]">
+              <span className="text-[11px] font-normal text-[var(--color-text-faint)]">
                 {activePeriod === 'ytd' ? `YTD ${new Date().getFullYear() - 1}` : `${parseInt(activePeriod, 10) - 1}`}
               </span>
-              <span className="text-[16px] font-semibold text-[var(--color-text-faint)]">
+              <span className="text-[18px] font-semibold text-[var(--color-text-faint)]">
                 <AnimatedNumber
                   value={kpis.prevYearRevenue}
                   formatter={(n) => formatCurrency(Math.round(n))}
@@ -66,10 +66,10 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
               </span>
             </div>
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-normal text-[var(--color-text-faint)]">
+              <span className="text-[11px] font-normal text-[var(--color-text-faint)]">
                 Full {activePeriod === 'ytd' ? new Date().getFullYear() - 1 : parseInt(activePeriod, 10) - 1}
               </span>
-              <span className="text-[14px] font-semibold text-[var(--color-text-faint)]">
+              <span className="text-[16px] font-semibold text-[var(--color-text-faint)]">
                 <AnimatedNumber
                   value={kpis.prevYearRevenueFull}
                   formatter={(n) => formatCurrency(Math.round(n))}

@@ -12,7 +12,7 @@ interface YoYBarChartProps {
   data: MonthlyRevenue[];
 }
 
-const CHART_HEIGHT = 120;
+const CHART_HEIGHT = 180;
 const Y_LABEL_WIDTH = 36;
 const X_LABEL_HEIGHT = 16;
 const LEGEND_HEIGHT = 20;

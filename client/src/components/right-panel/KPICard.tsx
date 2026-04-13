@@ -104,11 +104,11 @@ export function KPICard({
                     transition={{ delay: i * 0.05, duration: 0.15, ease: 'easeOut' }}
                     className="flex flex-col min-w-0"
                   >
-                    <span className="text-[9px] font-normal text-[var(--color-text-muted)] whitespace-nowrap">{item.label}</span>
-                    <span className="text-[12px] font-semibold text-[var(--color-text-secondary)] whitespace-nowrap">
+                    <span className="text-[10px] font-normal text-[var(--color-text-muted)] whitespace-nowrap">{item.label}</span>
+                    <span className="text-[13px] font-semibold text-[var(--color-text-secondary)] whitespace-nowrap">
                       {item.value}
                       {item.suffix && (
-                        <span className="ml-0.5 text-[9px] font-normal text-[var(--color-text-muted)]">({item.suffix})</span>
+                        <span className="ml-0.5 text-[10px] font-normal text-[var(--color-text-muted)]">({item.suffix})</span>
                       )}
                     </span>
                   </motion.div>

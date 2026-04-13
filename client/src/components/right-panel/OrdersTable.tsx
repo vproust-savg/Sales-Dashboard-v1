@@ -47,9 +47,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
   );
 
   return (
-    /* WHY max-w: prevent columns from stretching too far apart on wide screens */
     <div className="overflow-x-auto">
-      <table className="w-full max-w-[1100px] border-collapse">
+      <table className="w-full border-collapse">
         <thead>
           <tr className="border-b border-[var(--color-gold-subtle)]">
             {COLUMNS.map((col, i) => (
