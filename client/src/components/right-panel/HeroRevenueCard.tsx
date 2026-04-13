@@ -8,6 +8,7 @@ import type { KPIs, MonthlyRevenue, Period } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { YoYBarChart } from './YoYBarChart';
+import { useContainerSize } from '../../hooks/useContainerSize';
 
 interface HeroRevenueCardProps {
   kpis: KPIs;
@@ -18,6 +19,9 @@ interface HeroRevenueCardProps {
 }
 
 export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails }: HeroRevenueCardProps) {
+  const [chartRef, chartSize] = useContainerSize();
+  /** WHY clamp: min 80px for usability, max 400px to prevent oversized chart on 27" */
+  const chartHeight = Math.max(80, Math.min(400, chartSize.height));
   const changePercent = kpis.revenueChangePercent;
   const isPositive = changePercent !== null && changePercent >= 0;
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
@@ -79,9 +83,9 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
           </div>
         </div>
 
-        {/* YoY bar chart */}
-        <div className="mt-[var(--spacing-2xl)]">
-          <YoYBarChart data={monthlyRevenue} />
+        {/* YoY bar chart — flex-1 fills remaining vertical space */}
+        <div ref={chartRef} className="mt-[var(--spacing-md)] flex-1 min-h-[80px]">
+          {chartSize.height > 0 && <YoYBarChart data={monthlyRevenue} height={chartHeight} />}
         </div>
       </div>
 

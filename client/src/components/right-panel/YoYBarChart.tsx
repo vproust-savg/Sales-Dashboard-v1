@@ -10,19 +10,22 @@ import { formatCurrency, formatCurrencyCompact } from '@shared/utils/formatting'
 
 interface YoYBarChartProps {
   data: MonthlyRevenue[];
+  /** WHY: Dynamic height from container via ResizeObserver. Clamped externally to [80, 400]. */
+  height?: number;
 }
 
-const CHART_HEIGHT = 180;
 const Y_LABEL_WIDTH = 36;
 const X_LABEL_HEIGHT = 16;
 const LEGEND_HEIGHT = 20;
-const BAR_AREA_HEIGHT = CHART_HEIGHT - X_LABEL_HEIGHT - LEGEND_HEIGHT;
 const BAR_RADIUS = 2;
+const DEFAULT_HEIGHT = 120;
 
 /** WHY calendar order: spec 20.1 says chart always shows Jan-Dec regardless of fiscal year */
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export function YoYBarChart({ data }: YoYBarChartProps) {
+export function YoYBarChart({ data, height: rawHeight }: YoYBarChartProps) {
+  const chartHeight = rawHeight ?? DEFAULT_HEIGHT;
+  const barAreaHeight = chartHeight - X_LABEL_HEIGHT - LEGEND_HEIGHT;
   const [hoveredMonth, setHoveredMonth] = useState<number | null>(null);
 
   const calendarData = useMemo(() => {
@@ -55,14 +58,14 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
     <div className="w-full" role="img" aria-label="Year-over-year revenue bar chart">
       <svg
         width="100%"
-        height={CHART_HEIGHT}
-        viewBox={`0 0 400 ${CHART_HEIGHT}`}
+        height={chartHeight}
+        viewBox={`0 0 400 ${chartHeight}`}
         preserveAspectRatio="xMinYMin meet"
         className="overflow-visible"
       >
         {/* Dashed grid lines */}
         {gridLines.map((val) => {
-          const y = BAR_AREA_HEIGHT - (val / niceMax) * BAR_AREA_HEIGHT;
+          const y = barAreaHeight - (val / niceMax) * barAreaHeight;
           return (
             <g key={val}>
               <line
@@ -96,8 +99,8 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
           const gap = 2;
           const prevX = groupX + (groupWidth - barWidth * 2 - gap) / 2;
           const currX = prevX + barWidth + gap;
-          const prevH = (month.previousYear / niceMax) * BAR_AREA_HEIGHT;
-          const currH = (month.currentYear / niceMax) * BAR_AREA_HEIGHT;
+          const prevH = (month.previousYear / niceMax) * barAreaHeight;
+          const currH = (month.currentYear / niceMax) * barAreaHeight;
           const isHovered = hoveredMonth === i;
           const isDimmed = hoveredMonth !== null && !isHovered;
 
@@ -110,12 +113,12 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
               opacity={isDimmed ? 0.4 : 1}
             >
               {/* WHY: Invisible hit area covers entire month column so hover applies to full month, not individual bars */}
-              <rect x={groupX} y={0} width={groupWidth} height={BAR_AREA_HEIGHT + X_LABEL_HEIGHT} fill={isHovered ? 'var(--color-gold-hover)' : 'transparent'} />
+              <rect x={groupX} y={0} width={groupWidth} height={barAreaHeight + X_LABEL_HEIGHT} fill={isHovered ? 'var(--color-gold-hover)' : 'transparent'} />
               {/* WHY motion.rect: bars grow from bottom with staggered 30ms delay per spec 21.1 */}
               {/* Previous year bar */}
               <motion.rect
                 x={prevX}
-                y={BAR_AREA_HEIGHT - prevH}
+                y={barAreaHeight - prevH}
                 width={barWidth}
                 height={Math.max(prevH, 0)}
                 fill="var(--color-gold-muted)"
@@ -125,12 +128,12 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 initial={{ scaleY: 0 }}
                 animate={{ scaleY: 1 }}
                 transition={{ delay: i * 0.03, duration: 0.4, ease: 'easeOut' }}
-                style={{ transformOrigin: `${prevX}px ${BAR_AREA_HEIGHT}px` }}
+                style={{ transformOrigin: `${prevX}px ${barAreaHeight}px` }}
               />
               {/* Current year bar */}
               <motion.rect
                 x={currX}
-                y={BAR_AREA_HEIGHT - currH}
+                y={barAreaHeight - currH}
                 width={barWidth}
                 height={Math.max(currH, 0)}
                 fill="var(--color-gold-light)"
@@ -141,12 +144,12 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
                 initial={{ scaleY: 0 }}
                 animate={{ scaleY: 1 }}
                 transition={{ delay: i * 0.03 + 0.05, duration: 0.4, ease: 'easeOut' }}
-                style={{ transformOrigin: `${currX}px ${BAR_AREA_HEIGHT}px` }}
+                style={{ transformOrigin: `${currX}px ${barAreaHeight}px` }}
               />
               {/* X-axis month label */}
               <text
                 x={groupX + groupWidth / 2}
-                y={BAR_AREA_HEIGHT + 12}
+                y={barAreaHeight + 12}
                 textAnchor="middle"
                 fill="var(--color-text-faint)"
                 fontSize={9}
@@ -164,7 +167,7 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
           const groupWidth = (400 - Y_LABEL_WIDTH) / 12;
           const tooltipX = Y_LABEL_WIDTH + hoveredMonth * groupWidth + groupWidth / 2;
           const tallestBar = Math.max(m.currentYear, m.previousYear);
-          const tooltipY = BAR_AREA_HEIGHT - (tallestBar / niceMax) * BAR_AREA_HEIGHT - 8;
+          const tooltipY = barAreaHeight - (tallestBar / niceMax) * barAreaHeight - 8;
           const currText = formatCurrency(Math.round(m.currentYear));
           const prevText = formatCurrency(Math.round(m.previousYear));
           return (
@@ -189,7 +192,7 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
         })()}
 
         {/* Legend */}
-        <g transform={`translate(${Y_LABEL_WIDTH}, ${CHART_HEIGHT - 4})`}>
+        <g transform={`translate(${Y_LABEL_WIDTH}, ${chartHeight - 4})`}>
           <circle cx={0} cy={-3} r={3} fill="var(--color-gold-muted)" />
           <text x={8} y={0} fill="var(--color-text-muted)" fontSize={11} fontFamily="var(--font-sans)">
             Previous Year
