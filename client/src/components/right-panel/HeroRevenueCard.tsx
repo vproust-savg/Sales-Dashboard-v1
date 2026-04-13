@@ -9,6 +9,7 @@ import { formatCurrency, formatPercent } from '@shared/utils/formatting';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { YoYBarChart } from './YoYBarChart';
 import { useContainerSize } from '../../hooks/useContainerSize';
+import { ExpandIcon } from '../shared/ExpandIcon';
 
 interface HeroRevenueCardProps {
   kpis: KPIs;
@@ -16,9 +17,10 @@ interface HeroRevenueCardProps {
   activePeriod: Period;
   /** WHY: Global toggle from KPISection controls sub-items visibility */
   showDetails: boolean;
+  onExpand?: () => void;
 }
 
-export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails }: HeroRevenueCardProps) {
+export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand }: HeroRevenueCardProps) {
   const [chartRef, chartSize] = useContainerSize();
   /** WHY clamp: min 80px for usability, max 400px to prevent oversized chart on 27" */
   const chartHeight = Math.max(80, Math.min(400, chartSize.height));
@@ -27,7 +29,15 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 
   return (
-    <div className="group/hero flex h-full flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
+    <div
+      className="group relative cursor-pointer flex h-full flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]"
+      onClick={onExpand}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
+      aria-label="Expand revenue details"
+    >
+      <ExpandIcon />
       {/* Top section: header + chart */}
       <div>
         {/* Top row: revenue value (left) + previous year (right) */}
@@ -49,7 +59,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
             {changePercent !== null && (
               <span className="text-[12px] font-medium" style={{ color: trendColor }}>
                 {formatPercent(changePercent, { showSign: true })}
-                <span className="opacity-0 transition-opacity duration-150 group-hover/hero:opacity-100">
+                <span className="opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                   {' '}vs same period last year
                 </span>
               </span>

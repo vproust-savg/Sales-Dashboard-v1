@@ -5,6 +5,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
+import { ExpandIcon } from '../shared/ExpandIcon';
 
 interface KPISubItem {
   label: string;
@@ -28,23 +29,30 @@ interface KPICardProps {
   expanded?: boolean;
   /** WHY statusDot: Last Order card shows activity status dot per spec 10.3 */
   statusDot?: { color: string; label: string };
+  onExpand?: () => void;
 }
 
 export function KPICard({
   label, periodLabel, value, formatter, prevYearValue, prevYearFullValue,
-  prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot,
+  prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot, onExpand,
 }: KPICardProps) {
   const hasSubItems = subItems && subItems.length > 0;
 
   return (
     <div
-      className="group/kpi flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-lg)] py-[var(--spacing-sm)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      className="group relative cursor-pointer flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-lg)] py-[var(--spacing-sm)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      onClick={onExpand}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
+      aria-label={`Expand ${label} details`}
     >
+      <ExpandIcon />
       {/* Top row: label + value (left) + prev year (right) */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col min-w-0">
           <span className="text-[12px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
-            {label}{periodLabel && <span className="opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100"> {periodLabel}</span>}
+            {label}{periodLabel && <span className="opacity-0 transition-opacity duration-150 group-hover:opacity-100"> {periodLabel}</span>}
           </span>
           <span className="mt-[var(--spacing-2xs)] text-[22px] font-bold text-[var(--color-text-primary)]">
             <AnimatedNumber value={value} formatter={formatter} />
@@ -55,7 +63,7 @@ export function KPICard({
               style={{ color: changePercent >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}
             >
               {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%
-              <span className="opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100">
+              <span className="opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                 {' '}vs same period last year
               </span>
             </span>
