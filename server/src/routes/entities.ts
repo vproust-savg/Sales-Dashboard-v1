@@ -9,7 +9,7 @@ import { validateQuery } from '../middleware/request-validator.js';
 import { priorityClient } from '../services/priority-instance.js';
 import { fetchCustomers } from '../services/priority-queries.js';
 import { cachedFetch } from '../cache/cache-layer.js';
-import { cacheKey, getTTL } from '../cache/cache-keys.js';
+import { cacheKey, getTTL, buildFilterQualifier } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { EntityListItem } from '@shared/types/dashboard';
 import type { RawCustomer } from '../services/priority-queries.js';
@@ -29,7 +29,9 @@ entitiesRouter.get('/entities', validateQuery(querySchema), async (_req, res, ne
     // WHY: entities_full (from fetch-all) only contains entities with orders.
     // Customer dimension must show ALL customers, so skip enriched cache for it.
     if (groupBy !== 'customer') {
-      const fullKey = cacheKey('entities_full', period, groupBy);
+      // WHY: Always read the UNFILTERED key. Filtered entity lists are sent
+      // directly via the fetch-all SSE response, not re-read from cache here.
+      const fullKey = cacheKey('entities_full', period, buildFilterQualifier(groupBy, 'all'));
       const fullResult = await redis.get(fullKey);
       if (fullResult !== null) {
         const envelope = typeof fullResult === 'string' ? JSON.parse(fullResult) : fullResult;
