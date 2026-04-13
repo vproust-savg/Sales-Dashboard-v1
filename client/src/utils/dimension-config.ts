@@ -7,6 +7,7 @@ import type { Dimension } from '@shared/types/dashboard';
 
 export interface DimensionConfig {
   label: string;
+  singularLabel: string;
   pluralLabel: string;
   searchPlaceholder: string;
   allLabel: string;
@@ -16,6 +17,7 @@ export interface DimensionConfig {
 export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
   customer: {
     label: 'Customers',
+    singularLabel: 'customer',
     pluralLabel: 'CUSTOMERS',
     searchPlaceholder: 'Search customers...',
     allLabel: 'Report',
@@ -27,6 +29,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
   },
   zone: {
     label: 'Zone',
+    singularLabel: 'zone',
     pluralLabel: 'ZONES',
     searchPlaceholder: 'Search zones...',
     allLabel: 'Report',
@@ -37,6 +40,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
   },
   vendor: {
     label: 'Vendors',
+    singularLabel: 'vendor',
     pluralLabel: 'VENDORS',
     searchPlaceholder: 'Search vendors...',
     allLabel: 'Report',
@@ -47,6 +51,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
   },
   brand: {
     label: 'Brands',
+    singularLabel: 'brand',
     pluralLabel: 'BRANDS',
     searchPlaceholder: 'Search brands...',
     allLabel: 'Report',
@@ -57,6 +62,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
   },
   product_type: {
     label: 'Prod. Type',
+    singularLabel: 'product type',
     pluralLabel: 'PRODUCT TYPES',
     searchPlaceholder: 'Search product types...',
     allLabel: 'Report',
@@ -67,6 +73,7 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
   },
   product: {
     label: 'Products',
+    singularLabel: 'product',
     pluralLabel: 'PRODUCTS',
     searchPlaceholder: 'Search products...',
     allLabel: 'Report',
