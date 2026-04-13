@@ -11,7 +11,8 @@ import { fetchCustomers } from '../services/priority-queries.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL, buildFilterQualifier } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
-import type { EntityListItem } from '@shared/types/dashboard';
+import { deriveEntityStubs } from '../services/entity-stub-builder.js';
+import type { EntityListItem, Dimension } from '@shared/types/dashboard';
 import type { RawCustomer } from '../services/priority-queries.js';
 import type { ApiResponse } from '@shared/types/api-responses';
 
@@ -58,9 +59,10 @@ entitiesRouter.get('/entities', validateQuery(querySchema), async (_req, res, ne
       getTTL('entities_summary'),
       async () => {
         if (groupBy !== 'customer') {
-          // WHY: Non-customer dimensions require order data to group — return empty list.
-          // The warm cache or dashboard endpoint will populate this key later.
-          return { entities: [], yearsAvailable: [] };
+          // WHY: Derive entity stubs from warm-cache orders instead of returning empty.
+          // Same pattern as customers: show entity list first, load details on click.
+          const stubs = await deriveEntityStubs(groupBy as Dimension, period);
+          return stubs ?? { entities: [], yearsAvailable: [] };
         }
 
         const customers = await fetchCustomers(priorityClient);
