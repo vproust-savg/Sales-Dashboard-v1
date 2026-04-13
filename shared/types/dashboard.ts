@@ -147,6 +147,22 @@ export interface FlatItem {
   countryOfOrigin: string;
   foodServiceRetail: string;
   vendor: string;
+  /** Sum of TQUANT across all current-period orders containing this SKU */
+  totalUnits: number;
+  /** Unit of measure — "cs", "lb", "ea", fallback "units" */
+  unitName: string;
+  /** PRICE from the most recent order containing this SKU */
+  lastPrice: number;
+  /** Unique orders containing this SKU / months in period */
+  purchaseFrequency: number;
+  /** ISO date of most recent order containing this SKU, null if none */
+  lastOrderDate: string | null;
+  /** Sum of QPRICE from previous year, 0 if no prev data */
+  prevYearValue: number;
+  /** Avg margin % from previous year, 0 if no prev data */
+  prevYearMarginPercent: number;
+  /** Sum of TQUANT from previous year, 0 if no prev data */
+  prevYearUnits: number;
 }
 
 /** Contact in the Contacts tab — spec Section 18.4 */
