@@ -8,13 +8,37 @@ Embedded in Airtable via Omni. Deployed on Railway via Dockerfile.
 
 **Data flow:** Priority oData API → Express backend → Upstash Redis cache → React frontend
 **Language:** TypeScript strict mode throughout. Zero plain JavaScript.
-**Maintained by:** Claude Code (sole developer). Reviewed by Grok, Deepseek, Gemini, Minimax.
+**Maintained by:** Claude Code (sole developer). Reviewed by Codex, Grok, Deepseek, Gemini, Minimax.
 
 ## Safety Constraints
 
 - **Priority ERP is READ-ONLY.** The dashboard must NEVER write data to Priority. No POST, PUT, PATCH, DELETE. This is non-negotiable.
 - **Test customer:** `C7826` — use for all validation and testing.
 - **No secrets in source code.** Priority credentials and Redis tokens live in `.env` only.
+
+## How to Work
+
+### Before implementing
+- State your assumptions and understanding of the task before writing code.
+- If a request is ambiguous, ask — do not guess intent.
+- When multiple approaches exist, present tradeoffs and recommend one.
+- Define what "done" looks like: what should work, what commands verify it.
+
+### While implementing
+- Make the smallest change that solves the problem. Do not refactor adjacent code.
+- Match existing patterns exactly. Read a similar file before creating a new one.
+- One concern per commit. Do not bundle unrelated changes.
+
+### Before claiming done
+- Run pre-deploy verification (see Commands section).
+- Test the specific behavior you changed — not just "it compiles."
+- If you hit a bug, use `/systematic-debugging`. Do not guess at fixes.
+- Show evidence: paste command output that proves the change works.
+
+### When stuck
+- Read `learnings/` — the answer may already be documented.
+- Check the sister project: `/Users/victorproust/Documents/Work/SG Interface/Priority Reports/`
+- Priority API issues → read `tools/Priority ERP March 30.xml` for entity/field names.
 
 ## Tech Stack
 
@@ -41,7 +65,7 @@ Embedded in Airtable via Omni. Deployed on Railway via Dockerfile.
 
 **Airtable embed:** Embedded via Omni block (Interface page). Test production changes at the Airtable page — iframe constraints can surface different behavior.
 
-**Pre-deploy checklist:**
+**Pre-deploy verification (all must pass):**
 ```bash
 cd client && npx tsc -b --noEmit   # Client TS build
 cd ../server && npx tsc --noEmit   # Server TS build
@@ -53,44 +77,18 @@ Also verify: no `any` types (`grep -rn ": any\|as any" server/src/ client/src/`)
 
 ## Project Structure
 
-```
-├── CLAUDE.md             ← Project memory and instructions for Claude
-├── server/               ← Backend (Express + TypeScript)
-│   └── src/
-│       ├── routes/       ← API route handlers
-│       ├── services/     ← Priority ERP client, data aggregation
-│       ├── cache/        ← Redis cache layer
-│       └── middleware/   ← Auth, error handling, validation
-├── client/               ← Frontend (React + Vite + Tailwind)
-│   └── src/
-│       ├── components/
-│       │   ├── left-panel/   ← Entity list, search, filters, sort
-│       │   ├── right-panel/  ← KPIs, charts, tabs
-│       │   │   ├── BestSellers.tsx          ← Paginated list (25 items, shift-by-5)
-│       │   │   ├── ProductMixCarousel.tsx   ← 5-type donut carousel with arrows/dots
-│       │   │   └── ...
-│       │   └── shared/       ← Reusable: Tooltip, CopyableId, Skeleton, etc.
-│       ├── hooks/            ← Custom hooks (data fetching, filters, sort, export)
-│       ├── layouts/          ← Master-detail layout
-│       ├── styles/           ← Tailwind config, design tokens
-│       └── utils/            ← Frontend utilities
-├── shared/               ← Shared TypeScript types + utilities
-│   ├── types/            ← API response shapes, shared interfaces
-│   └── utils/            ← Shared utility functions
-├── docs/                 ← Project documentation
-│   ├── specs/            ← Design specifications
-│   ├── plans/            ← Implementation plans
-│   ├── evals/            ← Evaluation criteria
-│   ├── decisions/        ← Architecture Decision Records (ADRs)
-│   └── runbooks/         ← Operational procedures (deploy, cache, etc.)
-├── learnings/            ← Development discoveries and lessons learned (ALWAYS UPDATE)
-├── tools/                ← Reference files, useful links (READ ONLY)
-├── Dockerfile            ← Multi-stage Docker build (Railway)
-├── railway.json          ← Railway config — DO NOT DELETE
-└── .dockerignore         ← Excludes node_modules, .env, .git
-```
+| Directory | Purpose |
+|-----------|---------|
+| `server/src/` | Express API: routes, services (Priority client, aggregation), cache (Redis), middleware |
+| `client/src/` | React app: components (left-panel, right-panel, shared), hooks, layouts, styles, utils |
+| `shared/` | TypeScript types + utilities shared between server and client |
+| `docs/` | Specs, plans, evals, decisions (ADRs), runbooks |
+| `learnings/` | Development discoveries and lessons learned (ALWAYS UPDATE) |
+| `tools/` | Reference files: Priority XML metadata, useful links (READ ONLY) |
 
-**Parallel session rules:** Plan 0 creates `shared/` first. Then backend session only writes to `server/`. Frontend session only writes to `client/`. Neither session should modify `shared/` or `CLAUDE.md`.
+**Infrastructure:** `Dockerfile` (multi-stage build), `railway.json` (DO NOT DELETE), `.dockerignore`
+
+**Parallel session rules:** Plan 0 creates `shared/` first. Backend session writes only to `server/`. Frontend session writes only to `client/`. Neither modifies `shared/` or `CLAUDE.md`.
 
 ## Learnings (MANDATORY)
 
@@ -106,65 +104,12 @@ Examples of what to capture:
 
 **Format:** One file per topic, named descriptively (e.g., `priority-api-pagination-gotcha.md`, `redis-key-naming-pattern.md`). Keep each file short and actionable.
 
-## Useful Skills & References
-
-**Top skills for the implementation workflow:**
-
-| Skill | Type | Use for |
-|-------|------|---------|
-| `subagent-driven-development` | superpowers | Implementation — fresh subagent per task with two-stage review |
-| `receiving-code-review` | superpowers | Fix agent processes eval findings in iteration loop |
-| `requesting-code-review` | superpowers | Inline review checkpoints during implementation |
-| `verification-before-completion` | superpowers | Evidence before completion claims |
-| `frontend-design` | superpowers | Distinctive React + Tailwind interfaces |
-| `design-critique` | superpowers | Visual fidelity review via Chrome plugins |
-| `priority-erp-api` | custom | Priority ERP OData patterns, sub-form handling |
-| `railway-deploy` | custom | Railway deployment guardrails for TypeScript + Docker |
-
-| `systematic-debugging` | superpowers | When a bug arises during development — diagnose root cause, don't guess |
-
-**Full catalog:** `tools/useful-links.md`
-
-**Bug handling:** When you hit a bug during implementation, use `/systematic-debugging` to diagnose and fix it yourself. Do not skip past errors or ask the user — investigate the root cause, fix it, verify the fix, then continue.
-
 ## Dashboard Architecture
 
-**Master-detail pattern:** Two panels fill the viewport (100vh - 32px, max 1440px).
-- Left panel (280px fixed): Scrollable entity list with dimension toggles, search, filter, sort, multi-select
-- Right panel (flex: 1): KPIs, charts, tabs (orders, items, contacts)
+Master-detail layout: fixed left panel (entity list) + flexible right panel (KPIs, charts, tabs).
+6 dimensions share the same template via `groupBy` parameter. Multi-select aggregates data.
 
-**Dimension switching:** 6 dimensions (Customers, Zone, Vendors, Brands, Prod. Type, Products). Same API endpoint with different `groupBy` parameter. Dashboard template stays the same; only the list entity and labels change.
-
-**Period selection:** YTD loads by default. Year tabs auto-show based on availability API. Click a year → fetch on-demand → cache client-side.
-
-**Multi-select:** Circular checkboxes on list items. "View Consolidated" aggregates all KPIs/charts/tables for selected entities.
-
-**Charts row:** Two cards side by side (3fr + 5fr grid).
-- Product Mix carousel: 5 donut chart types (Product Type, Product Family, Brand, Country of Origin, FS vs Retail) with left/right arrow navigation, dot indicators, wrap-around, keyboard accessible. Uses `ProductMixType` from shared types and `PRODUCT_MIX_ORDER` for sequence.
-- Best Sellers: 25 items with overlapping pagination (shift by 5, show 10). Custom dark tooltip on hover. Filters zero-value items on both server and client.
-
-**Design spec:** `docs/specs/2026-03-29-sales-dashboard-design.md`
-**Mockup reference:** `docs/specs/dashboard-mockup-v5-reference.png`
-
-## Execution Workflow
-
-The project follows a spec → plan → eval → iteration loop pipeline:
-
-| Document | Path | Content |
-|----------|------|---------|
-| Design spec | `docs/specs/2026-03-29-sales-dashboard-design.md` | 25 sections, 1900+ lines — the single source of truth |
-| Plan 0 (shared) | `docs/plans/2026-03-30-plan-0-shared-foundation.md` | Shared types + formatting utils (2 tasks) |
-| Plan A (backend) | `docs/plans/2026-03-30-plan-a-backend.md` | Express + Priority client + Redis cache (Tasks 0, 3-12. Tasks 1-2 moved to Plan 0) |
-| Plan B (frontend) | `docs/plans/2026-03-30-plan-b-frontend-shell.md` | React components with mock data (19 tasks) |
-| Plan C (integration) | `docs/plans/2026-03-30-plan-c-integration.md` | Wire real data + interactions + deploy (12 tasks) |
-| Eval A | `docs/evals/2026-03-30-plan-a-backend-eval.md` | 39 checks, 2 review checkpoints |
-| Eval B | `docs/evals/2026-03-30-plan-b-frontend-eval.md` | 60 checks, 3 review checkpoints |
-| Eval C | `docs/evals/2026-03-30-plan-c-integration-eval.md` | 53 checks, 3 review checkpoints |
-| Iteration loop | `docs/evals/eval-fix-iteration-loop.md` | Post-implementation eval-fix cycle (max 3 iterations) |
-
-**Execution order:** Plan 0 runs first (shared types). Then Plans A + B run in parallel (server/ vs client/ ownership). Plan C runs after both.
-**Implementation skill:** Use `/subagent-driven-development` — fresh subagent per task with two-stage review.
-**Post-implementation:** Each eval has a Post-Implementation Eval-Fix Loop section. Run full eval → fix failures → re-run (max 3 iterations). Protocol in `eval-fix-iteration-loop.md`.
+**Full spec:** `docs/specs/2026-03-29-sales-dashboard-design.md` | **Mockup:** `docs/specs/dashboard-mockup-v5-reference.png`
 
 ## LLM-Optimized Code Rules (MANDATORY)
 
@@ -180,27 +125,8 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 
 ## Design System
 
-| Token | Hex | Usage |
-|-------|-----|-------|
-| bg-page | #f5f1eb | Page background |
-| bg-card | #ffffff | All cards, panels |
-| gold-primary | #b8a88a | Accents, active borders, links |
-| gold-light | #d4c5a9 | Chart bars (current year) |
-| gold-muted | #e8e0d0 | Chart bars (previous year) |
-| gold-subtle | #f0ece5 | Borders, inactive badges |
-| gold-hover | #faf8f4 | Hover states |
-| dark | #2c2a26 | Active elements, dark buttons |
-| text-primary | #1a1a1a | Main text |
-| text-secondary | #555 | Sub-values |
-| text-muted | #999 | Labels, metadata |
-| green | #22c55e | Positive trends |
-| red | #ef4444 | Negative trends |
-| dark-hover | #3d3a35 | Hover state for dark buttons |
-| text-faint | #bbbbbb | Very subtle text (below text-muted) |
-| yellow | #eab308 | Warning/secondary accent |
-| blue | #3b82f6 | Alternative accent |
-
-**Font stack:** `-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif`
+All tokens (colors, spacing, radii, shadows, fonts) defined in `client/src/styles/index.css`.
+Use Tailwind token classes (`text-gold-primary`, `bg-card`) — never hardcode hex values.
 
 ## Priority ERP API Reference
 
@@ -214,29 +140,37 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 - **Header:** Always include `IEEE754Compatible: true`
 - **XML metadata:** `tools/Priority ERP March 30.xml` contains entity names and field definitions
 - **Existing reference:** The sync project at `/Users/victorproust/Documents/Work/Priority/Airtable_Priority_N8N_v1/` uses the same Priority API.
-- **Sister project:** `/Users/victorproust/Documents/Work/SG Interface/Priority Reports/` — same stack (Express + React + Railway), same Priority API. Read its code when stuck on API patterns, Docker config, or Railway deployment.
 
 ## Common Mistakes (avoid these)
 
-- Using Tailwind v3 config patterns — v4 uses CSS-native `@theme` in `index.css`, NOT `tailwind.config.js`
-- Using `useEffect` for data fetching instead of TanStack Query
-- Hardcoding Tailwind colors instead of the design token palette
-- Dynamic Tailwind classes like `` col-span-${n} `` — use a mapping object
-- Making files longer than 200 lines instead of splitting
-- Forgetting the intent block at top of new files
+**Priority API:**
 - Interpolating user input directly into OData `$filter` queries — validate with Zod
-- Confusing Express and React Router catch-all syntax — Express 5 uses `/{*path}`, React Router uses `path="*"`
 - `$expand` on DOCUMENTS_P is BROKEN — use two-step `enrichRows` pattern instead
 - URL encoding trap: do NOT use `searchParams.set()` for `$expand` — it double-encodes `$select`. Build the URL string with raw concatenation.
 - Priority has TWO error response formats: JSON `{ "odata.error": { "message": { "value": "..." } } }` and plain text. Parse both. The key `"odata.error"` has a DOT in the name — use `obj['odata.error']` (bracket notation), NOT `obj.error`. The message is nested: `.message.value`, not `.message` directly.
 - Custom fields on ORDERITEMS follow the `Y_XXXX_5_ESH` naming pattern (e.g., `Y_2K28_5_ESH` for vendor code)
-- Docker `__dirname` math: `rootDir: ".."` in server/tsconfig means compiled output is at `server/dist/server/src/index.js`. So `__dirname` at runtime = `/app/server/dist/server/src/`. Client dist path is `../../../../client/dist` (4 levels up). The sister project Dockerfile documents this pattern — always check it first.
+
+**Tailwind + CSS:**
+- v4 uses CSS-native `@theme` in `index.css`, NOT `tailwind.config.js`
+- Hardcoding Tailwind colors instead of the design token palette
+- Dynamic Tailwind classes like `` col-span-${n} `` — use a mapping object
+- CSS Grid equal-height trap: `items-start` on a grid prevents columns from stretching to the same height. Remove it to use the default `stretch`. To make a card fill its grid cell, use `h-full flex-col justify-between` — extra height becomes spacing between sections. Do NOT use ResizeObserver + `flex-1` to grow a chart inside a grid cell — flex-1 has no height constraint in a grid cell and will expand infinitely.
+
+**TypeScript + Docker + Railway:**
 - Leaving unused variables — `noUnusedLocals: true` means `tsc -b` fails, killing the Railway Docker build
 - Deleting `railway.json` — Railway needs this file for Dockerfile builder
+- Never commit compiled `.js` files alongside `.ts` source files. If `tsc` output lands in the source directory, the `outDir` tsconfig setting is wrong. Only `dist/` should contain compiled output.
+- Docker `__dirname` math: `rootDir: ".."` in server/tsconfig means compiled output is at `server/dist/server/src/index.js`. So `__dirname` at runtime = `/app/server/dist/server/src/`. Client dist path is `../../../../client/dist` (4 levels up). The sister project Dockerfile documents this pattern — always check it first.
+- Confusing Express and React Router catch-all syntax — Express 5 uses `/{*path}`, React Router uses `path="*"`
+
+**React + Accessibility:**
+- Using `useEffect` for data fetching instead of TanStack Query
+- Making files longer than 200 lines instead of splitting
 - Framer Motion animations are JS-driven (RAF springs/tweens) — CSS `prefers-reduced-motion` rule does NOT suppress them. Use `<MotionConfig reducedMotion="user">` at the app root. This is the ONLY way to respect OS-level reduced motion for Framer Motion.
 - Never wrap ARIA child roles in plain `div`/`motion.div` — e.g., a `motion.div` between `role="listbox"` and `role="option"` breaks the ownership model. Apply motion props directly on the semantic element.
-- Never commit compiled `.js` files alongside `.ts` source files. If `tsc` output lands in the source directory, the `outDir` tsconfig setting is wrong. Only `dist/` should contain compiled output.
-- CSS Grid equal-height trap: `items-start` on a grid prevents columns from stretching to the same height. Remove it to use the default `stretch`. To make a card fill its grid cell, use `h-full flex-col justify-between` — extra height becomes spacing between sections. Do NOT use ResizeObserver + `flex-1` to grow a chart inside a grid cell — flex-1 has no height constraint in a grid cell and will expand infinitely.
+
+**Patterns:**
+- Forgetting the intent block at top of new files
 - When adding new product mix types or aggregation categories, use the parameterized field extractor pattern (`computeProductMix(items, getCategory)`) instead of duplicating the aggregation function. See `data-aggregator.ts`.
 
 ## Integration Contracts (MANDATORY for multi-task plans)
