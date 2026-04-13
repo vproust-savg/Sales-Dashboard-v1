@@ -1,5 +1,5 @@
 // FILE: client/src/components/left-panel/EntityListItem.tsx
-// PURPOSE: Single row in the entity list — checkbox, name, meta, revenue
+// PURPOSE: Single row in the entity list — checkbox, name, meta1
 // USED BY: client/src/components/left-panel/EntityList.tsx
 // EXPORTS: EntityListItem (component)
 
@@ -13,15 +13,6 @@ interface EntityListItemProps {
   onSelect: (id: string) => void;
   onCheck: (id: string) => void;
   animationDelay?: number;
-}
-
-/** WHY: separate formatter avoids importing a utility for a simple "$X,XXX" pattern */
-function formatRevenue(value: number | null): string | null {
-  if (value === null) return null;
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}K`;
-  }
-  return `$${value.toLocaleString()}`;
 }
 
 export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck, animationDelay = 0 }: EntityListItemProps) {
@@ -87,38 +78,14 @@ export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck
         )}
       </button>
 
-      {/* Entity content — name, meta1, meta2, revenue */}
+      {/* Entity content — name, meta1 */}
       <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-2xs)]">
-        <div className="flex items-start justify-between gap-[var(--spacing-md)]">
-          <span className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
-            {entity.name}
-          </span>
-          {formatRevenue(entity.revenue) !== null && (
-            <motion.span
-              initial={{ opacity: 0, x: 4 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2 }}
-              className="shrink-0 text-[13px] font-bold tabular-nums text-[var(--color-text-primary)]"
-            >
-              {formatRevenue(entity.revenue)}
-            </motion.span>
-          )}
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="truncate text-[11px] text-[var(--color-text-muted)]">
-            {entity.meta1}
-          </span>
-          {entity.meta2 !== null && (
-            <motion.span
-              initial={{ opacity: 0, x: 4 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.2, delay: 0.05 }}
-              className="shrink-0 text-[11px] text-[var(--color-text-muted)]"
-            >
-              {entity.meta2}
-            </motion.span>
-          )}
-        </div>
+        <span className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">
+          {entity.name}
+        </span>
+        <span className="truncate text-[11px] text-[var(--color-text-muted)]">
+          {entity.meta1}
+        </span>
       </div>
     </motion.div>
   );
