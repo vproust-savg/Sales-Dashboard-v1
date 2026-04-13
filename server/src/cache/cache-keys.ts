@@ -1,7 +1,7 @@
 // FILE: server/src/cache/cache-keys.ts
 // PURPOSE: Cache key schema and TTL mapping — spec Section 19.1
 // USED BY: server/src/cache/cache-layer.ts
-// EXPORTS: cacheKey, getTTL
+// EXPORTS: cacheKey, getTTL, buildFilterQualifier
 
 import { CACHE_TTLS } from '../config/constants.js';
 
@@ -12,6 +12,13 @@ export function cacheKey(entity: CacheEntity, period: string, qualifier = ''): s
   const parts = ['dashboard', entity, period];
   if (qualifier) parts.push(qualifier);
   return parts.join(':');
+}
+
+/** Combine dimension + filter hash into a cache key qualifier.
+ * WHY: Ensures filtered and unfiltered cache entries use distinct keys.
+ * Without this, filtered fetch-all results overwrite unfiltered data. */
+export function buildFilterQualifier(groupBy: string, filterHash: string): string {
+  return `${groupBy}:${filterHash}`;
 }
 
 export function getTTL(entity: CacheEntity): number {
