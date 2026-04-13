@@ -22,9 +22,12 @@ interface HeroRevenueCardProps {
   showDetails: boolean;
   onExpand?: () => void;
   peekContent?: ReactNode;
+  cardRef?: (el: HTMLDivElement | null) => void;
+  onCardFocus?: () => void;
+  onCardBlur?: () => void;
 }
 
-export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand, peekContent }: HeroRevenueCardProps) {
+export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand, peekContent, cardRef, onCardFocus, onCardBlur }: HeroRevenueCardProps) {
   const peek = useHoverPeek();
   const [chartRef, chartSize] = useContainerSize();
   /** WHY clamp: min 80px for usability, max 400px to prevent oversized chart on 27" */
@@ -36,12 +39,14 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
   return (
     <>
     <div
-      ref={peek.triggerRef}
+      ref={(el) => { peek.triggerRef.current = el; cardRef?.(el); }}
       onMouseEnter={peek.onMouseEnter}
       onMouseLeave={peek.onMouseLeave}
+      onFocus={onCardFocus}
+      onBlur={onCardBlur}
       className="group relative cursor-pointer flex h-full flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]"
       onClick={() => { peek.onMouseLeave(); onExpand?.(); }}
-      role="button"
+      role="gridcell"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
       aria-label="Expand revenue details"

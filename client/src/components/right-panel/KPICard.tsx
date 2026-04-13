@@ -35,11 +35,16 @@ interface KPICardProps {
   onExpand?: () => void;
   /** WHY: Peek content passed from parent — avoids duplicating card JSX inside KPICard */
   peekContent?: ReactNode;
+  /** WHY: Navigation ref/callbacks from useCardNavigation for arrow key navigation */
+  cardRef?: (el: HTMLDivElement | null) => void;
+  onCardFocus?: () => void;
+  onCardBlur?: () => void;
 }
 
 export function KPICard({
   label, periodLabel, value, formatter, prevYearValue, prevYearFullValue,
-  prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot, onExpand, peekContent,
+  prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot,
+  onExpand, peekContent, cardRef, onCardFocus, onCardBlur,
 }: KPICardProps) {
   const hasSubItems = subItems && subItems.length > 0;
   const peek = useHoverPeek();
@@ -47,12 +52,14 @@ export function KPICard({
   return (
     <>
     <div
-      ref={peek.triggerRef}
+      ref={(el) => { peek.triggerRef.current = el; cardRef?.(el); }}
       onMouseEnter={peek.onMouseEnter}
       onMouseLeave={peek.onMouseLeave}
+      onFocus={onCardFocus}
+      onBlur={onCardBlur}
       className="group relative cursor-pointer flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-lg)] py-[var(--spacing-sm)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
       onClick={() => { peek.onMouseLeave(); onExpand?.(); }}
-      role="button"
+      role="gridcell"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
       aria-label={`Expand ${label} details`}
