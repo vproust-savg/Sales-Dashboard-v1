@@ -3,7 +3,7 @@
 // USED BY: client/src/App.tsx
 // EXPORTS: DashboardLayout
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { DashboardPayload, EntityListItem, Contact, Dimension, Period, EntityListLoadState, SSEProgressEvent, FetchAllFilters } from '@shared/types/dashboard';
 import type { FilterCondition } from '../hooks/useFilters';
@@ -15,6 +15,7 @@ import { FetchAllProgress } from '../components/right-panel/FetchAllProgress';
 import { FetchAllDialog } from '../components/shared/FetchAllDialog';
 import { LoadingModal } from '../components/shared/LoadingModal';
 import { Skeleton } from '../components/shared/Skeleton';
+import { DIMENSION_CONFIG } from '../utils/dimension-config';
 import { useExport } from '../hooks/useExport';
 
 export interface DashboardLayoutProps {
@@ -71,10 +72,6 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     addCondition, updateCondition, removeCondition, clearFilters, toggleFilterPanel,
     setSort,
   } = props;
-
-  useEffect(() => {
-    if (entities.length > 0 && !activeEntityId) selectEntity(entities[0].id);
-  }, [entities, activeEntityId, selectEntity]);
 
   const exportData = dashboard && activeEntityId ? {
     entityName: entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
@@ -232,7 +229,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                   className="flex flex-1 items-center justify-center"
                 >
                   <p className="text-[14px] text-[var(--color-text-muted)]">
-                    Select a customer to view details
+                    Select a {DIMENSION_CONFIG[activeDimension].singularLabel} to view details
                   </p>
                 </motion.div>
               )}
