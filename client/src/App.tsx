@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MotionConfig } from 'framer-motion';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { CopyToastProvider } from './components/shared/CopyToast';
+import { ModalProvider } from './components/shared/ModalProvider';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { useDashboardState } from './hooks/useDashboardState';
 
@@ -33,7 +34,9 @@ export function App() {
          *  prefers-reduced-motion setting, suppressing all motion.* animations */}
         <MotionConfig reducedMotion="user">
           <CopyToastProvider>
-            <DashboardApp />
+            <ModalProvider>
+              <DashboardApp />
+            </ModalProvider>
           </CopyToastProvider>
         </MotionConfig>
       </QueryClientProvider>
