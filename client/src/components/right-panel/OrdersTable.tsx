@@ -90,25 +90,31 @@ interface OrderRowGroupProps {
 }
 
 function OrderRowGroup({ order, isExpanded, onToggle }: OrderRowGroupProps) {
+  const detailId = `order-detail-${order.orderNumber.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+
   return (
     <>
       <tr
-        className="border-b border-[var(--color-bg-page)] cursor-pointer hover:bg-[var(--color-gold-hover)] transition-colors duration-150"
-        onClick={onToggle}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
-        aria-expanded={isExpanded}
+        className="border-b border-[var(--color-bg-page)] hover:bg-[var(--color-gold-hover)] transition-colors duration-150"
       >
         {/* Chevron — CSS rotation, matching ItemsAccordion pattern */}
         <td className="w-8 px-0 pl-[var(--spacing-3xl)] py-[var(--spacing-base)]">
-          <svg
-            width="14" height="14" viewBox="0 0 14 14" fill="none"
-            className={`shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
-            aria-hidden="true"
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={isExpanded}
+            aria-controls={detailId}
+            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} order ${order.orderNumber} details`}
+            className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors duration-150 hover:bg-[var(--color-gold-subtle)] hover:text-[var(--color-text-secondary)]"
           >
-            <path d="M5 3l4 4-4 4" stroke="var(--color-text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+            <svg
+              width="14" height="14" viewBox="0 0 14 14" fill="none"
+              className={`shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+              aria-hidden="true"
+            >
+              <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </td>
         <td className="pl-[var(--spacing-3xl)] pr-[var(--spacing-lg)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-primary)] whitespace-nowrap">
           {formatDate(order.date)}
@@ -138,7 +144,7 @@ function OrderRowGroup({ order, isExpanded, onToggle }: OrderRowGroupProps) {
       {/* Expanded line items — AnimatePresence with initial={false} to prevent mount animation */}
       <AnimatePresence initial={false}>
         {isExpanded && (
-          <tr key={`${order.orderNumber}-detail`}>
+          <tr key={`${order.orderNumber}-detail`} id={detailId}>
             <td colSpan={8} className="p-0">
               <motion.div
                 initial={{ height: 0, opacity: 0 }}

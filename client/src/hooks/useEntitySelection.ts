@@ -3,18 +3,29 @@
 // USED BY: client/src/hooks/useDashboardState.ts
 // EXPORTS: useEntitySelection
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
-export function useEntitySelection() {
-  const [activeEntityId, setActiveEntityId] = useState<string | null>(null);
+interface UseEntitySelectionOptions {
+  activeEntityId: string | null;
+  onActiveEntityChange: (id: string | null) => void;
+}
+
+export function useEntitySelection({ activeEntityId, onActiveEntityChange }: UseEntitySelectionOptions) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isConsolidated, setIsConsolidated] = useState(false);
+  const prevActiveEntityIdRef = useRef(activeEntityId);
+
+  useEffect(() => {
+    if (prevActiveEntityIdRef.current === activeEntityId) return;
+    prevActiveEntityIdRef.current = activeEntityId;
+    setIsConsolidated(false);
+  }, [activeEntityId]);
 
   /** Click an entity row to view its details */
   const selectEntity = useCallback((id: string) => {
-    setActiveEntityId(id);
+    onActiveEntityChange(id);
     setIsConsolidated(false);
-  }, []);
+  }, [onActiveEntityChange]);
 
   /** Toggle the circular checkbox for multi-select */
   const toggleCheckbox = useCallback((id: string) => {
@@ -42,10 +53,10 @@ export function useEntitySelection() {
 
   /** Full reset: clears active entity, unchecks all, exits consolidated */
   const resetSelection = useCallback(() => {
-    setActiveEntityId(null);
+    onActiveEntityChange(null);
     setSelectedIds(new Set());
     setIsConsolidated(false);
-  }, []);
+  }, [onActiveEntityChange]);
 
   // WHY: Without useMemo, [...selectedIds] creates a new array on every render,
   // defeating React.memo on every downstream component that receives this prop.

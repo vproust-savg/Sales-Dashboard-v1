@@ -10,6 +10,8 @@ import { formatCurrency, formatCurrencyCompact } from '@shared/utils/formatting'
 
 interface YoYBarChartProps {
   data: MonthlyRevenue[];
+  /** WHY: Dynamic width from container to avoid letterboxing on large cards. */
+  width?: number;
   /** WHY: Dynamic height from container via ResizeObserver. Clamped externally to [80, 400]. */
   height?: number;
 }
@@ -23,7 +25,8 @@ const DEFAULT_HEIGHT = 120;
 /** WHY calendar order: spec 20.1 says chart always shows Jan-Dec regardless of fiscal year */
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-export function YoYBarChart({ data, height: rawHeight }: YoYBarChartProps) {
+export function YoYBarChart({ data, width: rawWidth, height: rawHeight }: YoYBarChartProps) {
+  const chartWidth = rawWidth || 400;
   const chartHeight = rawHeight ?? DEFAULT_HEIGHT;
   const barAreaHeight = chartHeight - X_LABEL_HEIGHT - LEGEND_HEIGHT;
   const [hoveredMonth, setHoveredMonth] = useState<number | null>(null);
@@ -59,7 +62,7 @@ export function YoYBarChart({ data, height: rawHeight }: YoYBarChartProps) {
       <svg
         width="100%"
         height={chartHeight}
-        viewBox={`0 0 400 ${chartHeight}`}
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
         preserveAspectRatio="xMinYMin meet"
         className="overflow-visible"
       >
@@ -71,7 +74,7 @@ export function YoYBarChart({ data, height: rawHeight }: YoYBarChartProps) {
               <line
                 x1={Y_LABEL_WIDTH}
                 y1={y}
-                x2={400}
+                x2={chartWidth}
                 y2={y}
                 stroke="var(--color-gold-subtle)"
                 strokeWidth={1}
@@ -93,7 +96,7 @@ export function YoYBarChart({ data, height: rawHeight }: YoYBarChartProps) {
 
         {/* Bar pairs */}
         {calendarData.map((month, i) => {
-          const groupWidth = (400 - Y_LABEL_WIDTH) / 12;
+          const groupWidth = (chartWidth - Y_LABEL_WIDTH) / 12;
           const groupX = Y_LABEL_WIDTH + i * groupWidth;
           const barWidth = groupWidth * 0.28;
           const gap = 2;
@@ -164,7 +167,7 @@ export function YoYBarChart({ data, height: rawHeight }: YoYBarChartProps) {
         {/* Tooltip — appears above hovered bar pair */}
         {hoveredMonth !== null && (() => {
           const m = calendarData[hoveredMonth];
-          const groupWidth = (400 - Y_LABEL_WIDTH) / 12;
+          const groupWidth = (chartWidth - Y_LABEL_WIDTH) / 12;
           const tooltipX = Y_LABEL_WIDTH + hoveredMonth * groupWidth + groupWidth / 2;
           const tallestBar = Math.max(m.currentYear, m.previousYear);
           const tooltipY = barAreaHeight - (tallestBar / niceMax) * barAreaHeight - 8;

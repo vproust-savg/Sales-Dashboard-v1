@@ -4,7 +4,7 @@
 // EXPORTS: ItemsProductRow
 
 import type { FlatItem } from '@shared/types/dashboard';
-import { formatCurrency, formatPercent } from '@shared/utils/formatting';
+import { formatCurrency, formatInteger, formatPercent } from '@shared/utils/formatting';
 import { CopyableId } from '../shared/CopyableId';
 import { TrendArrow } from '../shared/TrendArrow';
 import { ItemsCompareRow } from './ItemsCompareRow';
@@ -58,7 +58,7 @@ export function ItemsProductRow({ item, depth, showCompare }: ItemsProductRowPro
           <TrendArrow current={item.marginAmount} previous={prevMarginAmount} />
         </div>
         <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
-          {item.totalUnits.toLocaleString('en-US')} {item.unitName}
+          {formatInteger(item.totalUnits)} {item.unitName}
           <TrendArrow current={item.totalUnits} previous={item.prevYearUnits} />
         </div>
         <div role="gridcell" className="w-20 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">

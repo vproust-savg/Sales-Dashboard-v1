@@ -7,6 +7,7 @@ import { useRef, useEffect } from 'react';
 import type { EntityListItem as EntityListItemType, EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
 import { EntityListItem } from './EntityListItem';
 import { AllEntityEntry } from './AllEntityEntry';
+import { SelectionBar } from './SelectionBar';
 
 interface EntityListProps {
   entities: EntityListItemType[];
@@ -23,6 +24,9 @@ interface EntityListProps {
   entitiesWithOrders: number;
   onAllClick: () => void;
   onRefresh: () => void;
+  selectedCount: number;
+  onViewConsolidated: () => void;
+  onClearSelection: () => void;
 }
 
 export function EntityList({
@@ -40,6 +44,9 @@ export function EntityList({
   entitiesWithOrders,
   onAllClick,
   onRefresh,
+  selectedCount,
+  onViewConsolidated,
+  onClearSelection,
 }: EntityListProps) {
   // WHY: Stagger animation on initial mount only — search/filter results appear instantly
   const hasAnimated = useRef(false);
@@ -79,7 +86,7 @@ export function EntityList({
         role="listbox"
         aria-label={`${dimensionLabel} list`}
         aria-multiselectable="true"
-        className="flex-1 overflow-y-auto"
+        className={`min-h-0 flex-1 overflow-y-auto ${selectedCount > 0 ? 'pb-[57px]' : ''}`}
       >
         {entities.map((entity, index) => (
           <EntityListItem
@@ -101,6 +108,13 @@ export function EntityList({
           </div>
         )}
       </div>
+
+      <SelectionBar
+        selectedCount={selectedCount}
+        dataLoaded={dataLoaded}
+        onViewConsolidated={onViewConsolidated}
+        onClear={onClearSelection}
+      />
     </div>
   );
 }

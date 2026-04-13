@@ -6,7 +6,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { TopSellerItem } from '@shared/types/dashboard';
-import { formatCurrency } from '@shared/utils/formatting';
+import { formatCurrency, formatInteger } from '@shared/utils/formatting';
 import { CopyableId } from '../shared/CopyableId';
 import { Tooltip } from '../shared/Tooltip';
 
@@ -54,7 +54,7 @@ function SellerRow({ item }: { item: TopSellerItem }) {
           {formatCurrency(item.revenue)}
         </p>
         <p className="text-[11px] text-[var(--color-text-muted)]">
-          {item.units.toLocaleString('en-US')} {item.unit}
+          {formatInteger(item.units)} {item.unit}
         </p>
       </div>
     </div>
@@ -77,7 +77,7 @@ export function BestSellersExpanded({ data }: BestSellersProps) {
           </div>
           <div className="shrink-0 text-right">
             <div className="text-[13px] font-semibold tabular-nums text-[var(--color-text-primary)]">{formatCurrency(item.revenue)}</div>
-            <div className="text-[10px] text-[var(--color-text-muted)]">{item.units.toLocaleString('en-US')} {item.unit}</div>
+            <div className="text-[10px] text-[var(--color-text-muted)]">{formatInteger(item.units)} {item.unit}</div>
           </div>
         </div>
       ))}

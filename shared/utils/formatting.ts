@@ -1,7 +1,7 @@
 // FILE: shared/utils/formatting.ts
 // PURPOSE: Number, currency, date formatting shared between server + client
 // USED BY: server/services/data-aggregator.ts, client/components/**
-// EXPORTS: formatCurrency, formatCurrencyCompact, formatPercent, formatPercentPoints, formatFrequency, formatDays, formatDate, formatDateShort
+// EXPORTS: formatInteger, formatCurrency, formatCurrencyCompact, formatPercent, formatPercentPoints, formatFrequency, formatDays, formatDate, formatDateShort
 
 interface FormatOptions {
   showSign?: boolean;
@@ -9,12 +9,27 @@ interface FormatOptions {
 
 const EM_DASH = '\u2014';
 
+function getRuntimeLocale(): string {
+  if (typeof navigator !== 'undefined') {
+    return navigator.languages?.[0] ?? navigator.language ?? 'en-US';
+  }
+  return 'en-US';
+}
+
+function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
+  return new Intl.NumberFormat(getRuntimeLocale(), options).format(value);
+}
+
+export function formatInteger(value: number): string {
+  return formatNumber(Math.round(value));
+}
+
 export function formatCurrency(value: number, opts?: FormatOptions): string {
   const abs = Math.abs(value);
   const sign = value < 0 ? '-' : opts?.showSign && value > 0 ? '+' : '';
   if (abs === 0) return '$0';
   if (abs < 1000) return `${sign}$${abs.toFixed(2)}`;
-  return `${sign}$${Math.round(abs).toLocaleString('en-US')}`;
+  return `${sign}$${formatInteger(abs)}`;
 }
 
 export function formatCurrencyCompact(value: number): string {
@@ -51,14 +66,19 @@ export function formatDays(value: number | null): string {
   return `${value} days ago`;
 }
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 export function formatDate(isoDate: string): string {
-  const d = new Date(isoDate);
-  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  return new Intl.DateTimeFormat(getRuntimeLocale(), {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(isoDate));
 }
 
 export function formatDateShort(isoDate: string): string {
-  const d = new Date(isoDate);
-  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return new Intl.DateTimeFormat(getRuntimeLocale(), {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(isoDate));
 }

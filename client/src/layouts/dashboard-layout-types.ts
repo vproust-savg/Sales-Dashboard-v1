@@ -7,6 +7,7 @@ import type { DashboardPayload, EntityListItem, Contact, Dimension, Period, Enti
 import type { FilterCondition } from '../hooks/useFilters';
 import type { SortField, SortDirection } from '../hooks/useSort';
 import type { ApiResponse } from '@shared/types/api-responses';
+import type { DetailTab } from '../components/right-panel/detail-tab-types';
 
 export interface DashboardLayoutProps {
   dashboard: DashboardPayload | null;
@@ -22,6 +23,7 @@ export interface DashboardLayoutProps {
   activeDimension: Dimension;
   activePeriod: Period;
   activeEntityId: string | null;
+  activeTab: DetailTab;
   selectedEntityIds: string[];
   searchTerm: string;
   filterConditions: FilterCondition[];
@@ -38,6 +40,7 @@ export interface DashboardLayoutProps {
   switchDimension: (dim: Dimension) => void;
   switchPeriod: (period: Period) => void;
   selectEntity: (id: string) => void;
+  setActiveTab: (tab: DetailTab) => void;
   toggleCheckbox: (id: string) => void;
   viewConsolidated: () => void;
   clearSelection: () => void;

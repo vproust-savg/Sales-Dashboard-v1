@@ -13,7 +13,6 @@ import { SearchBox } from './SearchBox';
 import { FilterSortToolbar } from './FilterSortToolbar';
 import { FilterPanel } from './FilterPanel';
 import { EntityList } from './EntityList';
-import { SelectionBar } from './SelectionBar';
 
 interface LeftPanelProps {
   // Data — already filtered/sorted by useDashboardState
@@ -97,8 +96,7 @@ export function LeftPanel({
         onClose={onFilterToggle}
       />
 
-      {/* WHY: relative container lets SelectionBar position at bottom of the list card */}
-      <div className="relative flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden">
         <EntityList
           entities={entities}
           activeId={activeEntityId}
@@ -114,17 +112,10 @@ export function LeftPanel({
           entitiesWithOrders={entitiesWithOrders}
           onAllClick={onAllClick}
           onRefresh={onRefresh}
+          selectedCount={selectedEntityIds.length}
+          onViewConsolidated={onViewConsolidated}
+          onClearSelection={onClearSelection}
         />
-
-        {/* WHY: absolute positioning keeps the bar at the bottom of the list container */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <SelectionBar
-            selectedCount={selectedEntityIds.length}
-            dataLoaded={dataLoaded}
-            onViewConsolidated={onViewConsolidated}
-            onClear={onClearSelection}
-          />
-        </div>
       </div>
     </>
   );

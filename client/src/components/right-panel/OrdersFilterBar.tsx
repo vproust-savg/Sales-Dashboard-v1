@@ -30,7 +30,7 @@ export function OrdersFilterBar({
             key={option.key}
             type="button"
             onClick={() => onFilterChange(isActive ? null : option.key)}
-            className={`rounded-full px-3 py-1 text-[12px] transition-all duration-150 cursor-pointer ${
+            className={`cursor-pointer rounded-full px-3 py-1 text-[12px] transition-[background-color,color,box-shadow] duration-150 ${
               isActive
                 ? 'bg-[var(--color-dark)] text-white font-semibold border border-transparent'
                 : 'border border-[var(--color-gold-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-gold-primary)] hover:text-[var(--color-text-secondary)]'

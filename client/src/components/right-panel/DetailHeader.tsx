@@ -28,9 +28,8 @@ export function DetailHeader({
   const subtitle = entity?.meta1 ?? '';
 
   return (
-    <div
+    <header
       className="flex items-center justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-4xl)] py-[var(--spacing-xl)] shadow-[var(--shadow-card)]"
-      role="banner"
     >
       {/* Left side — entity info */}
       <div className="min-w-0 flex-1">
@@ -72,6 +71,6 @@ export function DetailHeader({
           Export
         </button>
       </div>
-    </div>
+    </header>
   );
 }

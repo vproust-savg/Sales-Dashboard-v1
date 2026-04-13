@@ -77,7 +77,7 @@ export function useDashboardDetail({
     queryKey: ['dashboard', entityId, groupBy, period],
     queryFn: () => fetchDashboard(entityId!, groupBy, period),
     // WHY: Only fetch when an entity is selected
-    enabled: entityId !== null,
+    enabled: entityId !== null && entityId !== '__ALL__',
     staleTime: period === 'ytd' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000,
   });
 }
