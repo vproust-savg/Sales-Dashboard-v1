@@ -4,6 +4,7 @@
 // EXPORTS: DetailHeader
 
 import type { EntityListItem, Period } from '@shared/types/dashboard';
+import type { LayoutPreset } from '../../hooks/useDashboardLayout';
 import { CopyableId } from '../shared/CopyableId';
 import { PeriodSelector } from './PeriodSelector';
 
@@ -13,10 +14,14 @@ interface DetailHeaderProps {
   yearsAvailable: string[];
   onPeriodChange: (period: Period) => void;
   onExport: () => void;
+  activePreset: LayoutPreset;
+  onPresetChange: (preset: Exclude<LayoutPreset, 'custom'>) => void;
+  onResetLayout: () => void;
 }
 
 export function DetailHeader({
   entity, activePeriod, yearsAvailable, onPeriodChange, onExport,
+  activePreset: _activePreset, onPresetChange: _onPresetChange, onResetLayout: _onResetLayout,
 }: DetailHeaderProps) {
   const name = entity?.name ?? 'All Customers';
   const subtitle = entity?.meta1 ?? '';

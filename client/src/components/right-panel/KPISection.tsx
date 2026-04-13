@@ -13,12 +13,18 @@ import {
 } from '@shared/utils/formatting';
 import { HeroRevenueCard } from './HeroRevenueCard';
 import { KPICard } from './KPICard';
+import { useResizablePanel } from '../../hooks/useResizablePanel';
+import { ResizeDivider } from './ResizeDivider';
 
 interface KPISectionProps {
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
   sparklines: Record<string, SparklineData>;
   activePeriod: Period;
+  /** WHY: Grid template from useDashboardLayout — e.g. "3fr 2fr" */
+  heroKpiTemplate: string;
+  onHeroKpiRatioChange: (ratio: [number, number]) => void;
+  heroKpiRatio: [number, number];
 }
 
 /** WHY activity status here: spec 10.3 defines dot color thresholds by days since last order */
@@ -35,8 +41,15 @@ function yoyChange(current: number, prevYear: number): number | null {
   return prevYear > 0 ? ((current - prevYear) / prevYear) * 100 : null;
 }
 
-export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, activePeriod }: KPISectionProps) {
+export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, activePeriod, heroKpiTemplate, onHeroKpiRatioChange, heroKpiRatio }: KPISectionProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const { containerRef, isDragging, handleMouseDown } = useResizablePanel({
+    direction: 'horizontal',
+    defaultRatio: heroKpiRatio,
+    minPercent: 30,
+    maxPercent: 70,
+    onRatioChange: onHeroKpiRatioChange,
+  });
   const activity = getActivityStatus(kpis.lastOrderDays);
   const pLabel = activePeriod === 'ytd' ? '(YTD)' : `(${activePeriod})`;
   // WHY: Dynamic year labels for the two-line prev year display
@@ -51,12 +64,10 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
 
   return (
     <div className="flex flex-col gap-[var(--spacing-sm)]">
-    {/* WHY 3fr/2fr: hero chart needs more breathing room; 6 small cards are compact data-dense */}
-    <div className="grid grid-cols-[3fr_2fr] gap-[var(--spacing-base)] max-lg:grid-cols-1">
-      {/* Hero card — stretches to match KPI grid height via CSS Grid default stretch */}
+    {/* WHY style prop: Dynamic ratio from drag — Tailwind can't use JS variables */}
+    <div ref={containerRef} className="grid gap-0 max-lg:grid-cols-1 max-lg:gap-[var(--spacing-base)]" style={{ gridTemplateColumns: `${heroKpiTemplate.split(' ')[0]} 6px ${heroKpiTemplate.split(' ')[1]}` }}>
       <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} showDetails={showDetails} />
-
-      {/* 2x3 KPI grid — stretches to match hero height */}
+      <ResizeDivider direction="horizontal" isDragging={isDragging} onMouseDown={handleMouseDown} onTouchStart={handleMouseDown} />
       <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-sm)]">
         {/* 1. Orders */}
         <KPICard
