@@ -7,11 +7,14 @@ import { describe, it, expect } from 'vitest';
 import { groupItems } from '../items-grouping';
 import type { FlatItem } from '@shared/types/dashboard';
 
+/** WHY: Shared defaults for new FlatItem fields — tests here only exercise grouping logic */
+const PERF_DEFAULTS = { totalUnits: 10, unitName: 'ea' as const, lastPrice: 50, purchaseFrequency: 1, lastOrderDate: '2026-01-01T00:00:00Z', prevYearValue: 0, prevYearMarginPercent: 0, prevYearUnits: 0 };
+
 const ITEMS: FlatItem[] = [
-  { name: 'A', sku: 'A1', value: 500, marginPercent: 22, marginAmount: 110, productType: 'Culinary', productFamily: 'Cheese', brand: 'Mitica', countryOfOrigin: 'Italy', foodServiceRetail: 'Food Service', vendor: 'V1' },
-  { name: 'B', sku: 'B1', value: 300, marginPercent: 30, marginAmount: 90, productType: 'Culinary', productFamily: 'Tea', brand: 'DGF', countryOfOrigin: 'France', foodServiceRetail: 'Retail', vendor: 'V2' },
-  { name: 'C', sku: 'C1', value: 200, marginPercent: 40, marginAmount: 80, productType: 'Beverages', productFamily: 'Tea', brand: 'Mitica', countryOfOrigin: 'Italy', foodServiceRetail: 'Food Service', vendor: 'V1' },
-  { name: 'D', sku: 'D1', value: 100, marginPercent: 50, marginAmount: 50, productType: 'Beverages', productFamily: 'Juice', brand: 'Other', countryOfOrigin: 'USA', foodServiceRetail: 'Food Service', vendor: 'V3' },
+  { name: 'A', sku: 'A1', value: 500, marginPercent: 22, marginAmount: 110, productType: 'Culinary', productFamily: 'Cheese', brand: 'Mitica', countryOfOrigin: 'Italy', foodServiceRetail: 'Food Service', vendor: 'V1', ...PERF_DEFAULTS },
+  { name: 'B', sku: 'B1', value: 300, marginPercent: 30, marginAmount: 90, productType: 'Culinary', productFamily: 'Tea', brand: 'DGF', countryOfOrigin: 'France', foodServiceRetail: 'Retail', vendor: 'V2', ...PERF_DEFAULTS },
+  { name: 'C', sku: 'C1', value: 200, marginPercent: 40, marginAmount: 80, productType: 'Beverages', productFamily: 'Tea', brand: 'Mitica', countryOfOrigin: 'Italy', foodServiceRetail: 'Food Service', vendor: 'V1', ...PERF_DEFAULTS },
+  { name: 'D', sku: 'D1', value: 100, marginPercent: 50, marginAmount: 50, productType: 'Beverages', productFamily: 'Juice', brand: 'Other', countryOfOrigin: 'USA', foodServiceRetail: 'Food Service', vendor: 'V3', ...PERF_DEFAULTS },
 ];
 
 describe('groupItems', () => {
