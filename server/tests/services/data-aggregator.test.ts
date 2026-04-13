@@ -411,5 +411,109 @@ describe('aggregateOrders', () => {
       const result = aggregateOrders(orders, [], 'ytd');
       expect(result.items).toHaveLength(3);
     });
+
+    it('computes totalUnits as sum of TQUANT per SKU', () => {
+      const orders = [
+        makeOrder({
+          ORDNAME: 'O1',
+          ORDERITEMS_SUBFORM: [
+            makeItem({ PARTNAME: 'A', TQUANT: 10, QPRICE: 100 }),
+            makeItem({ PARTNAME: 'A', TQUANT: 5, QPRICE: 50 }),
+            makeItem({ PARTNAME: 'B', TQUANT: 20, QPRICE: 200 }),
+          ],
+        }),
+      ];
+      const result = aggregateOrders(orders, [], 'ytd');
+      const itemA = result.items.find(i => i.sku === 'A')!;
+      const itemB = result.items.find(i => i.sku === 'B')!;
+      expect(itemA.totalUnits).toBe(15);
+      expect(itemB.totalUnits).toBe(20);
+    });
+
+    it('captures unitName from first item occurrence per SKU', () => {
+      const orders = [makeOrder({
+        ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', TUNITNAME: 'cs' })],
+      })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].unitName).toBe('cs');
+    });
+
+    it('defaults unitName to "units" when TUNITNAME is empty', () => {
+      const orders = [makeOrder({
+        ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', TUNITNAME: '' })],
+      })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].unitName).toBe('units');
+    });
+
+    it('computes lastPrice from the order with the latest CURDATE', () => {
+      const orders = [
+        makeOrder({ ORDNAME: 'O1', CURDATE: '2026-01-10T00:00:00Z', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', PRICE: 50 })] }),
+        makeOrder({ ORDNAME: 'O2', CURDATE: '2026-03-15T00:00:00Z', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', PRICE: 60 })] }),
+        makeOrder({ ORDNAME: 'O3', CURDATE: '2026-02-01T00:00:00Z', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', PRICE: 55 })] }),
+      ];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].lastPrice).toBe(60);
+    });
+
+    it('computes lastOrderDate as the max CURDATE per SKU', () => {
+      const orders = [
+        makeOrder({ ORDNAME: 'O1', CURDATE: '2026-01-10T00:00:00Z', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A' })] }),
+        makeOrder({ ORDNAME: 'O2', CURDATE: '2026-03-15T00:00:00Z', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A' })] }),
+      ];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].lastOrderDate).toBe('2026-03-15T00:00:00Z');
+    });
+
+    it('computes purchaseFrequency as orderCount / periodMonths', () => {
+      const orders = [
+        makeOrder({ ORDNAME: 'O1', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A' })] }),
+        makeOrder({ ORDNAME: 'O2', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A' })] }),
+        makeOrder({ ORDNAME: 'O3', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A' })] }),
+      ];
+      const result = aggregateOrders(orders, [], 'ytd');
+      const expectedMonths = Math.max(1, new Date().getUTCMonth() + 1);
+      expect(result.items[0].purchaseFrequency).toBeCloseTo(3 / expectedMonths, 1);
+    });
+
+    it('computes prevYearValue as sum of QPRICE from prevOrders per SKU', () => {
+      const orders = [makeOrder({ ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', QPRICE: 500 })] })];
+      const prevOrders = [
+        makeOrder({ ORDNAME: 'P1', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', QPRICE: 300 })] }),
+        makeOrder({ ORDNAME: 'P2', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', QPRICE: 200 })] }),
+      ];
+      const result = aggregateOrders(orders, prevOrders, 'ytd');
+      expect(result.items[0].prevYearValue).toBe(500);
+    });
+
+    it('computes prevYearMarginPercent from prevOrders', () => {
+      const orders = [makeOrder({ ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', QPRICE: 1000, QPROFIT: 400 })] })];
+      const prevOrders = [makeOrder({ ORDNAME: 'P1', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', QPRICE: 800, QPROFIT: 200 })] })];
+      const result = aggregateOrders(orders, prevOrders, 'ytd');
+      expect(result.items[0].prevYearMarginPercent).toBeCloseTo(25);
+    });
+
+    it('computes prevYearUnits as sum of TQUANT from prevOrders', () => {
+      const orders = [makeOrder({ ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', TQUANT: 50 })] })];
+      const prevOrders = [makeOrder({ ORDNAME: 'P1', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A', TQUANT: 30 })] })];
+      const result = aggregateOrders(orders, prevOrders, 'ytd');
+      expect(result.items[0].prevYearUnits).toBe(30);
+    });
+
+    it('returns 0 for prev year fields when SKU not in prevOrders', () => {
+      const orders = [makeOrder({ ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'NEW-SKU' })] })];
+      const result = aggregateOrders(orders, [], 'ytd');
+      expect(result.items[0].prevYearValue).toBe(0);
+      expect(result.items[0].prevYearMarginPercent).toBe(0);
+      expect(result.items[0].prevYearUnits).toBe(0);
+    });
+
+    it('ignores SKUs present only in prevOrders (not in current period)', () => {
+      const orders = [makeOrder({ ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'A' })] })];
+      const prevOrders = [makeOrder({ ORDNAME: 'P1', ORDERITEMS_SUBFORM: [makeItem({ PARTNAME: 'GONE-SKU' })] })];
+      const result = aggregateOrders(orders, prevOrders, 'ytd');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].sku).toBe('A');
+    });
   });
 });
