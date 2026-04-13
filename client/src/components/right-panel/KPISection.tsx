@@ -24,7 +24,8 @@ interface KPISectionProps {
   sparklines: Record<string, SparklineData>;
   activePeriod: Period;
   /** WHY: Grid template from useDashboardLayout — e.g. "3fr 2fr" */
-  heroKpiTemplate: string;
+  /** WHY: 3-column grid template from useDashboardLayout — e.g. "3fr 6px 2fr" */
+  heroKpiGridTemplate: string;
   onHeroKpiRatioChange: (ratio: [number, number]) => void;
   heroKpiRatio: [number, number];
 }
@@ -43,7 +44,7 @@ function yoyChange(current: number, prevYear: number): number | null {
   return prevYear > 0 ? ((current - prevYear) / prevYear) * 100 : null;
 }
 
-export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, activePeriod, heroKpiTemplate, onHeroKpiRatioChange, heroKpiRatio }: KPISectionProps) {
+export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, activePeriod, heroKpiGridTemplate, onHeroKpiRatioChange, heroKpiRatio }: KPISectionProps) {
   const [showDetails, setShowDetails] = useState(false);
   const { containerRef, isDragging, handleMouseDown } = useResizablePanel({
     direction: 'horizontal',
@@ -68,7 +69,7 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
   return (
     <div className="flex flex-col gap-[var(--spacing-sm)]">
     {/* WHY style prop: Dynamic ratio from drag — Tailwind can't use JS variables */}
-    <div ref={containerRef} className="grid gap-0 max-lg:grid-cols-1 max-lg:gap-[var(--spacing-base)]" style={{ gridTemplateColumns: `${heroKpiTemplate.split(' ')[0]} 6px ${heroKpiTemplate.split(' ')[1]}` }}>
+    <div ref={containerRef} className="grid gap-0 max-lg:grid-cols-1 max-lg:gap-[var(--spacing-base)]" style={{ gridTemplateColumns: heroKpiGridTemplate }}>
       <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} showDetails={showDetails} onExpand={() => openModal('Total Revenue', <HeroRevenueModalContent kpis={kpis} monthlyRevenue={monthlyRevenue} />)} />
       <ResizeDivider direction="horizontal" isDragging={isDragging} onMouseDown={handleMouseDown} onTouchStart={handleMouseDown} />
       <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-sm)]">

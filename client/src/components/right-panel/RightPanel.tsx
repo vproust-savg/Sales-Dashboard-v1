@@ -29,7 +29,7 @@ interface RightPanelProps {
   activePeriod: Period;
   onPeriodChange: (period: Period) => void;
   onExport: () => void;
-  heroKpiTemplate: string;
+  heroKpiGridTemplate: string;
   heroKpiRatio: [number, number];
   kpiChartsRatio: [number, number];
   onHeroKpiRatioChange: (ratio: [number, number]) => void;
@@ -42,7 +42,7 @@ interface RightPanelProps {
 export function RightPanel({
   entity, kpis, monthlyRevenue, productMixes, topSellers,
   sparklines, orders, items, contacts, yearsAvailable, activePeriod,
-  onPeriodChange, onExport, heroKpiTemplate, heroKpiRatio, kpiChartsRatio,
+  onPeriodChange, onExport, heroKpiGridTemplate, heroKpiRatio, kpiChartsRatio,
   onHeroKpiRatioChange, onKpiChartsRatioChange,
   activePreset, onPresetChange, onResetLayout,
 }: RightPanelProps) {
@@ -65,7 +65,7 @@ export function RightPanel({
         <div style={{ flex: `${kpiChartsRatio[0]} 1 0%` }} className="min-h-[200px]">
           <KPISection
             kpis={kpis} monthlyRevenue={monthlyRevenue} sparklines={sparklines}
-            activePeriod={activePeriod} heroKpiTemplate={heroKpiTemplate}
+            activePeriod={activePeriod} heroKpiGridTemplate={heroKpiGridTemplate}
             heroKpiRatio={heroKpiRatio} onHeroKpiRatioChange={onHeroKpiRatioChange}
           />
         </div>

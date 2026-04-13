@@ -4,14 +4,9 @@
 // EXPORTS: KPIModalContent, HeroRevenueModalContent
 
 import type { KPIs, MonthlyRevenue } from '@shared/types/dashboard';
+import type { KPISubItem } from './KPICard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
 import { YoYBarChart } from './YoYBarChart';
-
-interface KPISubItem {
-  label: string;
-  value: string;
-  suffix?: string;
-}
 
 interface KPIModalContentProps {
   value: string;

@@ -70,26 +70,39 @@ function buildDefaults(): DashboardLayoutState {
 export function useDashboardLayout() {
   const [state, setState] = useState<DashboardLayoutState>(() => loadFromStorage() ?? buildDefaults());
 
-  const persist = useCallback((next: DashboardLayoutState) => {
-    setState(next);
-    saveToStorage(next);
+  /** WHY functional updaters: Callbacks stay stable across renders — critical during drag
+   *  where mousemove fires many times between re-renders. Using `prev =>` avoids stale closures. */
+  const setPreset = useCallback((preset: Exclude<LayoutPreset, 'custom'>) => {
+    setState(prev => {
+      const next = { ...prev, preset, ...PRESET_VALUES[preset] };
+      saveToStorage(next);
+      return next;
+    });
   }, []);
 
-  const setPreset = useCallback((preset: Exclude<LayoutPreset, 'custom'>) => {
-    persist({ ...state, preset, ...PRESET_VALUES[preset] });
-  }, [state, persist]);
-
   const togglePanel = useCallback(() => {
-    persist({ ...state, panelCollapsed: !state.panelCollapsed });
-  }, [state, persist]);
+    setState(prev => {
+      const next = { ...prev, panelCollapsed: !prev.panelCollapsed };
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
 
   const setHeroKpiRatio = useCallback((ratio: [number, number]) => {
-    persist({ ...state, heroKpiRatio: ratio, preset: 'custom' });
-  }, [state, persist]);
+    setState(prev => {
+      const next: DashboardLayoutState = { ...prev, heroKpiRatio: ratio, preset: 'custom' };
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
 
   const setKpiChartsRatio = useCallback((ratio: [number, number]) => {
-    persist({ ...state, kpiChartsRatio: ratio, preset: 'custom' });
-  }, [state, persist]);
+    setState(prev => {
+      const next: DashboardLayoutState = { ...prev, kpiChartsRatio: ratio, preset: 'custom' };
+      saveToStorage(next);
+      return next;
+    });
+  }, []);
 
   const reset = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
@@ -98,15 +111,16 @@ export function useDashboardLayout() {
     saveToStorage(defaults);
   }, []);
 
-  /** WHY useMemo: Stable grid template string avoids re-renders when ratio hasn't changed */
-  const heroKpiTemplate = useMemo(
-    () => `${state.heroKpiRatio[0]}fr ${state.heroKpiRatio[1]}fr`,
+  /** WHY useMemo: Stable grid template string avoids re-renders when ratio hasn't changed.
+   *  Includes 6px divider column so consumers don't need to split and rebuild. */
+  const heroKpiGridTemplate = useMemo(
+    () => `${state.heroKpiRatio[0]}fr 6px ${state.heroKpiRatio[1]}fr`,
     [state.heroKpiRatio],
   );
 
   return {
     layout: state,
-    heroKpiTemplate,
+    heroKpiGridTemplate,
     setPreset,
     togglePanel,
     setHeroKpiRatio,

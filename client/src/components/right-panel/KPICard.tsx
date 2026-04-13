@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { ExpandIcon } from '../shared/ExpandIcon';
 
-interface KPISubItem {
+export interface KPISubItem {
   label: string;
   value: string;
   suffix?: string; // e.g. month name "(Jan)"

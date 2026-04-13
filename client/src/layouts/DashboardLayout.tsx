@@ -38,7 +38,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     period: activePeriod, kpis: dashboard.kpis, orders: dashboard.orders, items: dashboard.items,
   } : null;
   const { exportCsv } = useExport(exportData);
-  const { layout, heroKpiTemplate, togglePanel, setHeroKpiRatio, setKpiChartsRatio, setPreset, reset } = useDashboardLayout();
+  const { layout, heroKpiGridTemplate, togglePanel, setHeroKpiRatio, setKpiChartsRatio, setPreset, reset } = useDashboardLayout();
 
   /** WHY: [ key toggles left panel collapse — quick keyboard shortcut per spec */
   useEffect(() => {
@@ -136,7 +136,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                     orders={displayDashboard.orders} items={displayDashboard.items} contacts={contacts}
                     yearsAvailable={yearsAvailable} activePeriod={activePeriod}
                     onPeriodChange={switchPeriod} onExport={exportCsv}
-                    heroKpiTemplate={heroKpiTemplate} heroKpiRatio={layout.heroKpiRatio}
+                    heroKpiGridTemplate={heroKpiGridTemplate} heroKpiRatio={layout.heroKpiRatio}
                     kpiChartsRatio={layout.kpiChartsRatio} onHeroKpiRatioChange={setHeroKpiRatio}
                     onKpiChartsRatioChange={setKpiChartsRatio} activePreset={layout.preset}
                     onPresetChange={setPreset} onResetLayout={reset}
