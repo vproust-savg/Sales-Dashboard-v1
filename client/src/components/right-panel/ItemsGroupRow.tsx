@@ -34,7 +34,7 @@ export function ItemsGroupRow({ group, depth, isExpanded, onToggle }: ItemsGroup
         <path d="M5 3l4 4-4 4" stroke="var(--color-text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
 
-      <span className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate">
+      <span className="text-[14px] font-semibold text-[var(--color-text-primary)] truncate">
         {group.label}
       </span>
 
@@ -45,13 +45,13 @@ export function ItemsGroupRow({ group, depth, isExpanded, onToggle }: ItemsGroup
       {/* WHY: flex-1 spacer pushes metrics to the right, keeping label left-aligned */}
       <div className="flex-1" />
 
-      <span role="gridcell" className="w-24 text-right text-[13px] tabular-nums text-[var(--color-text-primary)]">
+      <span role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-primary)]">
         {formatCurrency(group.totals.value)}
       </span>
-      <span role="gridcell" className="w-20 text-right text-[13px] tabular-nums text-[var(--color-text-secondary)]">
+      <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
         {formatPercent(group.totals.marginPercent)}
       </span>
-      <span role="gridcell" className="w-24 text-right text-[13px] tabular-nums text-[var(--color-text-secondary)]">
+      <span role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
         {formatCurrency(group.totals.marginAmount)}
       </span>
     </button>

@@ -38,20 +38,20 @@ export function KPICard({
 
   return (
     <div
-      className="group/kpi flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-xl)] py-[var(--spacing-base)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      className="group/kpi flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-lg)] py-[var(--spacing-sm)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
     >
       {/* Top row: label + value (left) + prev year (right) */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col min-w-0">
-          <span className="text-[11px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
+          <span className="text-[12px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
             {label}{periodLabel && <span className="opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100"> {periodLabel}</span>}
           </span>
-          <span className="mt-[var(--spacing-2xs)] text-[19px] font-bold text-[var(--color-text-primary)]">
+          <span className="mt-[var(--spacing-2xs)] text-[22px] font-bold text-[var(--color-text-primary)]">
             <AnimatedNumber value={value} formatter={formatter} />
           </span>
           {changePercent !== undefined && changePercent !== null && (
             <span
-              className="text-[9px] font-medium"
+              className="text-[10px] font-medium"
               style={{ color: changePercent >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}
             >
               {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%
@@ -70,13 +70,13 @@ export function KPICard({
         {prevYearValue && (
           <div className="flex flex-col items-end shrink-0 gap-0.5">
             <div className="flex flex-col items-end">
-              <span className="text-[8px] font-normal text-[var(--color-text-faint)]">{prevYearLabel ?? 'Prev Year'}</span>
-              <span className="text-[11px] font-semibold text-[var(--color-text-faint)]">{prevYearValue}</span>
+              <span className="text-[9px] font-normal text-[var(--color-text-faint)]">{prevYearLabel ?? 'Prev Year'}</span>
+              <span className="text-[12px] font-semibold text-[var(--color-text-faint)]">{prevYearValue}</span>
             </div>
             {prevYearFullValue && (
               <div className="flex flex-col items-end">
-                <span className="text-[8px] font-normal text-[var(--color-text-faint)]">{prevYearFullLabel ?? 'Full Year'}</span>
-                <span className="text-[11px] font-semibold text-[var(--color-text-faint)]">{prevYearFullValue}</span>
+                <span className="text-[9px] font-normal text-[var(--color-text-faint)]">{prevYearFullLabel ?? 'Full Year'}</span>
+                <span className="text-[12px] font-semibold text-[var(--color-text-faint)]">{prevYearFullValue}</span>
               </div>
             )}
           </div>
@@ -104,11 +104,11 @@ export function KPICard({
                     transition={{ delay: i * 0.05, duration: 0.15, ease: 'easeOut' }}
                     className="flex flex-col min-w-0"
                   >
-                    <span className="text-[8px] font-normal text-[var(--color-text-muted)] whitespace-nowrap">{item.label}</span>
-                    <span className="text-[11px] font-semibold text-[var(--color-text-secondary)] whitespace-nowrap">
+                    <span className="text-[9px] font-normal text-[var(--color-text-muted)] whitespace-nowrap">{item.label}</span>
+                    <span className="text-[12px] font-semibold text-[var(--color-text-secondary)] whitespace-nowrap">
                       {item.value}
                       {item.suffix && (
-                        <span className="ml-0.5 text-[8px] font-normal text-[var(--color-text-muted)]">({item.suffix})</span>
+                        <span className="ml-0.5 text-[9px] font-normal text-[var(--color-text-muted)]">({item.suffix})</span>
                       )}
                     </span>
                   </motion.div>

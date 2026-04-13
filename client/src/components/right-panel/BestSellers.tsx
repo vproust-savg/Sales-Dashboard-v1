@@ -3,7 +3,7 @@
 // USED BY: client/src/components/right-panel/ChartsRow.tsx
 // EXPORTS: BestSellers
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { TopSellerItem } from '@shared/types/dashboard';
 import { formatCurrency } from '@shared/utils/formatting';
@@ -23,6 +23,21 @@ function rankBadgeClasses(rank: number): string {
 }
 
 function SellerRow({ item }: { item: TopSellerItem }) {
+  const nameRef = useRef<HTMLParagraphElement>(null);
+  /** WHY: Only show tooltip when text is actually truncated by CSS ellipsis */
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  function checkTruncation() {
+    const el = nameRef.current;
+    if (el) setIsTruncated(el.scrollWidth > el.clientWidth);
+  }
+
+  const nameElement = (
+    <p ref={nameRef} onMouseEnter={checkTruncation} className="truncate text-[14px] font-medium leading-tight text-[var(--color-text-primary)]">
+      {item.name}
+    </p>
+  );
+
   return (
     <div className="flex items-center gap-[var(--spacing-md)] border-b border-[#f5f1eb] py-[7px]">
       <span
@@ -31,18 +46,14 @@ function SellerRow({ item }: { item: TopSellerItem }) {
         {item.rank}
       </span>
       <div className="min-w-0 flex-1">
-        <Tooltip content={item.name}>
-          <p className="truncate text-[14px] font-medium leading-tight text-[var(--color-text-primary)]">
-            {item.name}
-          </p>
-        </Tooltip>
-        <CopyableId value={item.sku} label="SKU" className="block truncate text-[10px] text-[var(--color-text-faint)]" />
+        {isTruncated ? <Tooltip content={item.name}>{nameElement}</Tooltip> : nameElement}
+        <CopyableId value={item.sku} label="SKU" className="block truncate text-[12px] text-[var(--color-text-muted)]" />
       </div>
       <div className="shrink-0 text-right">
         <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">
           {formatCurrency(item.revenue)}
         </p>
-        <p className="text-[10px] text-[var(--color-text-muted)]">
+        <p className="text-[11px] text-[var(--color-text-muted)]">
           {item.units.toLocaleString('en-US')} {item.unit}
         </p>
       </div>

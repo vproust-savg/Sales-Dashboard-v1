@@ -57,7 +57,7 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
         width="100%"
         height={CHART_HEIGHT}
         viewBox={`0 0 400 ${CHART_HEIGHT}`}
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMinYMin meet"
         className="overflow-visible"
       >
         {/* Dashed grid lines */}
@@ -109,6 +109,8 @@ export function YoYBarChart({ data }: YoYBarChartProps) {
               style={{ cursor: 'pointer' }}
               opacity={isDimmed ? 0.4 : 1}
             >
+              {/* WHY: Invisible hit area covers entire month column so hover applies to full month, not individual bars */}
+              <rect x={groupX} y={0} width={groupWidth} height={BAR_AREA_HEIGHT + X_LABEL_HEIGHT} fill={isHovered ? 'var(--color-gold-hover)' : 'transparent'} />
               {/* WHY motion.rect: bars grow from bottom with staggered 30ms delay per spec 21.1 */}
               {/* Previous year bar */}
               <motion.rect

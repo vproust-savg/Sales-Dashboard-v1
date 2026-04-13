@@ -24,18 +24,18 @@ export function ItemsProductRow({ item, depth }: ItemsProductRowProps) {
       style={{ paddingLeft, paddingRight: 'var(--spacing-3xl)' }}
     >
       <div role="gridcell" className="flex-1 min-w-0">
-        <span className="block text-[13px] text-[var(--color-text-primary)] truncate">
+        <span className="block text-[14px] text-[var(--color-text-primary)] truncate">
           {item.name}
         </span>
-        <CopyableId value={item.sku} label="SKU" className="block text-[11px] text-[var(--color-text-muted)]" />
+        <CopyableId value={item.sku} label="SKU" className="block text-[12px] text-[var(--color-text-muted)]" />
       </div>
-      <div role="gridcell" className="w-24 text-right text-[13px] tabular-nums text-[var(--color-text-primary)]">
+      <div role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-primary)]">
         {formatCurrency(item.value)}
       </div>
-      <div role="gridcell" className="w-20 text-right text-[13px] tabular-nums text-[var(--color-text-muted)]">
+      <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
         {formatPercent(item.marginPercent)}
       </div>
-      <div role="gridcell" className="w-24 text-right text-[13px] tabular-nums text-[var(--color-text-muted)]">
+      <div role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
         {formatCurrency(item.marginAmount)}
       </div>
     </div>

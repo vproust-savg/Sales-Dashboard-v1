@@ -22,9 +22,9 @@ interface ItemsTableProps {
 
 const COLUMNS: { label: string; field: ItemSortField | null; width: string }[] = [
   { label: 'Product', field: 'name', width: 'flex-1' },
-  { label: 'Value', field: 'value', width: 'w-24' },
-  { label: 'Margin %', field: 'marginPercent', width: 'w-20' },
-  { label: 'Margin $', field: 'marginAmount', width: 'w-24' },
+  { label: 'Value', field: 'value', width: 'w-28' },
+  { label: 'Margin %', field: 'marginPercent', width: 'w-24' },
+  { label: 'Margin $', field: 'marginAmount', width: 'w-28' },
 ];
 
 function SortArrow({ field, sortField, sortDirection }: { field: ItemSortField; sortField: ItemSortField; sortDirection: string }) {
@@ -34,8 +34,9 @@ function SortArrow({ field, sortField, sortDirection }: { field: ItemSortField; 
 
 export function ItemsTable({ groups, flatItems, isGrouped, sortField, sortDirection, expandedGroups, onToggleSort, onToggleGroup }: ItemsTableProps) {
   return (
+    /* WHY max-w: prevent product name from stretching too far from numbers on wide screens */
     <div className="overflow-x-auto">
-      <div className="min-w-[600px]" role={isGrouped ? 'treegrid' : 'table'} aria-label="Items explorer">
+      <div className="min-w-[600px] max-w-[1100px]" role={isGrouped ? 'treegrid' : 'table'} aria-label="Items explorer">
         {/* Column headers */}
         <div className="flex items-center border-b border-[var(--color-gold-subtle)] px-[var(--spacing-3xl)] py-[var(--spacing-lg)]" role="row">
           {COLUMNS.map(col => (

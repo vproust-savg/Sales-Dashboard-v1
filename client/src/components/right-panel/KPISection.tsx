@@ -51,12 +51,13 @@ export function KPISection({ kpis, monthlyRevenue, sparklines: _sparklines, acti
 
   return (
     <div className="flex flex-col gap-[var(--spacing-sm)]">
-    <div className="grid grid-cols-2 gap-[var(--spacing-base)] max-lg:grid-cols-1">
+    {/* WHY 3fr/2fr: hero chart needs more breathing room; 6 small cards are compact data-dense */}
+    <div className="grid grid-cols-[3fr_2fr] gap-[var(--spacing-base)] max-lg:grid-cols-1">
       {/* Hero card — stretches to match KPI grid height via CSS Grid default stretch */}
       <HeroRevenueCard kpis={kpis} monthlyRevenue={monthlyRevenue} activePeriod={activePeriod} showDetails={showDetails} />
 
       {/* 2x3 KPI grid — stretches to match hero height */}
-      <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-md)]">
+      <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-sm)]">
         {/* 1. Orders */}
         <KPICard
           label="Orders"
