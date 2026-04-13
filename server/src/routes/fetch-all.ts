@@ -11,6 +11,7 @@ import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
+import { filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL, buildFilterQualifier } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
@@ -97,11 +98,13 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
       () => fetchCustomers(priorityClient),
     );
 
+    // WHY: Zone/customerType are CUSTOMERS-level. Post-fetch filter after join.
+    const filteredOrders = filterOrdersByCustomerCriteria(orders, customers.data, { zone, customerType });
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
-    const entities = groupByDimension(groupBy as Dimension, orders, customers.data, periodMonths);
-    const aggregate = aggregateOrders(orders, prevOrders.data, period);
+    const entities = groupByDimension(groupBy as Dimension, filteredOrders, customers.data, periodMonths);
+    const aggregate = aggregateOrders(filteredOrders, prevOrders.data, period);
 
-    const years = new Set(orders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
+    const years = new Set(filteredOrders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
     prevOrders.data.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
 
     const payload: DashboardPayload = {
@@ -127,11 +130,8 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
     res.end();
   }
 });
-
-async function fullFetch(
-  startDate: string, endDate: string, extraFilter: string | undefined,
-  sendEvent: (event: string, data: unknown) => void,
-): Promise<RawOrder[]> {
+async function fullFetch(startDate: string, endDate: string, extraFilter: string | undefined,
+  sendEvent: (event: string, data: unknown) => void): Promise<RawOrder[]> {
   sendEvent('progress', { phase: 'fetching', rowsFetched: 0, estimatedTotal: 0 });
   return fetchOrders(priorityClient, startDate, endDate, true, extraFilter);
 }
@@ -177,9 +177,7 @@ async function tryIncrementalRefresh(
   return merged;
 }
 
-// WHY: Zone and customerType filter at CUSTOMERS level, but we query ORDERS.
-// For agentName, we can filter directly on ORDERS.AGENTNAME.
-// Zone/customerType handled post-fetch by groupByDimension filtering.
+// WHY: agentName is OData-filterable on ORDERS. Zone/customerType handled by filterOrdersByCustomerCriteria().
 function buildODataFilter(agentName?: string): string | undefined {
   if (!agentName) return undefined;
   const names = agentName.split(',').map(n => n.trim()).filter(Boolean);
