@@ -13,7 +13,7 @@ import { groupByDimension } from '../services/dimension-grouper.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
-import type { RawOrder } from '../services/priority-queries.js';
+import type { RawOrder, RawCustomer } from '../services/priority-queries.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 import type { ApiResponse } from '@shared/types/api-responses';
 
@@ -48,9 +48,9 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
       if (rawCached) {
         const rawEnvelope = typeof rawCached === 'string' ? JSON.parse(rawCached) : rawCached;
         const allOrders: RawOrder[] = (rawEnvelope as { data: RawOrder[] }).data;
-        const filteredOrders = allOrders.filter(o => entitySet.has(o.CUSTNAME));
         const customersResult = await cachedFetch(cacheKey('customers', 'all'), getTTL('customers'),
           () => fetchCustomers(priorityClient));
+        const filteredOrders = filterOrdersByEntityIds(allOrders, entitySet, groupBy as Dimension, customersResult.data);
         const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
         const entities = groupByDimension(groupBy as Dimension, filteredOrders, customersResult.data, periodMonths);
         const aggregate = aggregateOrders(filteredOrders, [], period);
@@ -126,3 +126,46 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     next(err);
   }
 });
+
+/**
+ * Filter orders by entity IDs for any dimension.
+ * WHY: The consolidated view needs to filter cached raw orders to the selected
+ * entity subset. Each dimension uses different fields for entity identity.
+ */
+export function filterOrdersByEntityIds(
+  orders: RawOrder[],
+  entityIds: Set<string>,
+  dimension: Dimension,
+  customers: RawCustomer[],
+): RawOrder[] {
+  switch (dimension) {
+    case 'customer':
+      return orders.filter(o => entityIds.has(o.CUSTNAME));
+    case 'zone': {
+      const custInZones = new Set(
+        customers.filter(c => entityIds.has(c.ZONECODE)).map(c => c.CUSTNAME),
+      );
+      return orders.filter(o => custInZones.has(o.CUSTNAME));
+    }
+    case 'vendor':
+      return orders.filter(o =>
+        (o.ORDERITEMS_SUBFORM ?? []).some(i => entityIds.has(i.Y_1159_5_ESH ?? '')),
+      );
+    case 'brand':
+      return orders.filter(o =>
+        (o.ORDERITEMS_SUBFORM ?? []).some(i => entityIds.has(i.Y_9952_5_ESH ?? '')),
+      );
+    case 'product_type':
+      return orders.filter(o =>
+        (o.ORDERITEMS_SUBFORM ?? []).some(i =>
+          entityIds.has(i.Y_3020_5_ESH ?? i.Y_3021_5_ESH ?? ''),
+        ),
+      );
+    case 'product':
+      return orders.filter(o =>
+        (o.ORDERITEMS_SUBFORM ?? []).some(i => entityIds.has(i.PARTNAME)),
+      );
+    default:
+      return orders;
+  }
+}
