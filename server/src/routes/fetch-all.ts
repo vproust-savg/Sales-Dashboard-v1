@@ -12,7 +12,7 @@ import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
 import { cachedFetch } from '../cache/cache-layer.js';
-import { cacheKey, getTTL } from '../cache/cache-keys.js';
+import { cacheKey, getTTL, buildFilterQualifier } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 
@@ -111,7 +111,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
     };
 
     // Cache aggregated results
-    const fullKey = cacheKey('entities_full', period, groupBy);
+    const fullKey = cacheKey('entities_full', period, buildFilterQualifier(groupBy, filterHash));
     const fullEnvelope = { data: { entities, yearsAvailable: payload.yearsAvailable }, cachedAt: new Date().toISOString() };
     await redis.set(fullKey, JSON.stringify(fullEnvelope), { ex: getTTL('entities_full') });
 
