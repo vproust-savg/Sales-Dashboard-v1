@@ -4,7 +4,7 @@
 // EXPORTS: useDashboardState
 
 import { useCallback, useMemo } from 'react';
-import { useEntities, useDashboardDetail } from './useDashboardData';
+import { useEntities, useDashboardDetail, useConsolidatedDashboard } from './useDashboardData';
 import { useContacts } from './useContacts';
 import { useDimension } from './useDimension';
 import { usePeriod } from './usePeriod';
@@ -16,7 +16,6 @@ import { useFetchAll } from './useFetchAll';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
-import { aggregateForConsolidated } from '../utils/aggregation';
 import type { FilterField, FilterOperator } from '../utils/filter-types';
 import type { Dimension } from '@shared/types/dashboard';
 
@@ -68,6 +67,15 @@ export function useDashboardState() {
   const dashboard = detailQuery.data?.data ?? null;
   const meta = detailQuery.data?.meta ?? entitiesQuery.data?.meta ?? null;
 
+  // --- Stage 3: Consolidated data for multi-select (on-demand) ---
+  const consolidatedQuery = useConsolidatedDashboard({
+    entityIds: selectedIds,
+    groupBy: activeDimension,
+    period: activePeriod,
+    enabled: isConsolidated && selectedIds.length > 0,
+  });
+  const consolidatedDashboard = consolidatedQuery.data?.data ?? null;
+
   // WHY: Contacts only load for the customer dimension when the Contacts tab is active.
   const contactsQuery = useContacts(activeEntityId, activeDimension === 'customer');
 
@@ -85,15 +93,14 @@ export function useDashboardState() {
     return entities;
   }, [entitiesData, searchTerm, conditions, sortField, sortDirection]);
 
-  // --- Consolidated view aggregation (spec Section 10.5) ---
+  // --- Consolidated view uses server-aggregated multi-entity data ---
   const finalDashboard = useMemo(() => {
-    if (!dashboard) return null;
-    if (isConsolidated && selectedIds.length > 0) {
-      const aggregated = aggregateForConsolidated(dashboard, selectedIds);
-      return { ...dashboard, ...aggregated, entities: processedEntities };
+    if (isConsolidated && consolidatedDashboard) {
+      return { ...consolidatedDashboard, entities: processedEntities };
     }
+    if (!dashboard) return null;
     return { ...dashboard, entities: processedEntities };
-  }, [dashboard, isConsolidated, selectedIds, processedEntities]);
+  }, [dashboard, consolidatedDashboard, isConsolidated, processedEntities]);
 
   // --- Loading stage for progress modal ---
   const loadingStage = entitiesQuery.isLoading
@@ -101,6 +108,7 @@ export function useDashboardState() {
     : detailQuery.isLoading
       ? 'Loading dashboard data...'
       : null;
+  const isConsolidatedLoading = consolidatedQuery.isLoading && isConsolidated;
 
   // --- Return flat props object for DashboardLayout ---
   return {
@@ -111,6 +119,7 @@ export function useDashboardState() {
     contacts: contactsQuery.data ?? [],
     isLoading: entitiesQuery.isLoading,
     isDetailLoading: detailQuery.isLoading,
+    isConsolidatedLoading,
     loadingStage,
     error: entitiesQuery.error?.message ?? detailQuery.error?.message ?? fetchAllError ?? null,
     meta,
