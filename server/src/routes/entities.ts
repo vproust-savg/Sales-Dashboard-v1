@@ -26,23 +26,25 @@ entitiesRouter.get('/entities', validateQuery(querySchema), async (_req, res, ne
   try {
     const { groupBy, period } = res.locals.query as z.infer<typeof querySchema>;
 
-    // WHY: Check for enriched entities first (populated by fetch-all endpoint).
-    // If found, return entities with real metrics instead of null stubs.
-    const fullKey = cacheKey('entities_full', period, groupBy);
-    const fullResult = await redis.get(fullKey);
-    if (fullResult !== null) {
-      const envelope = typeof fullResult === 'string' ? JSON.parse(fullResult) : fullResult;
-      const fullResponse: ApiResponse<{ entities: EntityListItem[]; yearsAvailable: string[] }> = {
-        data: (envelope as { data: { entities: EntityListItem[]; yearsAvailable: string[] } }).data,
-        meta: {
-          cached: true,
-          cachedAt: (envelope as { cachedAt: string }).cachedAt,
-          period,
-          dimension: groupBy,
-          entityCount: (envelope as { data: { entities: EntityListItem[] } }).data.entities.length,
-        },
-      };
-      return res.json(fullResponse);
+    // WHY: entities_full (from fetch-all) only contains entities with orders.
+    // Customer dimension must show ALL customers, so skip enriched cache for it.
+    if (groupBy !== 'customer') {
+      const fullKey = cacheKey('entities_full', period, groupBy);
+      const fullResult = await redis.get(fullKey);
+      if (fullResult !== null) {
+        const envelope = typeof fullResult === 'string' ? JSON.parse(fullResult) : fullResult;
+        const fullResponse: ApiResponse<{ entities: EntityListItem[]; yearsAvailable: string[] }> = {
+          data: (envelope as { data: { entities: EntityListItem[]; yearsAvailable: string[] } }).data,
+          meta: {
+            cached: true,
+            cachedAt: (envelope as { cachedAt: string }).cachedAt,
+            period,
+            dimension: groupBy,
+            entityCount: (envelope as { data: { entities: EntityListItem[] } }).data.entities.length,
+          },
+        };
+        return res.json(fullResponse);
+      }
     }
 
     const summaryKey = cacheKey('entities_summary', period, groupBy);

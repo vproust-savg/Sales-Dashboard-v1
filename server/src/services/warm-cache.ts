@@ -5,14 +5,12 @@
 
 import { priorityClient } from './priority-instance.js';
 import { fetchOrders, fetchCustomers } from './priority-queries.js';
-import { groupByDimension } from './dimension-grouper.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
-import type { EntityListItem } from '@shared/types/dashboard';
 
 /**
- * Pre-fetch YTD orders + customers, group by customer dimension, and cache the entity summaries.
+ * Pre-fetch YTD orders + customers and cache them for fast first load.
  * Runs in the background after server starts — does not block request handling.
  */
 export async function warmEntityCache(): Promise<void> {
@@ -39,22 +37,14 @@ export async function warmEntityCache(): Promise<void> {
       () => fetchCustomers(priorityClient)),
   ]);
 
-  const periodMonths = now.getUTCMonth() + 1;
-  const entities: EntityListItem[] = groupByDimension('customer', ordersResult.data, customersResult.data, periodMonths);
-
-  // Derive years available from order dates
-  const years = new Set(ordersResult.data.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
-  const yearsAvailable = [...years].sort().reverse();
-
-  // WHY: Cache the pre-computed entity summary so the /entities endpoint returns instantly.
-  const summaryKey = cacheKey('entities_summary', 'ytd', 'customer');
-  await cachedFetch(summaryKey, getTTL('entities_summary'),
-    () => Promise.resolve({ entities, yearsAvailable }));
-
-  const ordersCacheStatus = ordersResult.cached ? 'cache hit' : 'fetched fresh';
+  // WHY: Only warm the customers cache — the /entities endpoint builds stubs from this.
+  // Do NOT cache entities_summary for customer dimension here, because groupByDimension
+  // only includes customers with orders. The /entities endpoint fallback correctly
+  // builds stubs from ALL customers via fetchCustomers + buildCustomerStubs.
   const customersCacheStatus = customersResult.cached ? 'cache hit' : 'fetched fresh';
+  const ordersCacheStatus = ordersResult.cached ? 'cache hit' : 'fetched fresh';
   console.log(
-    `[warm-cache] Done. ${entities.length} customer entities cached.`
+    `[warm-cache] Done. ${customersResult.data.length} customers cached.`
     + ` Orders: ${ordersCacheStatus}. Customers: ${customersCacheStatus}.`,
   );
 }
