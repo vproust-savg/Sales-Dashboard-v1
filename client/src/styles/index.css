@@ -123,3 +123,23 @@ html, body, #root {
   white-space: nowrap;
   border-width: 0;
 }
+
+/* WHY: Responsive spacing overrides for 13" vs 27" screens */
+@media (max-width: 1279px) {
+  :root {
+    --spacing-card-px: var(--spacing-md);
+    --spacing-card-gap: var(--spacing-md);
+  }
+}
+@media (min-width: 1280px) and (max-width: 1599px) {
+  :root {
+    --spacing-card-px: var(--spacing-lg);
+    --spacing-card-gap: var(--spacing-lg);
+  }
+}
+@media (min-width: 1600px) {
+  :root {
+    --spacing-card-px: var(--spacing-xl);
+    --spacing-card-gap: var(--spacing-lg);
+  }
+}
