@@ -43,7 +43,7 @@ export function FilterConditionRow({ condition, availableFields, onChange, onRem
             // WHY: Reset operator when field changes — different types have different operators
             onChange({ ...condition, field: newField, operator: '', value: '' });
           }}
-          className="flex-1 rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[13px] font-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-gold-primary)]"
+          className="flex-1 rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[13px] font-normal text-[var(--color-text-primary)] focus:border-[var(--color-gold-primary)]"
           aria-label="Filter field"
         >
           <option value="">Select field...</option>
@@ -67,7 +67,7 @@ export function FilterConditionRow({ condition, availableFields, onChange, onRem
         <select
           value={condition.operator}
           onChange={(e) => onChange({ ...condition, operator: e.target.value as FilterOperator })}
-          className="w-[90px] shrink-0 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-sm)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-gold-primary)]"
+          className="w-[90px] shrink-0 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-sm)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] focus:border-[var(--color-gold-primary)]"
           aria-label="Filter operator"
         >
           <option value="">Op...</option>
@@ -83,7 +83,7 @@ export function FilterConditionRow({ condition, availableFields, onChange, onRem
             value={condition.value}
             onChange={(e) => onChange({ ...condition, value: e.target.value })}
             placeholder="Value..."
-            className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-gold-primary)]"
+            className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-gold-primary)]"
             aria-label="Filter value"
           />
         )}

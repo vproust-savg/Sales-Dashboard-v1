@@ -29,7 +29,7 @@ export function CopyableId({ value, label, className = '' }: CopyableIdProps) {
     <button
       type="button"
       onClick={handleCopy}
-      className={`group/copy inline-flex items-center gap-1 cursor-pointer rounded-[var(--radius-sm)] px-1 -mx-1 transition-all duration-150 hover:text-[var(--color-gold-primary)] hover:bg-[var(--color-gold-hover)] ${className}`}
+      className={`group/copy inline-flex cursor-pointer items-center gap-1 rounded-[var(--radius-sm)] px-1 -mx-1 transition-[background-color,color] duration-150 hover:bg-[var(--color-gold-hover)] hover:text-[var(--color-gold-primary)] ${className}`}
       title={`Click to copy: ${value}`}
     >
       {value}

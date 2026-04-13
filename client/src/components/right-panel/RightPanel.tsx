@@ -8,6 +8,7 @@ import type {
   TopSellerItem, SparklineData, OrderRow, FlatItem, Contact, Period,
 } from '@shared/types/dashboard';
 import type { LayoutPreset } from '../../hooks/useDashboardLayout';
+import type { DetailTab } from './detail-tab-types';
 import { DetailHeader } from './DetailHeader';
 import { KPISection } from './KPISection';
 import { ChartsRow } from './ChartsRow';
@@ -27,7 +28,9 @@ interface RightPanelProps {
   contacts: Contact[];
   yearsAvailable: string[];
   activePeriod: Period;
+  activeTab: DetailTab;
   onPeriodChange: (period: Period) => void;
+  onTabChange: (tab: DetailTab) => void;
   onExport: () => void;
   heroKpiGridTemplate: string;
   heroKpiRatio: [number, number];
@@ -41,8 +44,8 @@ interface RightPanelProps {
 
 export function RightPanel({
   entity, kpis, monthlyRevenue, productMixes, topSellers,
-  sparklines, orders, items, contacts, yearsAvailable, activePeriod,
-  onPeriodChange, onExport, heroKpiGridTemplate, heroKpiRatio, kpiChartsRatio,
+  sparklines, orders, items, contacts, yearsAvailable, activePeriod, activeTab,
+  onPeriodChange, onTabChange, onExport, heroKpiGridTemplate, heroKpiRatio, kpiChartsRatio,
   onHeroKpiRatioChange, onKpiChartsRatioChange,
   activePreset, onPresetChange, onResetLayout,
 }: RightPanelProps) {
@@ -62,19 +65,19 @@ export function RightPanel({
         activePreset={activePreset} onPresetChange={onPresetChange} onResetLayout={onResetLayout}
       />
       <div ref={vertRef} className="flex flex-1 flex-col gap-0 min-h-0">
-        <div style={{ flex: `${kpiChartsRatio[0]} 1 0%` }} className="min-h-[200px]">
+        <section style={{ flex: `${kpiChartsRatio[0]} 1 0%` }} className="min-h-[200px] overflow-hidden" aria-label="KPI summary">
           <KPISection
             kpis={kpis} monthlyRevenue={monthlyRevenue} sparklines={sparklines}
             activePeriod={activePeriod} heroKpiGridTemplate={heroKpiGridTemplate}
             heroKpiRatio={heroKpiRatio} onHeroKpiRatioChange={onHeroKpiRatioChange}
           />
-        </div>
+        </section>
         <ResizeDivider direction="vertical" isDragging={vertDragging} onMouseDown={vertMouseDown} onTouchStart={vertMouseDown} />
-        <div style={{ flex: `${kpiChartsRatio[1]} 1 0%` }} className="min-h-[200px]">
+        <section style={{ flex: `${kpiChartsRatio[1]} 1 0%` }} className="min-h-[200px] overflow-hidden" aria-label="Charts">
           <ChartsRow productMixes={productMixes} topSellers={topSellers} />
-        </div>
+        </section>
       </div>
-      <TabsSection orders={orders} items={items} contacts={contacts} />
+      <TabsSection activeTab={activeTab} onTabChange={onTabChange} orders={orders} items={items} contacts={contacts} />
     </>
   );
 }

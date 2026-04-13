@@ -3,28 +3,28 @@
 // USED BY: RightPanel
 // EXPORTS: TabsSection
 
-import { useState, useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 import type { OrderRow, FlatItem, Contact } from '@shared/types/dashboard';
 import { OrdersTab } from './OrdersTab';
 import { ItemsExplorer } from './ItemsExplorer';
 import { ContactsTable } from './ContactsTable';
+import type { DetailTab } from './detail-tab-types';
 
 interface TabsSectionProps {
+  activeTab: DetailTab;
+  onTabChange: (tab: DetailTab) => void;
   orders: OrderRow[];
   items: FlatItem[];
   contacts: Contact[];
 }
 
-type TabKey = 'orders' | 'items' | 'contacts';
-
 interface TabDef {
-  key: TabKey;
+  key: DetailTab;
   label: string;
   count: number;
 }
 
-export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>('orders');
+export function TabsSection({ activeTab, onTabChange, orders, items, contacts }: TabsSectionProps) {
   const tabListRef = useRef<HTMLDivElement>(null);
 
   const tabs: TabDef[] = [
@@ -48,14 +48,13 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
       }
 
       e.preventDefault();
-      const nextKey = tabs[nextIndex].key;
-      setActiveTab(nextKey);
+      onTabChange(tabs[nextIndex].key);
 
       /* Focus the newly active tab button */
       const buttons = tabListRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
       buttons?.[nextIndex]?.focus();
     },
-    [activeTab, tabs],
+    [activeTab, onTabChange, tabs],
   );
 
   return (
@@ -66,7 +65,7 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
         role="tablist"
         aria-label="Detail tabs"
         onKeyDown={handleKeyDown}
-        className="flex gap-6 border-b border-[var(--color-gold-subtle)] px-[var(--spacing-3xl)]"
+        className="sticky top-0 z-10 flex gap-6 border-b border-[var(--color-gold-subtle)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)]"
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
@@ -79,8 +78,8 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
               aria-selected={isActive}
               aria-controls={`panel-${tab.key}`}
               tabIndex={isActive ? 0 : -1}
-              onClick={() => setActiveTab(tab.key)}
-              className={`relative flex items-center gap-1.5 py-3 text-[15px] transition-colors duration-200 outline-none ${
+              onClick={() => onTabChange(tab.key)}
+              className={`relative flex items-center gap-1.5 py-3 text-[15px] transition-colors duration-200 ${
                 isActive
                   ? 'font-bold text-[var(--color-text-primary)]'
                   : 'font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'

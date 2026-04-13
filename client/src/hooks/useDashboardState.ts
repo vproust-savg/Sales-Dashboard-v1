@@ -3,37 +3,47 @@
 // USED BY: client/src/App.tsx
 // EXPORTS: useDashboardState
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEntities, useDashboardDetail, useConsolidatedDashboard } from './useDashboardData';
 import { useContacts } from './useContacts';
-import { useDimension } from './useDimension';
-import { usePeriod } from './usePeriod';
 import { useEntitySelection } from './useEntitySelection';
-import { useSearch } from './useSearch';
 import { useFilters } from './useFilters';
-import { useSort } from './useSort';
 import { useFetchAll } from './useFetchAll';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
 import type { FilterField, FilterOperator } from '../utils/filter-types';
 import type { Dimension } from '@shared/types/dashboard';
+import { useDashboardShellState } from './useDashboardShellState';
 
 export function useDashboardState() {
   // --- Individual state slices ---
-  const { activeDimension, switchDimension: rawSwitchDimension } = useDimension();
-  const { activePeriod, switchPeriod } = usePeriod();
+  const {
+    activeDimension,
+    activePeriod,
+    activeEntityId: shellActiveEntityId,
+    activeTab,
+    searchTerm,
+    sortField,
+    sortDirection,
+    switchDimension: setShellDimension,
+    switchPeriod,
+    setActiveEntityId,
+    setActiveTab,
+    setSearchTerm,
+    resetSearch,
+    setSort,
+    resetSort,
+  } = useDashboardShellState();
   const {
     activeEntityId, selectedIds, isConsolidated,
-    selectEntity, toggleCheckbox, viewConsolidated, clearSelection, resetSelection,
-  } = useEntitySelection();
-  const { searchTerm, setSearchTerm, resetSearch } = useSearch();
+    selectEntity, toggleCheckbox, viewConsolidated, clearSelection,
+  } = useEntitySelection({ activeEntityId: shellActiveEntityId, onActiveEntityChange: setActiveEntityId });
   const {
     conditions, isOpen: filterOpen, activeCount: filterCount,
     addCondition, updateCondition, removeCondition,
     clearAll: clearFilters, togglePanel: toggleFilterPanel,
   } = useFilters();
-  const { sortField, sortDirection, setSort, resetSort } = useSort();
   const {
     loadState: fetchAllLoadState, progress: fetchAllProgress,
     allDashboard, error: fetchAllError,
@@ -43,13 +53,22 @@ export function useDashboardState() {
 
   // --- Spec Section 13.1: Dimension switch resets ALL other state ---
   const switchDimension = useCallback((dim: Dimension) => {
-    rawSwitchDimension(dim);
-    resetSelection();
+    setShellDimension(dim);
+    clearSelection();
     resetSearch();
     clearFilters();
     resetSort();
     abortFetch();
-  }, [rawSwitchDimension, resetSelection, resetSearch, clearFilters, resetSort, abortFetch]);
+  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, abortFetch]);
+
+  const prevDimensionRef = useRef(activeDimension);
+  useEffect(() => {
+    if (prevDimensionRef.current === activeDimension) return;
+    prevDimensionRef.current = activeDimension;
+    clearSelection();
+    clearFilters();
+    abortFetch();
+  }, [activeDimension, clearSelection, clearFilters, abortFetch]);
 
   // --- Stage 1: Lightweight entity list (fast — no orders needed) ---
   const entitiesQuery = useEntities({
@@ -129,6 +148,7 @@ export function useDashboardState() {
     activeDimension,
     activePeriod,
     activeEntityId,
+    activeTab,
     selectedEntityIds: selectedIds,
     searchTerm,
     filterConditions: conditions,
@@ -145,6 +165,7 @@ export function useDashboardState() {
     switchDimension,
     switchPeriod,
     selectEntity,
+    setActiveTab,
     toggleCheckbox,
     viewConsolidated,
     clearSelection,

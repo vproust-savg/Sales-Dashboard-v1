@@ -51,13 +51,14 @@ export function SearchBox({ value, onChange, placeholder }: SearchBoxProps) {
       </svg>
 
       <input
-        type="text"
-        role="searchbox"
+        type="search"
+        name="entity-search"
+        autoComplete="off"
         aria-label={placeholder}
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-faint)]"
+        className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)]"
       />
     </div>
   );

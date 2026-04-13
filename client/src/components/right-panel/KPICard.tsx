@@ -3,12 +3,9 @@
 // USED BY: KPISection.tsx
 // EXPORTS: KPICard
 
-import { type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { ExpandIcon } from '../shared/ExpandIcon';
-import { useHoverPeek } from '../../hooks/useHoverPeek';
-import { HoverPeek } from '../shared/HoverPeek';
 
 export interface KPISubItem {
   label: string;
@@ -33,8 +30,6 @@ interface KPICardProps {
   /** WHY statusDot: Last Order card shows activity status dot per spec 10.3 */
   statusDot?: { color: string; label: string };
   onExpand?: () => void;
-  /** WHY: Peek content passed from parent — avoids duplicating card JSX inside KPICard */
-  peekContent?: ReactNode;
   /** WHY: Navigation ref/callbacks from useCardNavigation for arrow key navigation */
   cardRef?: (el: HTMLDivElement | null) => void;
   onCardFocus?: () => void;
@@ -44,24 +39,25 @@ interface KPICardProps {
 export function KPICard({
   label, periodLabel, value, formatter, prevYearValue, prevYearFullValue,
   prevYearLabel, prevYearFullLabel, changePercent, subItems, expanded, statusDot,
-  onExpand, peekContent, cardRef, onCardFocus, onCardBlur,
+  onExpand, cardRef, onCardFocus, onCardBlur,
 }: KPICardProps) {
   const hasSubItems = subItems && subItems.length > 0;
-  const peek = useHoverPeek();
 
   return (
-    <>
     <div
-      ref={(el) => { peek.triggerRef.current = el; cardRef?.(el); }}
-      onMouseEnter={peek.onMouseEnter}
-      onMouseLeave={peek.onMouseLeave}
+      ref={cardRef}
       onFocus={onCardFocus}
       onBlur={onCardBlur}
-      className="group relative cursor-pointer flex flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-lg)] py-[var(--spacing-sm)] shadow-[var(--shadow-card)] transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
-      onClick={() => { peek.onMouseLeave(); onExpand?.(); }}
+      className="relative flex cursor-pointer flex-col justify-between rounded-[var(--radius-xl)] bg-[var(--color-bg-card)] px-[var(--spacing-lg)] py-[var(--spacing-sm)] shadow-[var(--shadow-card)] transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      onClick={onExpand}
       role="gridcell"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && onExpand) {
+          e.preventDefault();
+          onExpand();
+        }
+      }}
       aria-label={`Expand ${label} details`}
     >
       <ExpandIcon />
@@ -69,7 +65,7 @@ export function KPICard({
       <div className="flex items-start justify-between">
         <div className="flex flex-col min-w-0">
           <span className="text-[12px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
-            {label}{periodLabel && <span className="opacity-0 transition-opacity duration-150 group-hover:opacity-100"> {periodLabel}</span>}
+            {label}{periodLabel && ` ${periodLabel}`}
           </span>
           <span className="mt-[var(--spacing-2xs)] text-[22px] font-bold text-[var(--color-text-primary)]">
             <AnimatedNumber value={value} formatter={formatter} />
@@ -79,10 +75,7 @@ export function KPICard({
               className="text-[10px] font-medium"
               style={{ color: changePercent >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}
             >
-              {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%
-              <span className="opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                {' '}vs same period last year
-              </span>
+              {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}% vs same period last year
             </span>
           )}
           {statusDot && (
@@ -155,11 +148,5 @@ export function KPICard({
         </AnimatePresence>
       )}
     </div>
-    {peekContent && (
-      <HoverPeek isVisible={peek.isVisible} position={peek.position} onMouseEnter={peek.onPeekMouseEnter} onMouseLeave={peek.onPeekMouseLeave}>
-        {peekContent}
-      </HoverPeek>
-    )}
-    </>
   );
 }

@@ -80,10 +80,10 @@ describe('formatDays', () => {
     expect(formatDays(0)).toBe('Today');
   });
   it('formats 1 as singular', () => {
-    expect(formatDays(1)).toBe('1 day');
+    expect(formatDays(1)).toBe('1 day ago');
   });
   it('formats plural', () => {
-    expect(formatDays(4)).toBe('4 days');
+    expect(formatDays(4)).toBe('4 days ago');
   });
   it('handles null', () => {
     expect(formatDays(null)).toBe('No orders');

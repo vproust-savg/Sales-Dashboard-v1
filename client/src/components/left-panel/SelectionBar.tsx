@@ -22,6 +22,7 @@ export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, on
           exit={{ y: 57, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           className="
+            sticky bottom-0 z-10
             flex h-[57px] items-center justify-between
             border-t border-[var(--color-gold-muted)]
             bg-[var(--color-bg-page)] px-[var(--spacing-2xl)] py-[var(--spacing-base)]

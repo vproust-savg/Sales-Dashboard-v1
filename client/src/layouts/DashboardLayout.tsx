@@ -23,11 +23,12 @@ export type { DashboardLayoutProps };
 export function DashboardLayout(props: DashboardLayoutProps) {
   const {
     dashboard, entities, allEntities, contacts, isLoading, isDetailLoading, loadingStage, error,
-    activeDimension, activePeriod, activeEntityId, selectedEntityIds, yearsAvailable,
+    activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds, yearsAvailable,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection, dataLoaded, fetchAllLoadState, fetchAllProgress, allDashboard,
     startFetchAll,
     switchDimension, switchPeriod, selectEntity, toggleCheckbox,
+    setActiveTab,
     viewConsolidated, clearSelection, setSearchTerm,
     addCondition, updateCondition, removeCondition, clearFilters, toggleFilterPanel,
     setSort,
@@ -63,7 +64,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     return (
       <>
         <LoadingModal stage={loadingStage} />
-        <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)]" role="application" aria-label="Sales Dashboard">
+        <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)]">
           <div className="w-[280px] shrink-0"><Skeleton variant="left-panel" /></div>
           <div className="min-w-0 flex-1"><Skeleton variant="right-panel" /></div>
         </div>
@@ -73,7 +74,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
 
   if (error && entities.length === 0) {
     return (
-      <div className="mx-auto flex h-[calc(100vh-32px)] items-center justify-center px-[var(--spacing-3xl)] py-[var(--spacing-2xl)]" role="application" aria-label="Sales Dashboard">
+      <div className="mx-auto flex h-[calc(100vh-32px)] items-center justify-center px-[var(--spacing-3xl)] py-[var(--spacing-2xl)]">
         <div className="rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-4xl)] py-[var(--spacing-3xl)] text-center shadow-[var(--shadow-card)]">
           <p className="text-[16px] font-semibold text-[var(--color-red)]">Failed to load dashboard</p>
           <p className="mt-[var(--spacing-md)] text-[13px] text-[var(--color-text-muted)]">{error}</p>
@@ -99,12 +100,14 @@ export function DashboardLayout(props: DashboardLayoutProps) {
       <LoadingModal stage={isDetailLoading && !isAllActive ? loadingStage : null} />
       <FetchAllDialog isOpen={dialogOpen} dimension={activeDimension} entities={allEntities} isRefresh={dialogRefresh} onConfirm={handleDialogConfirm} onCancel={() => setDialogOpen(false)} />
 
-      <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto" role="application" aria-label="Sales Dashboard">
+      <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto">
         {layout.panelCollapsed ? (
-          <CollapsedPanel activeDimension={activeDimension} onExpand={togglePanel} />
+          <aside className="w-auto shrink-0" aria-label="Entity list and filters">
+            <CollapsedPanel activeDimension={activeDimension} onExpand={togglePanel} />
+          </aside>
         ) : (
-          <div className="group/left relative flex w-[280px] shrink-0 flex-col gap-[var(--spacing-base)] max-lg:w-full">
-            <button type="button" onClick={togglePanel} className="absolute right-2 top-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-faint)] opacity-0 transition-all hover:bg-[var(--color-gold-subtle)] hover:text-[var(--color-text-muted)] group-hover/left:opacity-100" aria-label="Collapse panel" title="Collapse panel (or press [)">
+          <aside className="group/left relative flex w-[280px] shrink-0 flex-col gap-[var(--spacing-base)] max-lg:w-full" aria-label="Entity list and filters">
+            <button type="button" onClick={togglePanel} className="absolute right-2 top-2 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-faint)] opacity-0 transition-[opacity,background-color,color] hover:bg-[var(--color-gold-subtle)] hover:text-[var(--color-text-muted)] group-hover/left:opacity-100" aria-label="Collapse panel" title="Collapse panel (or press [)">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8 2L3 6l5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
             <LeftPanel
@@ -119,10 +122,10 @@ export function DashboardLayout(props: DashboardLayoutProps) {
               onDimensionChange={switchDimension} onEntitySelect={selectEntity} onEntityCheck={toggleCheckbox}
               onClearSelection={clearSelection} onViewConsolidated={viewConsolidated}
             />
-          </div>
+          </aside>
         )}
 
-        <div className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)] max-lg:pr-0">
+        <main className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)] max-lg:pr-0" aria-label="Dashboard details">
           {fetchAllLoadState === 'loading' ? (
             <FetchAllProgress progress={fetchAllProgress} />
           ) : (
@@ -134,8 +137,8 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                     monthlyRevenue={displayDashboard.monthlyRevenue} productMixes={displayDashboard.productMixes}
                     topSellers={displayDashboard.topSellers} sparklines={displayDashboard.sparklines}
                     orders={displayDashboard.orders} items={displayDashboard.items} contacts={contacts}
-                    yearsAvailable={yearsAvailable} activePeriod={activePeriod}
-                    onPeriodChange={switchPeriod} onExport={exportCsv}
+                    yearsAvailable={yearsAvailable} activePeriod={activePeriod} activeTab={activeTab}
+                    onPeriodChange={switchPeriod} onTabChange={setActiveTab} onExport={exportCsv}
                     heroKpiGridTemplate={heroKpiGridTemplate} heroKpiRatio={layout.heroKpiRatio}
                     kpiChartsRatio={layout.kpiChartsRatio} onHeroKpiRatioChange={setHeroKpiRatio}
                     onKpiChartsRatioChange={setKpiChartsRatio} activePreset={layout.preset}
@@ -149,7 +152,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
               )}
             </AnimatePresence>
           )}
-        </div>
+        </main>
       </div>
     </>
   );

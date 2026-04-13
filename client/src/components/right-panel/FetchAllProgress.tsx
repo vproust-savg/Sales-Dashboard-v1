@@ -4,6 +4,7 @@
 // EXPORTS: FetchAllProgress
 
 import type { SSEProgressEvent } from '@shared/types/dashboard';
+import { formatInteger } from '@shared/utils/formatting';
 
 interface FetchAllProgressProps {
   progress: SSEProgressEvent | null;
@@ -32,12 +33,12 @@ export function FetchAllProgress({ progress }: FetchAllProgressProps) {
         </p>
         <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-gold-subtle)]">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[var(--color-gold-primary)] to-[var(--color-gold-light)] transition-all duration-300"
+            className="h-full rounded-full bg-gradient-to-r from-[var(--color-gold-primary)] to-[var(--color-gold-light)] transition-[width] duration-300"
             style={{ width: `${isFetching ? percent : 100}%` }}
           />
         </div>
         <div className="mb-4 flex justify-between text-[11px] text-[var(--color-text-muted)]">
-          <span>{rowsFetched.toLocaleString()} {estimatedTotal > 0 ? `of ~${estimatedTotal.toLocaleString()} rows` : 'rows'}</span>
+          <span>{formatInteger(rowsFetched)} {estimatedTotal > 0 ? `of ~${formatInteger(estimatedTotal)} rows` : 'rows'}</span>
           {isFetching && <span>{percent}%</span>}
         </div>
 

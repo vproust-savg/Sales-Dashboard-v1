@@ -6,6 +6,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { EntityListItem, Dimension, FetchAllFilters } from '@shared/types/dashboard';
+import { formatInteger } from '@shared/utils/formatting';
 
 interface FetchAllDialogProps {
   isOpen: boolean;
@@ -81,7 +82,7 @@ export function FetchAllDialog({ isOpen, dimension, entities, isRefresh, onConfi
             <p className="mb-5 text-center text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
               {isRefresh
                 ? `This will replace cached data. Estimated ${estimateTime(filteredCount)}.`
-                : `Fetching data for ${filteredCount.toLocaleString()} ${dimension === 'customer' ? 'customers' : 'entities'}. Estimated ${estimateTime(filteredCount)}.`}
+                : `Fetching data for ${formatInteger(filteredCount)} ${dimension === 'customer' ? 'customers' : 'entities'}. Estimated ${estimateTime(filteredCount)}.`}
             </p>
 
             <div className="flex gap-3">

@@ -72,7 +72,7 @@ export function ItemsToolbar(props: ItemsToolbarProps) {
           icon={<><rect x="3" y="3" width="14" height="3" rx="1" /><rect x="5" y="9" width="10" height="3" rx="1" /><rect x="7" y="15" width="6" height="3" rx="1" /></>} />
 
         <button type="button" onClick={onToggleCompare}
-          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-150 ${
+          className={`w-7 h-7 rounded-full flex items-center justify-center transition-[background-color,border-color,color] duration-150 ${
             showCompare ? 'bg-[var(--color-gold-primary)] text-white'
             : 'border border-[var(--color-gold-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-gold-primary)] hover:text-[var(--color-text-secondary)]'
           }`}
@@ -150,8 +150,8 @@ function ExpandableSearch({ searchTerm, onSearch }: { searchTerm: string; onSear
         </svg>
       </button>
       {expanded && (
-        <input ref={inputRef} type="text" value={local} onChange={e => handleChange(e.target.value)} onBlur={handleBlur}
-          placeholder="Search items..." className="w-full h-full bg-transparent pl-8 pr-6 text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none" />
+        <input ref={inputRef} type="search" value={local} onChange={e => handleChange(e.target.value)} onBlur={handleBlur}
+          name="items-search" autoComplete="off" placeholder="Search items..." className="w-full h-full bg-transparent pl-8 pr-6 text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]" />
       )}
       {expanded && local && (
         <button type="button" onClick={handleClear}
@@ -174,7 +174,7 @@ function ToolbarIcon({ panel, openPanel, onToggle, badge, label, icon }: {
 
   return (
     <button type="button" onClick={() => onToggle(panel)}
-      className={`relative w-7 h-7 rounded-full flex items-center justify-center transition-all duration-150 ${
+      className={`relative w-7 h-7 rounded-full flex items-center justify-center transition-[background-color,border-color,color] duration-150 ${
         isOpen ? 'bg-[var(--color-gold-primary)] text-white'
           : isActive ? 'border border-[var(--color-gold-primary)] text-[var(--color-gold-primary)]'
           : 'border border-[var(--color-gold-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-gold-primary)] hover:text-[var(--color-text-secondary)]'

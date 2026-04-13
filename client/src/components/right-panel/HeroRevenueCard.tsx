@@ -3,7 +3,6 @@
 // USED BY: KPISection.tsx
 // EXPORTS: HeroRevenueCard
 
-import { type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KPIs, MonthlyRevenue, Period } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
@@ -11,8 +10,6 @@ import { AnimatedNumber } from '../shared/AnimatedNumber';
 import { YoYBarChart } from './YoYBarChart';
 import { useContainerSize } from '../../hooks/useContainerSize';
 import { ExpandIcon } from '../shared/ExpandIcon';
-import { useHoverPeek } from '../../hooks/useHoverPeek';
-import { HoverPeek } from '../shared/HoverPeek';
 
 interface HeroRevenueCardProps {
   kpis: KPIs;
@@ -21,14 +18,12 @@ interface HeroRevenueCardProps {
   /** WHY: Global toggle from KPISection controls sub-items visibility */
   showDetails: boolean;
   onExpand?: () => void;
-  peekContent?: ReactNode;
   cardRef?: (el: HTMLDivElement | null) => void;
   onCardFocus?: () => void;
   onCardBlur?: () => void;
 }
 
-export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand, peekContent, cardRef, onCardFocus, onCardBlur }: HeroRevenueCardProps) {
-  const peek = useHoverPeek();
+export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand, cardRef, onCardFocus, onCardBlur }: HeroRevenueCardProps) {
   const [chartRef, chartSize] = useContainerSize();
   /** WHY clamp: min 80px for usability, max 400px to prevent oversized chart on 27" */
   const chartHeight = Math.max(80, Math.min(400, chartSize.height));
@@ -37,18 +32,20 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 
   return (
-    <>
     <div
-      ref={(el) => { peek.triggerRef.current = el; cardRef?.(el); }}
-      onMouseEnter={peek.onMouseEnter}
-      onMouseLeave={peek.onMouseLeave}
+      ref={cardRef}
       onFocus={onCardFocus}
       onBlur={onCardBlur}
-      className="group relative cursor-pointer flex h-full flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]"
-      onClick={() => { peek.onMouseLeave(); onExpand?.(); }}
+      className="relative flex h-full cursor-pointer flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)] transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      onClick={onExpand}
       role="gridcell"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' && onExpand) onExpand(); }}
+      onKeyDown={(e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && onExpand) {
+          e.preventDefault();
+          onExpand();
+        }
+      }}
       aria-label="Expand revenue details"
     >
       <ExpandIcon />
@@ -72,10 +69,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
             </span>
             {changePercent !== null && (
               <span className="text-[12px] font-medium" style={{ color: trendColor }}>
-                {formatPercent(changePercent, { showSign: true })}
-                <span className="opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                  {' '}vs same period last year
-                </span>
+                {formatPercent(changePercent, { showSign: true })} vs same period last year
               </span>
             )}
           </div>
@@ -109,7 +103,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
 
         {/* YoY bar chart — flex-1 fills remaining vertical space */}
         <div ref={chartRef} className="mt-[var(--spacing-md)] flex-1 min-h-[80px]">
-          {chartSize.height > 0 && <YoYBarChart data={monthlyRevenue} height={chartHeight} />}
+          {chartSize.height > 0 && <YoYBarChart data={monthlyRevenue} width={chartSize.width} height={chartHeight} />}
         </div>
       </div>
 
@@ -144,12 +138,6 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
         )}
       </AnimatePresence>
     </div>
-    {peekContent && (
-      <HoverPeek isVisible={peek.isVisible} position={peek.position} onMouseEnter={peek.onPeekMouseEnter} onMouseLeave={peek.onPeekMouseLeave}>
-        {peekContent}
-      </HoverPeek>
-    )}
-    </>
   );
 }
 

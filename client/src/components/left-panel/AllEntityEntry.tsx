@@ -5,6 +5,7 @@
 
 import { motion } from 'framer-motion';
 import type { EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
+import { formatInteger } from '@shared/utils/formatting';
 
 interface AllEntityEntryProps {
   label: string;
@@ -19,7 +20,7 @@ interface AllEntityEntryProps {
 function formatLargeNumber(value: number): string {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}K`;
-  return `$${value.toLocaleString()}`;
+  return `$${formatInteger(value)}`;
 }
 
 export function AllEntityEntry({
@@ -63,7 +64,7 @@ export function AllEntityEntry({
         <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{label}</div>
         <div className="text-[11px] text-[var(--color-text-muted)]">
           {isLoaded
-            ? `${entitiesWithOrders.toLocaleString()} with orders`
+            ? `${formatInteger(entitiesWithOrders)} with orders`
             : isLoading
               ? 'Generating...'
               : 'Click to generate report'}
@@ -78,7 +79,7 @@ export function AllEntityEntry({
               {formatLargeNumber(aggregateData.kpis.totalRevenue)}
             </div>
             <div className="text-[11px] text-[var(--color-text-muted)]">
-              {aggregateData.kpis.orders.toLocaleString()} orders
+              {formatInteger(aggregateData.kpis.orders)} orders
             </div>
           </div>
         ) : isLoading ? (
