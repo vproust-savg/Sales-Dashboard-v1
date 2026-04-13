@@ -16,6 +16,7 @@ const DIMENSION_LABELS: Record<ItemDimensionKey, string> = {
 
 const SORT_LABELS: Record<ItemSortField, string> = {
   name: 'Name', value: 'Value', marginPercent: 'Margin %', marginAmount: 'Margin $',
+  totalUnits: 'Units', purchaseFrequency: 'Frequency', lastPrice: 'Last Price',
 };
 
 const FILTER_FIELDS: ItemDimensionKey[] = ['productType', 'productFamily', 'brand', 'countryOfOrigin', 'foodServiceRetail'];

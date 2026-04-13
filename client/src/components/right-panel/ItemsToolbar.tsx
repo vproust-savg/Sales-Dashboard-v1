@@ -26,6 +26,8 @@ export interface ItemsToolbarProps {
   items: FlatItem[];
   totalCount: number;
   filteredCount: number;
+  showCompare: boolean;
+  onToggleCompare: () => void;
 }
 
 export function ItemsToolbar(props: ItemsToolbarProps) {
@@ -34,6 +36,7 @@ export function ItemsToolbar(props: ItemsToolbarProps) {
     sortField, sortDirection, onToggleSort,
     filters, onSetFilter, onClearAllFilters,
     items, totalCount, filteredCount,
+    showCompare, onToggleCompare,
   } = props;
 
   const [openPanel, setOpenPanel] = useState<PanelKey>(null);
@@ -58,15 +61,26 @@ export function ItemsToolbar(props: ItemsToolbarProps) {
       <div className="flex items-center gap-2 px-[var(--spacing-3xl)] py-[var(--spacing-base)] border-b border-[var(--color-gold-subtle)]">
         <ExpandableSearch searchTerm={searchTerm} onSearch={onSearch} />
 
+        <ToolbarIcon panel="filter" openPanel={openPanel} onToggle={toggle} badge={activeFilterCount > 0 ? activeFilterCount : null}
+          icon={<><path d="M3 4h14M5 9h10M7 14h6" /></>} />
+
+        <ToolbarIcon panel="sort" openPanel={openPanel} onToggle={toggle} badge={null}
+          label={sortDirection === 'asc' ? '\u2191' : '\u2193'}
+          icon={<><path d="M6 4v12M6 4l-3 3M6 4l3 3" /><path d="M14 16V4M14 16l-3-3M14 16l3-3" /></>} />
+
         <ToolbarIcon panel="group" openPanel={openPanel} onToggle={toggle} badge={groupLevels.length > 0 ? groupLevels.length : null}
           icon={<><rect x="3" y="3" width="14" height="3" rx="1" /><rect x="5" y="9" width="10" height="3" rx="1" /><rect x="7" y="15" width="6" height="3" rx="1" /></>} />
 
-        <ToolbarIcon panel="sort" openPanel={openPanel} onToggle={toggle} badge={null}
-          label={sortDirection === 'asc' ? '↑' : '↓'}
-          icon={<><path d="M6 4v12M6 4l-3 3M6 4l3 3" /><path d="M14 16V4M14 16l-3-3M14 16l3-3" /></>} />
-
-        <ToolbarIcon panel="filter" openPanel={openPanel} onToggle={toggle} badge={activeFilterCount > 0 ? activeFilterCount : null}
-          icon={<><path d="M3 4h14M5 9h10M7 14h6" /></>} />
+        <button type="button" onClick={onToggleCompare}
+          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-150 ${
+            showCompare ? 'bg-[var(--color-gold-primary)] text-white'
+            : 'border border-[var(--color-gold-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-gold-primary)] hover:text-[var(--color-text-secondary)]'
+          }`}
+          aria-label="Compare with previous year" aria-pressed={showCompare}>
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="10" width="4" height="7" rx="1" /><rect x="8" y="6" width="4" height="11" rx="1" /><rect x="13" y="3" width="4" height="14" rx="1" />
+          </svg>
+        </button>
 
         <div className="flex-1" />
         {isFiltered && (

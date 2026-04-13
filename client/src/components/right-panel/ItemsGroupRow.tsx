@@ -45,15 +45,19 @@ export function ItemsGroupRow({ group, depth, isExpanded, onToggle }: ItemsGroup
       {/* WHY: flex-1 spacer pushes metrics to the right, keeping label left-aligned */}
       <div className="flex-1" />
 
-      <span role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-primary)]">
+      <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-primary)]">
         {formatCurrency(group.totals.value)}
       </span>
       <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
         {formatPercent(group.totals.marginPercent)}
       </span>
-      <span role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
+      <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
         {formatCurrency(group.totals.marginAmount)}
       </span>
+      <span role="gridcell" className="w-24 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
+      <span role="gridcell" className="w-20 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
+      <span role="gridcell" className="w-24 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
+      <span role="gridcell" className="w-24 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
     </button>
   );
 }

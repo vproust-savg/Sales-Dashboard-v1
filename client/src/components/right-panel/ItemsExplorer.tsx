@@ -44,6 +44,8 @@ export function ItemsExplorer({ items }: ItemsExplorerProps) {
         items={items}
         totalCount={explorer.totalCount}
         filteredCount={explorer.filteredCount}
+        showCompare={explorer.showCompare}
+        onToggleCompare={explorer.toggleCompare}
       />
 
       {hasResults ? (
@@ -56,6 +58,7 @@ export function ItemsExplorer({ items }: ItemsExplorerProps) {
           expandedGroups={explorer.expandedGroups}
           onToggleSort={explorer.toggleSort}
           onToggleGroup={explorer.toggleGroup}
+          showCompare={explorer.showCompare}
         />
       ) : (
         <EmptyState

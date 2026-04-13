@@ -18,6 +18,7 @@ interface State {
   sortDirection: 'asc' | 'desc';
   filters: ItemFilters;
   expandedGroups: Set<string>;
+  showCompare: boolean;
 }
 
 type Action =
@@ -27,6 +28,7 @@ type Action =
   | { type: 'setFilter'; field: ItemDimensionKey; values: string[] }
   | { type: 'clearAllFilters' }
   | { type: 'toggleGroup'; key: string }
+  | { type: 'toggleCompare' }
   | { type: 'reset' };
 
 const INITIAL: State = {
@@ -36,6 +38,7 @@ const INITIAL: State = {
   sortDirection: 'desc',
   filters: {},
   expandedGroups: new Set(),
+  showCompare: false,
 };
 
 /** WHY useReducer: 6 interdependent state atoms — avoids stale closure bugs (same as useSort) */
@@ -67,6 +70,8 @@ function reducer(state: State, action: Action): State {
       else next.add(action.key);
       return { ...state, expandedGroups: next };
     }
+    case 'toggleCompare':
+      return { ...state, showCompare: !state.showCompare };
     case 'reset':
       return INITIAL;
   }
@@ -103,6 +108,7 @@ export function useItemsExplorer(items: FlatItem[]) {
   const setFilter = useCallback((field: ItemDimensionKey, values: string[]) => dispatch({ type: 'setFilter', field, values }), []);
   const clearAllFilters = useCallback(() => dispatch({ type: 'clearAllFilters' }), []);
   const toggleGroup = useCallback((key: string) => dispatch({ type: 'toggleGroup', key }), []);
+  const toggleCompare = useCallback(() => dispatch({ type: 'toggleCompare' }), []);
 
   return {
     ...state,
@@ -117,5 +123,6 @@ export function useItemsExplorer(items: FlatItem[]) {
     setFilter,
     clearAllFilters,
     toggleGroup,
+    toggleCompare,
   };
 }

@@ -7,7 +7,7 @@ import type { FlatItem } from '@shared/types/dashboard';
 import type { ItemDimensionKey } from './items-filter';
 
 /** WHY client-only type — sort field is a UI concern, not an API contract */
-export type ItemSortField = 'name' | 'value' | 'marginPercent' | 'marginAmount';
+export type ItemSortField = 'name' | 'value' | 'marginPercent' | 'marginAmount' | 'totalUnits' | 'purchaseFrequency' | 'lastPrice';
 
 export interface GroupNode {
   key: string;
@@ -78,14 +78,18 @@ function buildLevel(
   return sortGroups(nodes, sortField, sortDirection);
 }
 
+/** WHY: Group totals only have value/marginPercent/marginAmount — fallback to value for item-only fields */
+const GROUP_SORTABLE_FIELDS = new Set<string>(['value', 'marginPercent', 'marginAmount']);
+
 function sortGroups(nodes: GroupNode[], field: ItemSortField, dir: 'asc' | 'desc'): GroupNode[] {
+  const effectiveField = GROUP_SORTABLE_FIELDS.has(field) ? field : 'value';
   return [...nodes].sort((a, b) => {
     /** WHY: "Other" always sorts last regardless of field/direction */
     if (a.label === 'Other') return 1;
     if (b.label === 'Other') return -1;
 
-    const aVal = field === 'name' ? a.label : a.totals[field];
-    const bVal = field === 'name' ? b.label : b.totals[field];
+    const aVal = effectiveField === 'name' ? a.label : a.totals[effectiveField as keyof GroupNode['totals']];
+    const bVal = effectiveField === 'name' ? b.label : b.totals[effectiveField as keyof GroupNode['totals']];
 
     if (typeof aVal === 'string' && typeof bVal === 'string') {
       return dir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);

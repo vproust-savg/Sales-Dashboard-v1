@@ -18,13 +18,18 @@ interface ItemsTableProps {
   expandedGroups: Set<string>;
   onToggleSort: (field: ItemSortField) => void;
   onToggleGroup: (key: string) => void;
+  showCompare: boolean;
 }
 
 const COLUMNS: { label: string; field: ItemSortField | null; width: string }[] = [
   { label: 'Product', field: 'name', width: 'flex-1' },
-  { label: 'Value', field: 'value', width: 'w-28' },
-  { label: 'Margin %', field: 'marginPercent', width: 'w-24' },
-  { label: 'Margin $', field: 'marginAmount', width: 'w-28' },
+  { label: 'Value', field: 'value', width: 'w-24' },
+  { label: 'Avg Margin %', field: 'marginPercent', width: 'w-24' },
+  { label: 'Margin $', field: 'marginAmount', width: 'w-24' },
+  { label: 'Units', field: 'totalUnits', width: 'w-24' },
+  { label: 'Freq', field: 'purchaseFrequency', width: 'w-20' },
+  { label: 'Last $', field: 'lastPrice', width: 'w-24' },
+  { label: 'Last Order', field: null, width: 'w-24' },
 ];
 
 function SortArrow({ field, sortField, sortDirection }: { field: ItemSortField; sortField: ItemSortField; sortDirection: string }) {
@@ -32,11 +37,10 @@ function SortArrow({ field, sortField, sortDirection }: { field: ItemSortField; 
   return <span className="ml-1 text-[9px]">{sortDirection === 'asc' ? '\u2191' : '\u2193'}</span>;
 }
 
-export function ItemsTable({ groups, flatItems, isGrouped, sortField, sortDirection, expandedGroups, onToggleSort, onToggleGroup }: ItemsTableProps) {
+export function ItemsTable({ groups, flatItems, isGrouped, sortField, sortDirection, expandedGroups, onToggleSort, onToggleGroup, showCompare }: ItemsTableProps) {
   return (
-    /* WHY max-w: prevent product name from stretching too far from numbers on wide screens */
     <div className="overflow-x-auto">
-      <div className="min-w-[600px] max-w-[1100px]" role={isGrouped ? 'treegrid' : 'table'} aria-label="Items explorer">
+      <div className="min-w-[600px]" role={isGrouped ? 'treegrid' : 'table'} aria-label="Items explorer">
         {/* Column headers */}
         <div className="flex items-center border-b border-[var(--color-gold-subtle)] px-[var(--spacing-3xl)] py-[var(--spacing-lg)]" role="row">
           {COLUMNS.map(col => (
@@ -57,10 +61,10 @@ export function ItemsTable({ groups, flatItems, isGrouped, sortField, sortDirect
         {/* Content: grouped or flat */}
         {isGrouped
           ? groups.map(group => (
-            <GroupSection key={group.key} group={group} depth={0} expandedGroups={expandedGroups} onToggleGroup={onToggleGroup} />
+            <GroupSection key={group.key} group={group} depth={0} expandedGroups={expandedGroups} onToggleGroup={onToggleGroup} showCompare={showCompare} />
           ))
           : flatItems.map(item => (
-            <ItemsProductRow key={item.sku} item={item} depth={0} />
+            <ItemsProductRow key={item.sku} item={item} depth={0} showCompare={showCompare} />
           ))
         }
       </div>
@@ -68,8 +72,8 @@ export function ItemsTable({ groups, flatItems, isGrouped, sortField, sortDirect
   );
 }
 
-function GroupSection({ group, depth, expandedGroups, onToggleGroup }: {
-  group: GroupNode; depth: number; expandedGroups: Set<string>; onToggleGroup: (key: string) => void;
+function GroupSection({ group, depth, expandedGroups, onToggleGroup, showCompare }: {
+  group: GroupNode; depth: number; expandedGroups: Set<string>; onToggleGroup: (key: string) => void; showCompare: boolean;
 }) {
   const isExpanded = expandedGroups.has(group.key);
   const hasChildren = group.children.length > 0;
@@ -89,10 +93,10 @@ function GroupSection({ group, depth, expandedGroups, onToggleGroup }: {
           >
             {hasChildren
               ? group.children.map(child => (
-                <GroupSection key={child.key} group={child} depth={depth + 1} expandedGroups={expandedGroups} onToggleGroup={onToggleGroup} />
+                <GroupSection key={child.key} group={child} depth={depth + 1} expandedGroups={expandedGroups} onToggleGroup={onToggleGroup} showCompare={showCompare} />
               ))
               : group.items.map(item => (
-                <ItemsProductRow key={item.sku} item={item} depth={depth + 1} />
+                <ItemsProductRow key={item.sku} item={item} depth={depth + 1} showCompare={showCompare} />
               ))
             }
           </motion.div>
