@@ -5,6 +5,7 @@
 
 import { useCallback } from 'react';
 import { useCopyToast } from './CopyToast';
+import { copyToClipboard } from '../../utils/clipboard';
 
 interface CopyableIdProps {
   value: string;
@@ -16,11 +17,12 @@ interface CopyableIdProps {
 export function CopyableId({ value, label, className = '' }: CopyableIdProps) {
   const { showToast } = useCopyToast();
 
-  const handleCopy = useCallback((e: React.MouseEvent) => {
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(value).then(() => {
+    const success = await copyToClipboard(value);
+    if (success) {
       showToast(`Copied ${label ?? value}`);
-    });
+    }
   }, [value, label, showToast]);
 
   return (

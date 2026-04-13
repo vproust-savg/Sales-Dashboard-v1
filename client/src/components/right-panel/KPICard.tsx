@@ -43,10 +43,10 @@ export function KPICard({
       {/* Top row: label + value (left) + prev year (right) */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col min-w-0">
-          <span className="text-[10px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
+          <span className="text-[11px] font-medium uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
             {label}{periodLabel && <span className="opacity-0 transition-opacity duration-150 group-hover/kpi:opacity-100"> {periodLabel}</span>}
           </span>
-          <span className="mt-[var(--spacing-2xs)] text-[17px] font-bold text-[var(--color-text-primary)]">
+          <span className="mt-[var(--spacing-2xs)] text-[19px] font-bold text-[var(--color-text-primary)]">
             <AnimatedNumber value={value} formatter={formatter} />
           </span>
           {changePercent !== undefined && changePercent !== null && (

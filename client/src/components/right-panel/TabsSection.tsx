@@ -5,7 +5,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import type { OrderRow, FlatItem, Contact } from '@shared/types/dashboard';
-import { OrdersTable } from './OrdersTable';
+import { OrdersTab } from './OrdersTab';
 import { ItemsExplorer } from './ItemsExplorer';
 import { ContactsTable } from './ContactsTable';
 
@@ -80,7 +80,7 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
               aria-controls={`panel-${tab.key}`}
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.key)}
-              className={`relative flex items-center gap-1.5 py-3 text-[14px] transition-colors duration-200 outline-none ${
+              className={`relative flex items-center gap-1.5 py-3 text-[15px] transition-colors duration-200 outline-none ${
                 isActive
                   ? 'font-bold text-[var(--color-text-primary)]'
                   : 'font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -118,7 +118,7 @@ export function TabsSection({ orders, items, contacts }: TabsSectionProps) {
           id={`panel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
         >
-          {activeTab === 'orders' && <OrdersTable orders={orders} />}
+          {activeTab === 'orders' && <OrdersTab orders={orders} />}
           {activeTab === 'items' && <ItemsExplorer items={items} />}
           {activeTab === 'contacts' && <ContactsTable contacts={contacts} />}
         </div>

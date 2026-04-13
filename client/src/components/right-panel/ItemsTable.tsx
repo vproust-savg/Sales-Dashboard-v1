@@ -45,7 +45,7 @@ export function ItemsTable({ groups, flatItems, isGrouped, sortField, sortDirect
               role="columnheader"
               aria-sort={col.field === sortField ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined}
               onClick={col.field ? () => onToggleSort(col.field!) : undefined}
-              className={`${col.width} text-${col.field === 'name' ? 'left' : 'right'} text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide hover:text-[var(--color-text-secondary)] transition-colors`}
+              className={`${col.width} text-${col.field === 'name' ? 'left' : 'right'} text-[12px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide hover:text-[var(--color-text-secondary)] transition-colors`}
             >
               {col.label}
               {col.field && <SortArrow field={col.field} sortField={sortField} sortDirection={sortDirection} />}

@@ -29,17 +29,17 @@ export function DetailHeader({
       {/* Left side — entity info */}
       <div className="min-w-0 flex-1">
         <h1
-          className="truncate text-[20px] font-bold leading-[1.3] text-[var(--color-text-primary)]"
+          className="truncate text-[22px] font-bold leading-[1.3] text-[var(--color-text-primary)]"
           title={name}
         >
           {name}
         </h1>
         {subtitle && (
           <p
-            className="mt-[var(--spacing-2xs)] truncate text-[11px] text-[var(--color-text-muted)]"
+            className="mt-[var(--spacing-2xs)] truncate text-[12px] text-[var(--color-text-muted)]"
             title={subtitle}
           >
-            {entity?.id && <CopyableId value={entity.id} label="ID" className="inline text-[11px] text-[var(--color-text-muted)]" />}
+            {entity?.id && <CopyableId value={entity.id} label="ID" className="inline text-[12px] text-[var(--color-text-muted)]" />}
             {entity?.zone && <> &middot; {entity.zone}</>}
             {entity?.customerType && <> &middot; {entity.customerType}</>}
             {entity?.rep && <> &middot; {entity.rep}</>}

@@ -32,7 +32,7 @@ function SellerRow({ item }: { item: TopSellerItem }) {
       </span>
       <div className="min-w-0 flex-1">
         <Tooltip content={item.name}>
-          <p className="truncate text-[13px] font-medium leading-tight text-[var(--color-text-primary)]">
+          <p className="truncate text-[14px] font-medium leading-tight text-[var(--color-text-primary)]">
             {item.name}
           </p>
         </Tooltip>
@@ -81,7 +81,7 @@ export function BestSellers({ data }: BestSellersProps) {
     <div className="flex flex-col">
       {/* Header with title + pagination arrows */}
       <div className="mb-[var(--spacing-lg)] flex items-center justify-between">
-        <h2 className="text-[14px] font-semibold text-[var(--color-text-primary)]">
+        <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">
           Best Sellers
         </h2>
         {total > VISIBLE_COUNT && (

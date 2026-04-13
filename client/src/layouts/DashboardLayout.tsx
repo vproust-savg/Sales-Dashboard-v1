@@ -95,7 +95,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
       <>
         <LoadingModal stage={loadingStage} />
         <div
-          className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)]"
+          className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)]"
           role="application"
           aria-label="Sales Dashboard"
         >
@@ -114,7 +114,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   if (error && entities.length === 0) {
     return (
       <div
-        className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] items-center justify-center p-[var(--spacing-2xl)]"
+        className="mx-auto flex h-[calc(100vh-32px)] items-center justify-center px-[var(--spacing-3xl)] py-[var(--spacing-2xl)]"
         role="application"
         aria-label="Sales Dashboard"
       >
@@ -155,7 +155,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
       />
 
       <div
-        className="mx-auto flex h-[calc(100vh-32px)] max-w-[1440px] gap-[var(--spacing-2xl)] p-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto"
+        className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto"
         role="application"
         aria-label="Sales Dashboard"
       >

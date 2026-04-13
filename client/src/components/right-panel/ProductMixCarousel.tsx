@@ -75,7 +75,7 @@ export function ProductMixCarousel({ mixes }: ProductMixCarouselProps) {
           <ChevronLeft />
         </button>
         <h2
-          className="text-[14px] font-semibold text-[var(--color-text-primary)]"
+          className="text-[15px] font-semibold text-[var(--color-text-primary)]"
           role="tab"
           aria-selected="true"
         >

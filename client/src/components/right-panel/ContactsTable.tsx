@@ -36,7 +36,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
             {COLUMNS.map((col) => (
               <th
                 key={col.label}
-                className={`${col.width} px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide`}
+                className={`${col.width} px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[12px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide`}
               >
                 {col.label}
               </th>
@@ -49,16 +49,16 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
               key={contact.email || `contact-${index}`}
               className="border-b border-[var(--color-bg-page)]"
             >
-              <td className="w-[28%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
+              <td className="w-[28%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-primary)]">
                 {contact.fullName}
               </td>
-              <td className="w-[20%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)]">
+              <td className="w-[20%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-primary)]">
                 {contact.position}
               </td>
-              <td className="w-[15%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)] whitespace-nowrap">
+              <td className="w-[15%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-primary)] whitespace-nowrap">
                 {contact.phone}
               </td>
-              <td className="w-[37%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] truncate max-w-0">
+              <td className="w-[37%] px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] truncate max-w-0">
                 <a
                   href={`mailto:${contact.email}`}
                   className="text-[var(--color-gold-primary)] no-underline hover:underline"

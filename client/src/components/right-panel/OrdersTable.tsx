@@ -54,7 +54,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
             {COLUMNS.map((col, i) => (
               <th
                 key={col || 'chevron'}
-                className={`px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[11px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide whitespace-nowrap ${
+                className={`px-[var(--spacing-3xl)] py-[var(--spacing-lg)] text-left text-[12px] font-semibold uppercase text-[var(--color-text-muted)] tracking-wide whitespace-nowrap ${
                   i === 0 ? 'w-8 px-0 pl-[var(--spacing-3xl)]' : ''
                 }`}
               >
@@ -110,26 +110,26 @@ function OrderRowGroup({ order, isExpanded, onToggle }: OrderRowGroupProps) {
             <path d="M5 3l4 4-4 4" stroke="var(--color-text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </td>
-        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)] whitespace-nowrap">
+        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-primary)] whitespace-nowrap">
           {formatDate(order.date)}
         </td>
-        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] font-medium text-[var(--color-text-primary)]">
+        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] font-medium text-[var(--color-text-primary)]">
           <CopyableId value={order.orderNumber} label="Order #" />
         </td>
-        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-secondary)] text-center">
+        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-secondary)] text-center">
           {order.itemCount}
         </td>
-        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-primary)] tabular-nums">
+        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-primary)] tabular-nums">
           {formatCurrency(order.amount)}
         </td>
-        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-secondary)] tabular-nums">
+        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-secondary)] tabular-nums">
           {formatPercent(order.marginPercent)}
         </td>
-        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[13px] text-[var(--color-text-secondary)] tabular-nums">
+        <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-secondary)] tabular-nums">
           {formatCurrency(order.marginAmount)}
         </td>
         <td className="px-[var(--spacing-3xl)] py-[var(--spacing-base)]">
-          <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${STATUS_STYLES[order.status] ?? DEFAULT_STATUS_STYLE}`}>
+          <span className={`inline-block px-2 py-0.5 rounded-full text-[12px] font-semibold whitespace-nowrap ${STATUS_STYLES[order.status] ?? DEFAULT_STATUS_STYLE}`}>
             {order.status}
           </span>
         </td>

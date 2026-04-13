@@ -101,12 +101,12 @@ export function ItemsToolbar(props: ItemsToolbarProps) {
 /* --- Expandable search bar --- */
 
 function ExpandableSearch({ searchTerm, onSearch }: { searchTerm: string; onSearch: (term: string) => void }) {
-  const [expanded, setExpanded] = useState(!!searchTerm);
+  const [expanded, setExpanded] = useState(true);
   const [local, setLocal] = useState(searchTerm);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setLocal(searchTerm); if (!searchTerm) setExpanded(false); }, [searchTerm]);
+  useEffect(() => { setLocal(searchTerm); }, [searchTerm]);
 
   function handleChange(value: string) {
     setLocal(value);
@@ -125,7 +125,7 @@ function ExpandableSearch({ searchTerm, onSearch }: { searchTerm: string; onSear
 
   return (
     <motion.div
-      animate={{ width: expanded ? 180 : 28 }}
+      animate={{ width: expanded ? 220 : 28 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
       className="relative h-7 flex items-center overflow-hidden rounded-full border border-[var(--color-gold-subtle)]"
     >
@@ -137,7 +137,7 @@ function ExpandableSearch({ searchTerm, onSearch }: { searchTerm: string; onSear
       </button>
       {expanded && (
         <input ref={inputRef} type="text" value={local} onChange={e => handleChange(e.target.value)} onBlur={handleBlur}
-          placeholder="Search..." className="w-full h-full bg-transparent pl-8 pr-6 text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none" />
+          placeholder="Search items..." className="w-full h-full bg-transparent pl-8 pr-6 text-[12px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none" />
       )}
       {expanded && local && (
         <button type="button" onClick={handleClear}
