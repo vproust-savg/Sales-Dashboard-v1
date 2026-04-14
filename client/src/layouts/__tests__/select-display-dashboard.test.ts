@@ -7,9 +7,9 @@ import { describe, it, expect } from 'vitest';
 import { selectDisplayDashboard } from '../select-display-dashboard';
 import type { DashboardPayload } from '@shared/types/dashboard';
 
-const allDashboard = { entities: [] } as unknown as DashboardPayload;
-const consolDashboard = { entities: [] } as unknown as DashboardPayload;
-const singleDashboard = { entities: [] } as unknown as DashboardPayload;
+const allDashboard = { entities: [{ id: 'ALL' }] } as unknown as DashboardPayload;
+const consolDashboard = { entities: [{ id: 'CONSOL' }] } as unknown as DashboardPayload;
+const singleDashboard = { entities: [{ id: 'SINGLE' }] } as unknown as DashboardPayload;
 
 describe('selectDisplayDashboard', () => {
   it('returns dashboard (consolidated payload) when isConsolidated=true, even with __ALL__ + allDashboard present', () => {
