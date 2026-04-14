@@ -15,7 +15,8 @@ interface OrdersTabProps {
 }
 
 export function OrdersTab({ orders }: OrdersTabProps) {
-  const [activeFilter, setActiveFilter] = useState<OrderTimeFilter | null>(null);
+  /** WHY: Pre-select "Last 30 Days" so users see recent orders immediately */
+  const [activeFilter, setActiveFilter] = useState<OrderTimeFilter | null>('last30');
 
   const filteredOrders = useMemo(
     () => filterOrdersByTimeRange(orders, activeFilter),
