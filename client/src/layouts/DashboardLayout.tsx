@@ -133,6 +133,20 @@ export function DashboardLayout(props: DashboardLayoutProps) {
         )}
 
         <main className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)] max-lg:pr-0" aria-label="Dashboard details">
+          {/* WHY: fetchAllError is normally swallowed by the entities.length===0 gate.
+           *  Show it as a dismissable banner so the user knows what went wrong and can retry. */}
+          {fetchAllLoadState === 'error' && error && (
+            <div role="alert" className="flex items-center justify-between gap-3 rounded-[var(--radius-xl)] border border-[var(--color-red)] bg-[var(--color-bg-card)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)] text-[13px]">
+              <span className="text-[var(--color-red)]">Failed to load data: {error}</span>
+              <button
+                type="button"
+                onClick={() => { setDialogRefresh(false); setDialogOpen(true); }}
+                className="shrink-0 rounded-[var(--radius-base)] bg-[var(--color-dark)] px-[var(--spacing-lg)] py-[5px] text-[12px] font-medium text-white hover:opacity-90 transition-opacity"
+              >
+                Retry
+              </button>
+            </div>
+          )}
           {fetchAllLoadState === 'loading' ? (
             <FetchAllProgress progress={fetchAllProgress} />
           ) : (

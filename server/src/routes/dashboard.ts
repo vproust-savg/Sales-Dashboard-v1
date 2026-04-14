@@ -60,7 +60,12 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
         };
         return res.json({ data: payload, meta: { cached: true, cachedAt: null, period, dimension: groupBy, entityCount: entities.length } });
       }
-      // If no cached raw orders, fall through to normal fetch with entity filter
+      /** WHY: Falling through to the normal fetch path silently returns ALL-orders data
+       *  instead of the consolidated subset — wrong data is worse than a clear error.
+       *  The client (TanStack Query) surfaces this as a visible error state. */
+      return res.status(422).json({
+        error: { message: 'Consolidated view requires loaded data. Use "Load All" first, then try again.' },
+      });
     }
 
     // WHY: When entityId is provided, fetch only that entity's orders (10-100 rows vs 5000+).
