@@ -38,12 +38,13 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
 
-    // WHY: entityIds (comma-separated) enables View Consolidated — filters cached raw orders
+    // WHY: entityIds (comma-separated) enables View Consolidated 2 — filters cached raw orders
     // and re-aggregates for only the selected subset.
     const entityIdList = entityIds ? entityIds.split(',').map(s => s.trim()) : undefined;
     if (entityIdList && entityIdList.length > 0) {
       const entitySet = new Set(entityIdList);
-      const rawKey = cacheKey('orders_raw', period, `${groupBy}:all`);
+      // WHY: Raw cache is now dimension-agnostic. Probe 'all' first (unfiltered Report 2 run).
+      const rawKey = cacheKey('orders_raw', period, 'all');
       const rawCached = await redis.get(rawKey);
       if (rawCached) {
         const rawEnvelope = typeof rawCached === 'string' ? JSON.parse(rawCached) : rawCached;
@@ -53,7 +54,12 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
         const filteredOrders = filterOrdersByEntityIds(allOrders, entitySet, groupBy as Dimension, customersResult.data);
         const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
         const entities = groupByDimension(groupBy as Dimension, filteredOrders, customersResult.data, periodMonths);
-        const aggregate = aggregateOrders(filteredOrders, [], period);
+        // WHY: Pass opts to populate customerName on order rows + per-entity breakdowns for consolidated view.
+        const aggregate = aggregateOrders(filteredOrders, [], period, {
+          preserveEntityIdentity: true,
+          customers: customersResult.data,
+          dimension: groupBy as Dimension,
+        });
         const years = new Set(filteredOrders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
         const payload: DashboardPayload = {
           entities, ...aggregate, yearsAvailable: [...years].sort().reverse(),
@@ -64,7 +70,7 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
        *  instead of the consolidated subset — wrong data is worse than a clear error.
        *  The client (TanStack Query) surfaces this as a visible error state. */
       return res.status(422).json({
-        error: { message: 'Consolidated view requires loaded data. Use "Load All" first, then try again.' },
+        error: { message: 'Consolidated view requires loaded data. Use "Report 2" first, then try again.' },
       });
     }
 

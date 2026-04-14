@@ -51,8 +51,10 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
   const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25_000);
   try {
     const filterHash = buildFilterHash(agentName, zone, customerType);
-    const rawKey = cacheKey('orders_raw', period, `${groupBy}:${filterHash}`);
-    const metaKey = cacheKey('orders_raw_meta', period, `${groupBy}:${filterHash}`);
+    // WHY: Raw cache key is dimension-agnostic — the same 22K orders serve all 6 dimensions.
+    // Only the aggregation step differs per dimension. This eliminates redundant full fetches.
+    const rawKey = cacheKey('orders_raw', period, filterHash);
+    const metaKey = cacheKey('orders_raw_meta', period, filterHash);
 
     // Date ranges
     const now = new Date();
@@ -116,10 +118,15 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
       yearsAvailable: [...years].sort().reverse(),
     };
 
-    // Cache aggregated results
+    // WHY: Cache aggregated results — legacy entities_full (backwards compat with v1)
+    // + new report2_payload (per-dimension payload for instant dimension switches in v2).
     const fullKey = cacheKey('entities_full', period, buildFilterQualifier(groupBy, filterHash));
     const fullEnvelope = { data: { entities, yearsAvailable: payload.yearsAvailable }, cachedAt: new Date().toISOString() };
     await redis.set(fullKey, JSON.stringify(fullEnvelope), { ex: getTTL('entities_full') });
+
+    const payloadKey = cacheKey('report2_payload', period, `${filterHash}:${groupBy}`);
+    const payloadEnvelope = { data: payload, cachedAt: new Date().toISOString() };
+    await redis.set(payloadKey, JSON.stringify(payloadEnvelope), { ex: getTTL('report2_payload') });
 
     const detailKey = cacheKey('entity_detail', period, `${groupBy}:ALL:${filterHash}`);
     const detailEnvelope = { data: payload, cachedAt: new Date().toISOString() };
