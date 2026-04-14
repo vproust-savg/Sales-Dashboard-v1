@@ -102,7 +102,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
         </div>
 
         {/* YoY bar chart — flex-1 fills remaining vertical space */}
-        <div ref={chartRef} className="mt-[var(--spacing-md)] flex-1 min-h-[80px]">
+        <div ref={chartRef} className="mt-[var(--spacing-md)] h-[120px]">
           {chartSize.height > 0 && <YoYBarChart data={monthlyRevenue} width={chartSize.width} height={chartHeight} />}
         </div>
       </div>

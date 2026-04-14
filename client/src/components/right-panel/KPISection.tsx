@@ -15,8 +15,6 @@ import {
 import { HeroRevenueCard } from './HeroRevenueCard';
 import { KPICard } from './KPICard';
 import type { KPISubItem } from './KPICard';
-import { useResizablePanel } from '../../hooks/useResizablePanel';
-import { ResizeDivider } from './ResizeDivider';
 import { useModal } from '../shared/ModalProvider';
 import { KPIModalContent, HeroRevenueModalContent } from './kpi-modal-content';
 import { useCardNavigation } from '../../hooks/useCardNavigation';
@@ -26,10 +24,6 @@ interface KPISectionProps {
   monthlyRevenue: MonthlyRevenue[];
   sparklines: Record<string, SparklineData>;
   activePeriod: Period;
-  /** WHY: 3-column grid template from useDashboardLayout — e.g. "3fr 6px 2fr" */
-  heroKpiGridTemplate: string;
-  onHeroKpiRatioChange: (ratio: [number, number]) => void;
-  heroKpiRatio: [number, number];
 }
 
 // ---------------------------------------------------------------------------
@@ -141,18 +135,8 @@ export function KPISection({
   monthlyRevenue,
   sparklines: _sparklines,
   activePeriod,
-  heroKpiGridTemplate,
-  onHeroKpiRatioChange,
-  heroKpiRatio,
 }: KPISectionProps) {
   const [showDetails, setShowDetails] = useState(false);
-  const { containerRef, isDragging, handleMouseDown } = useResizablePanel({
-    direction: 'horizontal',
-    defaultRatio: heroKpiRatio,
-    minPercent: 30,
-    maxPercent: 70,
-    onRatioChange: onHeroKpiRatioChange,
-  });
   const { openModal } = useModal();
   const { setCardRef, onCardFocus, onCardBlur } = useCardNavigation(7);
   const activity = getActivityStatus(kpis.lastOrderDays);
@@ -163,7 +147,7 @@ export function KPISection({
 
   return (
     <div className="flex flex-col gap-[var(--spacing-sm)]" role="grid" aria-label="KPI cards">
-      <div ref={containerRef} className="grid gap-0 max-lg:grid-cols-1 max-lg:gap-[var(--spacing-base)]" style={{ gridTemplateColumns: heroKpiGridTemplate }}>
+      <div className="grid grid-cols-[3fr_2fr] gap-[var(--spacing-sm)] max-lg:grid-cols-1 max-lg:gap-[var(--spacing-base)]">
         <HeroRevenueCard
           kpis={kpis}
           monthlyRevenue={monthlyRevenue}
@@ -174,7 +158,6 @@ export function KPISection({
           onCardFocus={onCardFocus(0)}
           onCardBlur={onCardBlur}
         />
-        <ResizeDivider direction="horizontal" isDragging={isDragging} onMouseDown={handleMouseDown} onTouchStart={handleMouseDown} />
         <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-sm)] overflow-hidden">
           {KPI_CONFIGS.map((cfg) => {
             const bd = cfg.getBreakdown(kpis);
