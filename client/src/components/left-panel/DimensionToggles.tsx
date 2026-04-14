@@ -55,7 +55,7 @@ export function DimensionToggles({ activeDimension, onDimensionChange }: Dimensi
       role="tablist"
       aria-label="Data dimension"
       onKeyDown={handleKeyDown}
-      className="grid grid-cols-3 grid-rows-2 gap-[5px] rounded-[var(--radius-2xl)] bg-[var(--color-bg-card)] p-[var(--spacing-sm)] shadow-[var(--shadow-card)]"
+      className="grid grid-cols-3 grid-rows-2 gap-[5px] rounded-[var(--radius-2xl)] bg-[var(--color-bg-card)] pt-[var(--spacing-sm)] pr-7 pb-[var(--spacing-sm)] pl-[var(--spacing-sm)] shadow-[var(--shadow-card)]"
     >
       {DIMENSIONS.map(({ key, label }) => {
         const isActive = key === activeDimension;
