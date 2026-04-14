@@ -4,7 +4,7 @@
 // EXPORTS: KPISection
 
 import { useState } from 'react';
-import type { KPIs, MonthlyRevenue, SparklineData, Period } from '@shared/types/dashboard';
+import type { KPIs, KPIMetricBreakdown, MonthlyRevenue, SparklineData, Period } from '@shared/types/dashboard';
 import {
   formatCurrency,
   formatDays,
@@ -14,6 +14,7 @@ import {
 } from '@shared/utils/formatting';
 import { HeroRevenueCard } from './HeroRevenueCard';
 import { KPICard } from './KPICard';
+import type { KPISubItem } from './KPICard';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { ResizeDivider } from './ResizeDivider';
 import { useModal } from '../shared/ModalProvider';
@@ -25,12 +26,101 @@ interface KPISectionProps {
   monthlyRevenue: MonthlyRevenue[];
   sparklines: Record<string, SparklineData>;
   activePeriod: Period;
-  /** WHY: Grid template from useDashboardLayout — e.g. "3fr 2fr" */
   /** WHY: 3-column grid template from useDashboardLayout — e.g. "3fr 6px 2fr" */
   heroKpiGridTemplate: string;
   onHeroKpiRatioChange: (ratio: [number, number]) => void;
   heroKpiRatio: [number, number];
 }
+
+// ---------------------------------------------------------------------------
+// KPI card config — drives the 5 standard cards via .map()
+// ---------------------------------------------------------------------------
+
+interface KPICardConfig {
+  label: string;
+  cardIndex: number;
+  getValue: (k: KPIs) => number;
+  /** WHY: nullable cards show em-dash when raw KPI is null */
+  getRawValue: (k: KPIs) => number | null;
+  isNullable: boolean;
+  formatter: (n: number) => string;
+  getBreakdown: (k: KPIs) => KPIMetricBreakdown;
+  /** WHY: Frequency sub-items use formatInteger for lastMonth/bestMonth, not formatFrequency */
+  buildSubItems: (bd: KPIMetricBreakdown) => KPISubItem[];
+}
+
+/** WHY: nullable breakdowns show em-dash when value is 0 (no data for that period) */
+function nullableFmt(value: number, fmt: (n: number) => string): string {
+  return value > 0 ? fmt(value) : '\u2014';
+}
+
+function standardSubItems(bd: KPIMetricBreakdown, fmt: (n: number) => string, nullable: boolean): KPISubItem[] {
+  const f = nullable ? (n: number) => nullableFmt(n, fmt) : fmt;
+  return [
+    { label: 'This Quarter', value: f(bd.thisQuarter) },
+    { label: 'Last Month', value: f(bd.lastMonth), suffix: bd.lastMonthName },
+    { label: 'Best Month', value: f(bd.bestMonth.value), suffix: bd.bestMonth.name },
+  ];
+}
+
+const roundCurrency = (n: number) => formatCurrency(Math.round(n));
+
+const KPI_CONFIGS: KPICardConfig[] = [
+  {
+    label: 'Orders',
+    cardIndex: 1,
+    getValue: (k) => k.orders,
+    getRawValue: (k) => k.orders,
+    isNullable: false,
+    formatter: formatInteger,
+    getBreakdown: (k) => k.ordersBreakdown,
+    buildSubItems: (bd) => standardSubItems(bd, formatInteger, false),
+  },
+  {
+    label: 'Avg. Order',
+    cardIndex: 2,
+    getValue: (k) => k.avgOrder ?? 0,
+    getRawValue: (k) => k.avgOrder,
+    isNullable: true,
+    formatter: roundCurrency,
+    getBreakdown: (k) => k.avgOrderBreakdown,
+    buildSubItems: (bd) => standardSubItems(bd, roundCurrency, true),
+  },
+  {
+    label: 'Margin %',
+    cardIndex: 3,
+    getValue: (k) => k.marginPercent ?? 0,
+    getRawValue: (k) => k.marginPercent,
+    isNullable: true,
+    formatter: formatPercent,
+    getBreakdown: (k) => k.marginPercentBreakdown,
+    buildSubItems: (bd) => standardSubItems(bd, formatPercent, true),
+  },
+  {
+    label: 'Margin $',
+    cardIndex: 4,
+    getValue: (k) => k.marginAmount,
+    getRawValue: (k) => k.marginAmount,
+    isNullable: false,
+    formatter: roundCurrency,
+    getBreakdown: (k) => k.marginAmountBreakdown,
+    buildSubItems: (bd) => standardSubItems(bd, roundCurrency, false),
+  },
+  {
+    label: 'Frequency',
+    cardIndex: 5,
+    getValue: (k) => k.frequency ?? 0,
+    getRawValue: (k) => k.frequency,
+    isNullable: true,
+    formatter: formatFrequency,
+    getBreakdown: (k) => k.frequencyBreakdown,
+    buildSubItems: (bd) => [
+      { label: 'This Quarter', value: nullableFmt(bd.thisQuarter, formatFrequency) },
+      { label: 'Last Month', value: formatInteger(bd.lastMonth), suffix: bd.lastMonthName },
+      { label: 'Best Month', value: formatInteger(bd.bestMonth.value), suffix: bd.bestMonth.name },
+    ],
+  },
+];
 
 /** WHY activity status here: spec 10.3 defines dot color thresholds by days since last order */
 function getActivityStatus(days: number | null): { color: string; label: string } {
@@ -70,11 +160,6 @@ export function KPISection({
   const prevYr = activePeriod === 'ytd' ? new Date().getFullYear() - 1 : parseInt(activePeriod, 10) - 1;
   const pyLabel = activePeriod === 'ytd' ? `YTD ${prevYr}` : `${prevYr}`;
   const pyFullLabel = `Full ${prevYr}`;
-  const ob = kpis.ordersBreakdown;
-  const ab = kpis.avgOrderBreakdown;
-  const mpb = kpis.marginPercentBreakdown;
-  const mab = kpis.marginAmountBreakdown;
-  const fb = kpis.frequencyBreakdown;
 
   return (
     <div className="flex flex-col gap-[var(--spacing-sm)]" role="grid" aria-label="KPI cards">
@@ -91,185 +176,50 @@ export function KPISection({
         />
         <ResizeDivider direction="horizontal" isDragging={isDragging} onMouseDown={handleMouseDown} onTouchStart={handleMouseDown} />
         <div className="grid grid-cols-2 grid-rows-3 gap-[var(--spacing-sm)] overflow-hidden">
-          <KPICard
-            label="Orders"
-            periodLabel={pLabel}
-            value={kpis.orders}
-            formatter={formatInteger}
-            prevYearValue={formatInteger(ob.prevYear)}
-            prevYearFullValue={formatInteger(ob.prevYearFull)}
-            prevYearLabel={pyLabel}
-            prevYearFullLabel={pyFullLabel}
-            changePercent={yoyChange(kpis.orders, ob.prevYear)}
-            expanded={showDetails}
-            subItems={[
-              { label: 'This Quarter', value: formatInteger(ob.thisQuarter) },
-              { label: 'Last Month', value: formatInteger(ob.lastMonth), suffix: ob.lastMonthName },
-              { label: 'Best Month', value: formatInteger(ob.bestMonth.value), suffix: ob.bestMonth.name },
-            ]}
-            onExpand={() => openModal('Orders', (
-              <KPIModalContent
-                value={formatInteger(kpis.orders)}
-                changePercent={yoyChange(kpis.orders, ob.prevYear)}
-                prevYearValue={formatInteger(ob.prevYear)}
-                prevYearFullValue={formatInteger(ob.prevYearFull)}
-                prevYearLabel={pyLabel}
-                prevYearFullLabel={pyFullLabel}
-                subItems={[
-                  { label: 'This Quarter', value: formatInteger(ob.thisQuarter) },
-                  { label: 'Last Month', value: formatInteger(ob.lastMonth), suffix: ob.lastMonthName },
-                  { label: 'Best Month', value: formatInteger(ob.bestMonth.value), suffix: ob.bestMonth.name },
-                ]}
-              />
-            ))}
-            cardRef={setCardRef(1)}
-            onCardFocus={onCardFocus(1)}
-            onCardBlur={onCardBlur}
-          />
+          {KPI_CONFIGS.map((cfg) => {
+            const bd = cfg.getBreakdown(kpis);
+            const value = cfg.getValue(kpis);
+            const raw = cfg.getRawValue(kpis);
+            const change = yoyChange(value, bd.prevYear);
+            const subItems = cfg.buildSubItems(bd);
+            const fmtPrevYear = cfg.isNullable ? nullableFmt(bd.prevYear, cfg.formatter) : cfg.formatter(bd.prevYear);
+            const fmtPrevYearFull = cfg.isNullable ? nullableFmt(bd.prevYearFull, cfg.formatter) : cfg.formatter(bd.prevYearFull);
+            const displayValue = (raw === null) ? '\u2014' : cfg.formatter(value);
+            const cardFormatter = cfg.isNullable
+              ? (n: number) => raw === null ? '\u2014' : cfg.formatter(n)
+              : cfg.formatter;
 
-          <KPICard
-            label="Avg. Order"
-            periodLabel={pLabel}
-            value={kpis.avgOrder ?? 0}
-            formatter={(n) => kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(n))}
-            prevYearValue={ab.prevYear > 0 ? formatCurrency(Math.round(ab.prevYear)) : '\u2014'}
-            prevYearFullValue={ab.prevYearFull > 0 ? formatCurrency(Math.round(ab.prevYearFull)) : '\u2014'}
-            prevYearLabel={pyLabel}
-            prevYearFullLabel={pyFullLabel}
-            changePercent={yoyChange(kpis.avgOrder ?? 0, ab.prevYear)}
-            expanded={showDetails}
-            subItems={[
-              { label: 'This Quarter', value: ab.thisQuarter > 0 ? formatCurrency(Math.round(ab.thisQuarter)) : '\u2014' },
-              { label: 'Last Month', value: ab.lastMonth > 0 ? formatCurrency(Math.round(ab.lastMonth)) : '\u2014', suffix: ab.lastMonthName },
-              { label: 'Best Month', value: ab.bestMonth.value > 0 ? formatCurrency(Math.round(ab.bestMonth.value)) : '\u2014', suffix: ab.bestMonth.name },
-            ]}
-            onExpand={() => openModal('Avg. Order', (
-              <KPIModalContent
-                value={kpis.avgOrder === null ? '\u2014' : formatCurrency(Math.round(kpis.avgOrder))}
-                changePercent={yoyChange(kpis.avgOrder ?? 0, ab.prevYear)}
-                prevYearValue={ab.prevYear > 0 ? formatCurrency(Math.round(ab.prevYear)) : '\u2014'}
-                prevYearFullValue={ab.prevYearFull > 0 ? formatCurrency(Math.round(ab.prevYearFull)) : '\u2014'}
+            return (
+              <KPICard
+                key={cfg.label}
+                label={cfg.label}
+                periodLabel={pLabel}
+                value={value}
+                formatter={cardFormatter}
+                prevYearValue={fmtPrevYear}
+                prevYearFullValue={fmtPrevYearFull}
                 prevYearLabel={pyLabel}
                 prevYearFullLabel={pyFullLabel}
-                subItems={[
-                  { label: 'This Quarter', value: ab.thisQuarter > 0 ? formatCurrency(Math.round(ab.thisQuarter)) : '\u2014' },
-                  { label: 'Last Month', value: ab.lastMonth > 0 ? formatCurrency(Math.round(ab.lastMonth)) : '\u2014', suffix: ab.lastMonthName },
-                  { label: 'Best Month', value: ab.bestMonth.value > 0 ? formatCurrency(Math.round(ab.bestMonth.value)) : '\u2014', suffix: ab.bestMonth.name },
-                ]}
+                changePercent={change}
+                expanded={showDetails}
+                subItems={subItems}
+                onExpand={() => openModal(cfg.label, (
+                  <KPIModalContent
+                    value={displayValue}
+                    changePercent={change}
+                    prevYearValue={fmtPrevYear}
+                    prevYearFullValue={fmtPrevYearFull}
+                    prevYearLabel={pyLabel}
+                    prevYearFullLabel={pyFullLabel}
+                    subItems={subItems}
+                  />
+                ))}
+                cardRef={setCardRef(cfg.cardIndex)}
+                onCardFocus={onCardFocus(cfg.cardIndex)}
+                onCardBlur={onCardBlur}
               />
-            ))}
-            cardRef={setCardRef(2)}
-            onCardFocus={onCardFocus(2)}
-            onCardBlur={onCardBlur}
-          />
-
-          <KPICard
-            label="Margin %"
-            periodLabel={pLabel}
-            value={kpis.marginPercent ?? 0}
-            formatter={(n) => kpis.marginPercent === null ? '\u2014' : formatPercent(n)}
-            prevYearValue={mpb.prevYear > 0 ? formatPercent(mpb.prevYear) : '\u2014'}
-            prevYearFullValue={mpb.prevYearFull > 0 ? formatPercent(mpb.prevYearFull) : '\u2014'}
-            prevYearLabel={pyLabel}
-            prevYearFullLabel={pyFullLabel}
-            changePercent={yoyChange(kpis.marginPercent ?? 0, mpb.prevYear)}
-            expanded={showDetails}
-            subItems={[
-              { label: 'This Quarter', value: mpb.thisQuarter > 0 ? formatPercent(mpb.thisQuarter) : '\u2014' },
-              { label: 'Last Month', value: mpb.lastMonth > 0 ? formatPercent(mpb.lastMonth) : '\u2014', suffix: mpb.lastMonthName },
-              { label: 'Best Month', value: mpb.bestMonth.value > 0 ? formatPercent(mpb.bestMonth.value) : '\u2014', suffix: mpb.bestMonth.name },
-            ]}
-            onExpand={() => openModal('Margin %', (
-              <KPIModalContent
-                value={kpis.marginPercent === null ? '\u2014' : formatPercent(kpis.marginPercent)}
-                changePercent={yoyChange(kpis.marginPercent ?? 0, mpb.prevYear)}
-                prevYearValue={mpb.prevYear > 0 ? formatPercent(mpb.prevYear) : '\u2014'}
-                prevYearFullValue={mpb.prevYearFull > 0 ? formatPercent(mpb.prevYearFull) : '\u2014'}
-                prevYearLabel={pyLabel}
-                prevYearFullLabel={pyFullLabel}
-                subItems={[
-                  { label: 'This Quarter', value: mpb.thisQuarter > 0 ? formatPercent(mpb.thisQuarter) : '\u2014' },
-                  { label: 'Last Month', value: mpb.lastMonth > 0 ? formatPercent(mpb.lastMonth) : '\u2014', suffix: mpb.lastMonthName },
-                  { label: 'Best Month', value: mpb.bestMonth.value > 0 ? formatPercent(mpb.bestMonth.value) : '\u2014', suffix: mpb.bestMonth.name },
-                ]}
-              />
-            ))}
-            cardRef={setCardRef(3)}
-            onCardFocus={onCardFocus(3)}
-            onCardBlur={onCardBlur}
-          />
-
-          <KPICard
-            label="Margin $"
-            periodLabel={pLabel}
-            value={kpis.marginAmount}
-            formatter={(n) => formatCurrency(Math.round(n))}
-            prevYearValue={formatCurrency(Math.round(mab.prevYear))}
-            prevYearFullValue={formatCurrency(Math.round(mab.prevYearFull))}
-            prevYearLabel={pyLabel}
-            prevYearFullLabel={pyFullLabel}
-            changePercent={yoyChange(kpis.marginAmount, mab.prevYear)}
-            expanded={showDetails}
-            subItems={[
-              { label: 'This Quarter', value: formatCurrency(Math.round(mab.thisQuarter)) },
-              { label: 'Last Month', value: formatCurrency(Math.round(mab.lastMonth)), suffix: mab.lastMonthName },
-              { label: 'Best Month', value: formatCurrency(Math.round(mab.bestMonth.value)), suffix: mab.bestMonth.name },
-            ]}
-            onExpand={() => openModal('Margin $', (
-              <KPIModalContent
-                value={formatCurrency(Math.round(kpis.marginAmount))}
-                changePercent={yoyChange(kpis.marginAmount, mab.prevYear)}
-                prevYearValue={formatCurrency(Math.round(mab.prevYear))}
-                prevYearFullValue={formatCurrency(Math.round(mab.prevYearFull))}
-                prevYearLabel={pyLabel}
-                prevYearFullLabel={pyFullLabel}
-                subItems={[
-                  { label: 'This Quarter', value: formatCurrency(Math.round(mab.thisQuarter)) },
-                  { label: 'Last Month', value: formatCurrency(Math.round(mab.lastMonth)), suffix: mab.lastMonthName },
-                  { label: 'Best Month', value: formatCurrency(Math.round(mab.bestMonth.value)), suffix: mab.bestMonth.name },
-                ]}
-              />
-            ))}
-            cardRef={setCardRef(4)}
-            onCardFocus={onCardFocus(4)}
-            onCardBlur={onCardBlur}
-          />
-
-          <KPICard
-            label="Frequency"
-            periodLabel={pLabel}
-            value={kpis.frequency ?? 0}
-            formatter={(n) => kpis.frequency === null ? '\u2014' : formatFrequency(n)}
-            prevYearValue={fb.prevYear > 0 ? formatFrequency(fb.prevYear) : '\u2014'}
-            prevYearFullValue={fb.prevYearFull > 0 ? formatFrequency(fb.prevYearFull) : '\u2014'}
-            prevYearLabel={pyLabel}
-            prevYearFullLabel={pyFullLabel}
-            changePercent={yoyChange(kpis.frequency ?? 0, fb.prevYear)}
-            expanded={showDetails}
-            subItems={[
-              { label: 'This Quarter', value: fb.thisQuarter > 0 ? formatFrequency(fb.thisQuarter) : '\u2014' },
-              { label: 'Last Month', value: formatInteger(fb.lastMonth), suffix: fb.lastMonthName },
-              { label: 'Best Month', value: formatInteger(fb.bestMonth.value), suffix: fb.bestMonth.name },
-            ]}
-            onExpand={() => openModal('Frequency', (
-              <KPIModalContent
-                value={kpis.frequency === null ? '\u2014' : formatFrequency(kpis.frequency)}
-                changePercent={yoyChange(kpis.frequency ?? 0, fb.prevYear)}
-                prevYearValue={fb.prevYear > 0 ? formatFrequency(fb.prevYear) : '\u2014'}
-                prevYearFullValue={fb.prevYearFull > 0 ? formatFrequency(fb.prevYearFull) : '\u2014'}
-                prevYearLabel={pyLabel}
-                prevYearFullLabel={pyFullLabel}
-                subItems={[
-                  { label: 'This Quarter', value: fb.thisQuarter > 0 ? formatFrequency(fb.thisQuarter) : '\u2014' },
-                  { label: 'Last Month', value: formatInteger(fb.lastMonth), suffix: fb.lastMonthName },
-                  { label: 'Best Month', value: formatInteger(fb.bestMonth.value), suffix: fb.bestMonth.name },
-                ]}
-              />
-            ))}
-            cardRef={setCardRef(5)}
-            onCardFocus={onCardFocus(5)}
-            onCardBlur={onCardBlur}
-          />
+            );
+          })}
 
           <KPICard
             label="Last Order"
