@@ -7,7 +7,7 @@ import type { FlatItem } from '@shared/types/dashboard';
 import type { ItemDimensionKey } from './items-filter';
 
 /** WHY client-only type — sort field is a UI concern, not an API contract */
-export type ItemSortField = 'name' | 'value' | 'marginPercent' | 'marginAmount' | 'totalUnits' | 'purchaseFrequency' | 'lastPrice';
+export type ItemSortField = 'name' | 'value' | 'marginPercent' | 'marginAmount' | 'totalUnits' | 'purchaseFrequency' | 'lastPrice' | 'lastOrderDate';
 
 export interface GroupNode {
   key: string;
@@ -103,6 +103,11 @@ export function sortFlatItems(items: FlatItem[], field: ItemSortField, dir: 'asc
   return [...items].sort((a, b) => {
     const aVal = a[field];
     const bVal = b[field];
+    /** WHY: lastOrderDate is string | null — null vs string produces NaN without this guard.
+     *  Nulls sort last regardless of direction so "no history" items sink to bottom. */
+    if (aVal === null && bVal === null) return 0;
+    if (aVal === null) return 1;
+    if (bVal === null) return -1;
     if (typeof aVal === 'string' && typeof bVal === 'string') {
       return dir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
     }
