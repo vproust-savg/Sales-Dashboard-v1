@@ -91,7 +91,7 @@ describe('buildSearch', () => {
 
 describe('round-trip', () => {
   it('preserves valid URLs', () => {
-    const original = 'dim=vendor&period=2024&entity=C7826&tab=items&sort=revenue&dir=desc';
+    const original = 'dim=vendor&period=2024&entity=C7826&tab=items&q=acme&sort=revenue&dir=desc';
     const state = parseSearchParams(new URLSearchParams(original));
     const rebuilt = buildSearch(state);
     expect(parseSearchParams(new URLSearchParams(rebuilt))).toEqual(state);
