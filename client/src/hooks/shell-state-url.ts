@@ -1,7 +1,7 @@
 // FILE: client/src/hooks/shell-state-url.ts
 // PURPOSE: Pure functions for parsing/building URL search params for dashboard shell state
 // USED BY: useDashboardShellState.ts, shell-state-url.test.ts
-// EXPORTS: parseSearchParams, buildSearch, DEFAULT_STATE, DashboardShellState
+// EXPORTS: parseSearchParams, buildSearch, DEFAULT_STATE, DashboardShellState, VALID_DIMENSIONS, VALID_TABS, VALID_SORT_FIELDS, VALID_SORT_DIRECTIONS
 
 import type { Dimension, Period } from '@shared/types/dashboard';
 import type { DetailTab } from '../components/right-panel/detail-tab-types';
@@ -27,10 +27,10 @@ export const DEFAULT_STATE: DashboardShellState = {
   sortDirection: 'asc',
 };
 
-const VALID_DIMENSIONS = new Set<Dimension>(['customer', 'zone', 'vendor', 'brand', 'product_type', 'product']);
-const VALID_TABS = new Set<DetailTab>(['orders', 'items', 'contacts']);
-const VALID_SORT_FIELDS = new Set<SortField>(['id', 'name', 'revenue', 'orders', 'avgOrder', 'marginPercent', 'frequency', 'lastOrder']);
-const VALID_SORT_DIRECTIONS = new Set<SortDirection>(['asc', 'desc']);
+export const VALID_DIMENSIONS = new Set<Dimension>(['customer', 'zone', 'vendor', 'brand', 'product_type', 'product']);
+export const VALID_TABS = new Set<DetailTab>(['orders', 'items', 'contacts']);
+export const VALID_SORT_FIELDS = new Set<SortField>(['id', 'name', 'revenue', 'orders', 'avgOrder', 'marginPercent', 'frequency', 'lastOrder']);
+export const VALID_SORT_DIRECTIONS = new Set<SortDirection>(['asc', 'desc']);
 
 /** WHY: Accepts URLSearchParams instead of reading window.location -- testable without JSDOM */
 export function parseSearchParams(params: URLSearchParams): DashboardShellState {
