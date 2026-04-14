@@ -48,7 +48,7 @@ export function ItemsGroupRow({ group, depth, isExpanded, onToggle }: ItemsGroup
       <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-primary)]">
         {formatCurrency(group.totals.value)}
       </span>
-      <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
+      <span role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
         {formatPercent(group.totals.marginPercent)}
       </span>
       <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
