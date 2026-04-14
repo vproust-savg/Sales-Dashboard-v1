@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useEntities, useDashboardDetail, useConsolidatedDashboard } from './useDashboardData';
-import { useContacts } from './useContacts';
+import { useContacts, useConsolidatedContacts } from './useContacts';
 import { useEntitySelection } from './useEntitySelection';
 import { useFilters } from './useFilters';
 import { useFetchAll } from './useFetchAll';
@@ -109,6 +109,20 @@ export function useDashboardState() {
   // WHY: Contacts only load for the customer dimension when the Contacts tab is active.
   const contactsQuery = useContacts(activeEntityId, activeDimension === 'customer');
 
+  // WHY: In v2 consolidated mode, the active entity is the set of loaded entity IDs.
+  // We derive them from whichever v2 mode is loaded and fetch contacts via the multi-
+  // customer endpoint so ConsolidatedContactsTable has customerName-annotated rows.
+  const consolidatedContactIds = useMemo(() => {
+    if (activeDimension !== 'customer') return [] as string[];
+    if (report2.state === 'loaded' && report2.payload) return report2.payload.entities.map(e => e.id);
+    if (consolidated2.state === 'loaded' && consolidated2.payload) return consolidated2.payload.entities.map(e => e.id);
+    return [] as string[];
+  }, [activeDimension, report2.state, report2.payload, consolidated2.state, consolidated2.payload]);
+  const consolidatedContactsQuery = useConsolidatedContacts(
+    consolidatedContactIds,
+    activeDimension === 'customer' && consolidatedContactIds.length > 0,
+  );
+
   // --- Client-side pipeline: search -> filter -> sort (spec Section 6) ---
   const processedEntities = useMemo(() => {
     if (!entitiesData) return [];
@@ -146,7 +160,10 @@ export function useDashboardState() {
     dashboard: finalDashboard,
     entities: processedEntities,
     allEntities: entitiesData?.entities ?? [],
-    contacts: contactsQuery.data ?? [],
+    // WHY: Prefer consolidated contacts when v2 mode is loaded; otherwise single-entity contacts.
+    contacts: (consolidatedContactsQuery.data && consolidatedContactsQuery.data.length > 0)
+      ? consolidatedContactsQuery.data
+      : (contactsQuery.data ?? []),
     isLoading: entitiesQuery.isLoading,
     isDetailLoading: detailQuery.isLoading,
     isConsolidatedLoading,

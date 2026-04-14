@@ -65,6 +65,10 @@ export function useReport2(dimension: Dimension, period: Period): UseReport2Retu
   const startReport = useCallback((newFilters: FetchAllFilters) => {
     abort();
     setFilters(newFilters);
+    // WHY: Without clearing payload, if the second fetch hits the same cache (e.g., user
+    // re-ran the same filter by accident), the UI renders identical data and looks "stuck"
+    // on the first report. Clearing first forces the placeholder / progress modal to show.
+    setPayload(null);
     setState('fetching');
     setError(null);
     setProgress(null);

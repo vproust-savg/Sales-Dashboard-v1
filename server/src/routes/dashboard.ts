@@ -10,8 +10,9 @@ import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
+import { filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
-import { cacheKey, getTTL } from '../cache/cache-keys.js';
+import { cacheKey, getTTL, buildFilterHash } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { RawOrder, RawCustomer } from '../services/priority-queries.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
@@ -22,13 +23,19 @@ const querySchema = z.object({
   period: z.string().default('ytd'),
   entityId: z.string().optional(),
   entityIds: z.string().optional(), // WHY: comma-separated IDs for View Consolidated
+  // WHY: Filter params are threaded from Consolidated 2 so the server can derive the same
+  // filterHash that fetch-all used to write the raw cache. Previously hardcoded 'all' which
+  // never matched filtered runs.
+  agentName: z.string().optional(),
+  zone: z.string().optional(),
+  customerType: z.string().optional(),
 });
 
 export const dashboardRouter = Router();
 
 dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, next) => {
   try {
-    const { groupBy, period, entityId, entityIds } = res.locals.query as z.infer<typeof querySchema>;
+    const { groupBy, period, entityId, entityIds, agentName, zone, customerType } = res.locals.query as z.infer<typeof querySchema>;
     const now = new Date();
     const year = period === 'ytd' ? now.getFullYear() : parseInt(period, 10);
 
@@ -43,24 +50,39 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const entityIdList = entityIds ? entityIds.split(',').map(s => s.trim()) : undefined;
     if (entityIdList && entityIdList.length > 0) {
       const entitySet = new Set(entityIdList);
-      // WHY: Raw cache is now dimension-agnostic. Probe 'all' first (unfiltered Report 2 run).
-      const rawKey = cacheKey('orders_raw', period, 'all');
-      const rawCached = await redis.get(rawKey);
+      // WHY: Compute filterHash using the same function fetch-all writes with, so the probe
+      // hits the exact same raw cache entry that was just populated. If filters are absent
+      // ('all'), we probe the unfiltered cache. If filters are present but the matching raw
+      // cache is missing (no prior Report 2 with that filter), we try 'all' as a fallback.
+      const filterHash = buildFilterHash(agentName, zone, customerType);
+      const rawCached = await readFirstMatchingRaw(period, filterHash);
       if (rawCached) {
-        const rawEnvelope = typeof rawCached === 'string' ? JSON.parse(rawCached) : rawCached;
-        const allOrders: RawOrder[] = (rawEnvelope as { data: RawOrder[] }).data;
+        const allOrders: RawOrder[] = rawCached;
         const customersResult = await cachedFetch(cacheKey('customers', 'all'), getTTL('customers'),
           () => fetchCustomers(priorityClient));
         const filteredOrders = filterOrdersByEntityIds(allOrders, entitySet, groupBy as Dimension, customersResult.data);
+        // WHY: Prev-year orders for YoY. Try cached prev-year (same filterHash as fetch-all).
+        // If missing, pass [] — better to have no YoY than wrong YoY.
+        const prevKey = cacheKey('orders_year', String(year - 1), filterHash);
+        const prevCached = await redis.get(prevKey);
+        let prevOrders: RawOrder[] = [];
+        if (prevCached) {
+          const env = typeof prevCached === 'string' ? JSON.parse(prevCached) : prevCached;
+          const rawPrev = (env as { data: RawOrder[] }).data;
+          // WHY: Same zone/customerType filter applied to prev — agent was OData-filtered already.
+          const zoneTypeFilteredPrev = filterOrdersByCustomerCriteria(rawPrev, customersResult.data, { zone, customerType });
+          prevOrders = filterOrdersByEntityIds(zoneTypeFilteredPrev, entitySet, groupBy as Dimension, customersResult.data);
+        }
         const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
         const entities = groupByDimension(groupBy as Dimension, filteredOrders, customersResult.data, periodMonths);
         // WHY: Pass opts to populate customerName on order rows + per-entity breakdowns for consolidated view.
-        const aggregate = aggregateOrders(filteredOrders, [], period, {
+        const aggregate = aggregateOrders(filteredOrders, prevOrders, period, {
           preserveEntityIdentity: true,
           customers: customersResult.data,
           dimension: groupBy as Dimension,
         });
         const years = new Set(filteredOrders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
+        prevOrders.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
         const payload: DashboardPayload = {
           entities, ...aggregate, yearsAvailable: [...years].sort().reverse(),
         };
@@ -137,6 +159,30 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     next(err);
   }
 });
+
+/**
+ * Probe raw-orders cache: first try the exact filterHash, then fall back to 'all'.
+ * WHY: Report 2 can be run with filters (raw cache written under computed hash) or without
+ * (written under 'all'). Consolidated 2 must find whichever exists; previously the reader
+ * hardcoded 'all' and ignored the filtered variant, causing false 422 errors.
+ */
+async function readFirstMatchingRaw(period: string, filterHash: string): Promise<RawOrder[] | null> {
+  const primaryKey = cacheKey('orders_raw', period, filterHash);
+  const primary = await redis.get(primaryKey);
+  if (primary) {
+    const env = typeof primary === 'string' ? JSON.parse(primary) : primary;
+    return (env as { data: RawOrder[] }).data;
+  }
+  if (filterHash !== 'all') {
+    const fallbackKey = cacheKey('orders_raw', period, 'all');
+    const fallback = await redis.get(fallbackKey);
+    if (fallback) {
+      const env = typeof fallback === 'string' ? JSON.parse(fallback) : fallback;
+      return (env as { data: RawOrder[] }).data;
+    }
+  }
+  return null;
+}
 
 /**
  * Filter orders by entity IDs for any dimension.

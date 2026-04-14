@@ -24,7 +24,29 @@ function uniqueValues(entities: EntityListItem[], getter: (e: EntityListItem) =>
   return [...set].sort();
 }
 
+// WHY: Inner component is only mounted while isOpen is true. This forces useState to
+// reinitialize on every open, so the previous report's selection cannot leak into the next.
+// A useEffect-based reset is unreliable because the modal may be always-mounted and React
+// can batch the close+reopen transitions.
 export function Report2FilterModal({ isOpen, entities, onConfirm, onCancel }: Report2FilterModalProps) {
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <Report2FilterModalContent
+          entities={entities}
+          onConfirm={onConfirm}
+          onCancel={onCancel}
+        />
+      )}
+    </AnimatePresence>
+  );
+}
+
+function Report2FilterModalContent({
+  entities,
+  onConfirm,
+  onCancel,
+}: Omit<Report2FilterModalProps, 'isOpen'>) {
   const [selectedReps, setSelectedReps] = useState<string[]>([]);
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -51,62 +73,58 @@ export function Report2FilterModal({ isOpen, entities, onConfirm, onCancel }: Re
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
-          onClick={onCancel}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            onClick={(e) => e.stopPropagation()}
-            className="flex w-[420px] max-w-[90vw] flex-col gap-[var(--spacing-2xl)] rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] p-[var(--spacing-3xl)] shadow-[var(--shadow-card)]"
-            role="dialog"
-            aria-label="Report 2 filters"
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-[420px] max-w-[90vw] flex-col gap-[var(--spacing-2xl)] rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] p-[var(--spacing-3xl)] shadow-[var(--shadow-card)]"
+        role="dialog"
+        aria-label="Report 2 filters"
+      >
+        <div className="flex flex-col items-center gap-[var(--spacing-md)]">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-gold-subtle)]">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M3 5h14l-5 6v5l-4 2v-7L3 5z" stroke="var(--color-gold-primary)" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Please select</h2>
+        </div>
+
+        <FilterField label="Sales Rep" options={reps} selected={selectedReps} onChange={setSelectedReps} />
+        <FilterField label="Zone" options={zones} selected={selectedZones} onChange={setSelectedZones} />
+        <FilterField label="Customer Type" options={types} selected={selectedTypes} onChange={setSelectedTypes} />
+
+        <p className="text-center text-[12px] text-[var(--color-text-muted)]">
+          Fetching data for {formatInteger(estimatedCount)} customers. Estimated 4&ndash;7 minutes.
+        </p>
+
+        <div className="flex gap-[var(--spacing-md)]">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)] text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-gold-muted)]"
           >
-            <div className="flex flex-col items-center gap-[var(--spacing-md)]">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-gold-subtle)]">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path d="M3 5h14l-5 6v5l-4 2v-7L3 5z" stroke="var(--color-gold-primary)" strokeWidth="1.5" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Please select</h2>
-            </div>
-
-            <FilterField label="Sales Rep" options={reps} selected={selectedReps} onChange={setSelectedReps} />
-            <FilterField label="Zone" options={zones} selected={selectedZones} onChange={setSelectedZones} />
-            <FilterField label="Customer Type" options={types} selected={selectedTypes} onChange={setSelectedTypes} />
-
-            <p className="text-center text-[12px] text-[var(--color-text-muted)]">
-              Fetching data for {formatInteger(estimatedCount)} customers. Estimated 4&ndash;7 minutes.
-            </p>
-
-            <div className="flex gap-[var(--spacing-md)]">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex-1 rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)] text-[13px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-gold-muted)]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirm}
-                className="flex-1 rounded-[var(--radius-base)] bg-[var(--color-dark)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)] text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-dark-hover)]"
-              >
-                Start
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="flex-1 rounded-[var(--radius-base)] bg-[var(--color-dark)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)] text-[13px] font-medium text-white transition-colors hover:bg-[var(--color-dark-hover)]"
+          >
+            Start
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

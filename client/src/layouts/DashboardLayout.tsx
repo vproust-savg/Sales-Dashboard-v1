@@ -53,6 +53,24 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     : activeView === 'consolidated2' ? consolidated2.payload
     : null;
 
+  // WHY: Only ONE v2 mode can be loaded at a time. When Consolidated 2 transitions to loaded
+  // while Report 2 is still loaded, Report 2's hardcoded precedence in activeView would
+  // permanently mask Consolidated 2 (adversarial H1). Mutually exclude by resetting the
+  // non-winning mode whenever the other transitions to loaded.
+  const report2Reset = report2.reset;
+  const consolidated2Reset = consolidated2.reset;
+  const report2State = report2.state;
+  const consolidated2State = consolidated2.state;
+  useEffect(() => {
+    if (consolidated2State === 'loaded' && report2State === 'loaded') report2Reset();
+  }, [consolidated2State, report2State, report2Reset]);
+  useEffect(() => {
+    if (report2State === 'fetching') consolidated2Reset();
+  }, [report2State, consolidated2Reset]);
+  useEffect(() => {
+    if (consolidated2State === 'fetching') report2Reset();
+  }, [consolidated2State, report2Reset]);
+
   const exportData = dashboard && activeEntityId ? {
     entityName: entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
     period: activePeriod, kpis: dashboard.kpis, orders: dashboard.orders, items: dashboard.items,
@@ -120,7 +138,10 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   const handleReport2Click = () => { report2.open(); };
   const handleViewConsolidated2Click = () => { consolidated2.open(selectedEntityIds); };
   const handleReport2Start = (filters: FetchAllFilters) => { report2.startReport(filters); };
-  const handleConsolidated2Start = () => { consolidated2.start(); };
+  // WHY: Pass report2.filters so server can derive the same filterHash fetch-all used
+  // when writing the raw cache. Without this, Consolidated 2 probes 'all' and 422s on
+  // any filtered Report 2.
+  const handleConsolidated2Start = () => { consolidated2.start(report2.filters); };
   const handleGoToReport2 = () => { consolidated2.reset(); report2.open(); };
 
   const displayDashboard = selectDisplayDashboard({ isConsolidated, activeEntityId, allDashboard, dashboard });

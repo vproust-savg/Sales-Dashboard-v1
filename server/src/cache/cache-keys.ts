@@ -1,7 +1,7 @@
 // FILE: server/src/cache/cache-keys.ts
 // PURPOSE: Cache key schema and TTL mapping — spec Section 19.1
-// USED BY: server/src/cache/cache-layer.ts
-// EXPORTS: cacheKey, getTTL, buildFilterQualifier
+// USED BY: server/src/cache/cache-layer.ts, server/src/routes/fetch-all.ts, server/src/routes/dashboard.ts
+// EXPORTS: cacheKey, getTTL, buildFilterQualifier, buildFilterHash
 
 import { CACHE_TTLS } from '../config/constants.js';
 
@@ -19,6 +19,18 @@ export function cacheKey(entity: CacheEntity, period: string, qualifier = ''): s
  * Without this, filtered fetch-all results overwrite unfiltered data. */
 export function buildFilterQualifier(groupBy: string, filterHash: string): string {
   return `${groupBy}:${filterHash}`;
+}
+
+/** Build a stable filter hash used in raw-orders cache keys.
+ * WHY: Must produce identical output for both the writer (fetch-all SSE) and the reader
+ * (dashboard.ts consolidated fast path). Previously each route built its own hash — the
+ * reader hardcoded 'all' while the writer used actual filter values, so keys never matched. */
+export function buildFilterHash(agentName?: string, zone?: string, customerType?: string): string {
+  const parts: string[] = [];
+  if (agentName) parts.push(`agent=${agentName}`);
+  if (zone) parts.push(`zone=${zone}`);
+  if (customerType) parts.push(`type=${customerType}`);
+  return parts.length > 0 ? parts.join('&') : 'all';
 }
 
 export function getTTL(entity: CacheEntity): number {

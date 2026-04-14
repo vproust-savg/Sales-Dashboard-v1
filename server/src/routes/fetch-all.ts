@@ -13,7 +13,7 @@ import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
 import { filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
-import { cacheKey, getTTL, buildFilterQualifier } from '../cache/cache-keys.js';
+import { cacheKey, getTTL, buildFilterQualifier, buildFilterHash } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 
@@ -94,8 +94,11 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
     // Aggregate
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
+    // WHY: Include filterHash in prev-year key. Without it, the first filtered Report 2
+    // poisons the prev-year cache for every subsequent filter (e.g., running Alexandra's
+    // report caches her prev-year orders under a global key; the next rep reads her data).
     const prevOrders = await cachedFetch(
-      cacheKey('orders_year', String(year - 1)), getTTL('orders_year'),
+      cacheKey('orders_year', String(year - 1), filterHash), getTTL('orders_year'),
       () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter),
     );
     const customers = await cachedFetch(
@@ -105,9 +108,12 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
 
     // WHY: Zone/customerType are CUSTOMERS-level. Post-fetch filter after join.
     const filteredOrders = filterOrdersByCustomerCriteria(orders, customers.data, { zone, customerType });
+    // WHY: Same zone/customerType filter must be applied to prev-year data so YoY compares
+    // the same entity population. Agent filtering already happened in OData.
+    const filteredPrev = filterOrdersByCustomerCriteria(prevOrders.data, customers.data, { zone, customerType });
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
     const entities = groupByDimension(groupBy as Dimension, filteredOrders, customers.data, periodMonths);
-    const aggregate = aggregateOrders(filteredOrders, prevOrders.data, period);
+    const aggregate = aggregateOrders(filteredOrders, filteredPrev, period);
 
     const years = new Set(filteredOrders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
     prevOrders.data.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
@@ -213,10 +219,3 @@ function buildODataFilter(agentName?: string): string | undefined {
   return `(${clauses.join(' or ')})`;
 }
 
-function buildFilterHash(agentName?: string, zone?: string, customerType?: string): string {
-  const parts: string[] = [];
-  if (agentName) parts.push(`agent=${agentName}`);
-  if (zone) parts.push(`zone=${zone}`);
-  if (customerType) parts.push(`type=${customerType}`);
-  return parts.length > 0 ? parts.join('&') : 'all';
-}

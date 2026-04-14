@@ -4,7 +4,7 @@
 // EXPORTS: useConsolidated2, Consolidated2State, UseConsolidated2Return
 
 import { useCallback, useRef, useState } from 'react';
-import type { Dimension, Period, DashboardPayload } from '@shared/types/dashboard';
+import type { Dimension, Period, DashboardPayload, FetchAllFilters } from '@shared/types/dashboard';
 import type { ApiResponse } from '@shared/types/api-responses';
 
 export type Consolidated2State = 'idle' | 'configuring' | 'fetching' | 'loaded' | 'needs-report-2' | 'error';
@@ -16,7 +16,10 @@ export interface UseConsolidated2Return {
   error: string | null;
   open: (entityIds: string[]) => void;
   cancel: () => void;
-  start: () => void;
+  /** WHY: Optional filters are passed through so the server can compute the same filterHash
+   * that fetch-all used when writing the raw cache. Without this, Consolidated 2 probed
+   * 'all' and returned 422 whenever any filter was applied. */
+  start: (filters?: FetchAllFilters) => void;
   abort: () => void;
   reset: () => void;
 }
@@ -54,8 +57,9 @@ export function useConsolidated2(dimension: Dimension, period: Period): UseConso
     setError(null);
   }, [abort]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (filters?: FetchAllFilters) => {
     abort();
+    setPayload(null);
     setState('fetching');
     setError(null);
 
@@ -64,6 +68,9 @@ export function useConsolidated2(dimension: Dimension, period: Period): UseConso
 
     const idsParam = entityIds.slice().sort().join(',');
     const params = new URLSearchParams({ entityIds: idsParam, groupBy: dimension, period });
+    if (filters?.agentName?.length) params.set('agentName', filters.agentName.join(','));
+    if (filters?.zone?.length) params.set('zone', filters.zone.join(','));
+    if (filters?.customerType?.length) params.set('customerType', filters.customerType.join(','));
 
     try {
       const response = await fetch(`/api/sales/dashboard?${params}`, { signal: controller.signal });
