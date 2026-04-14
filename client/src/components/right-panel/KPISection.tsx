@@ -4,7 +4,7 @@
 // EXPORTS: KPISection
 
 import { useState } from 'react';
-import type { KPIs, KPIMetricBreakdown, MonthlyRevenue, SparklineData, Period } from '@shared/types/dashboard';
+import type { KPIs, KPIMetricBreakdown, MonthlyRevenue, SparklineData, Period, EntityListItem } from '@shared/types/dashboard';
 import {
   formatCurrency,
   formatDays,
@@ -24,6 +24,8 @@ interface KPISectionProps {
   monthlyRevenue: MonthlyRevenue[];
   sparklines: Record<string, SparklineData>;
   activePeriod: Period;
+  /** WHY: When set, KPI modals render the per-customer toggle and table */
+  consolidatedEntities?: EntityListItem[];
 }
 
 // ---------------------------------------------------------------------------
@@ -135,6 +137,7 @@ export function KPISection({
   monthlyRevenue,
   sparklines: _sparklines,
   activePeriod,
+  consolidatedEntities,
 }: KPISectionProps) {
   const [showDetails, setShowDetails] = useState(false);
   const { openModal } = useModal();
@@ -153,7 +156,17 @@ export function KPISection({
           monthlyRevenue={monthlyRevenue}
           activePeriod={activePeriod}
           showDetails={showDetails}
-          onExpand={() => openModal('Total Revenue', <HeroRevenueModalContent kpis={kpis} monthlyRevenue={monthlyRevenue} />)}
+          onExpand={() => openModal('Total Revenue', (
+            <HeroRevenueModalContent
+              kpis={kpis}
+              monthlyRevenue={monthlyRevenue}
+              perCustomer={consolidatedEntities ? {
+                entities: consolidatedEntities,
+                getValue: (e) => e.revenue,
+                formatValue: (v) => roundCurrency(v),
+              } : undefined}
+            />
+          ))}
           cardRef={setCardRef(0)}
           onCardFocus={onCardFocus(0)}
           onCardBlur={onCardBlur}
@@ -195,6 +208,19 @@ export function KPISection({
                     prevYearLabel={pyLabel}
                     prevYearFullLabel={pyFullLabel}
                     subItems={subItems}
+                    perCustomer={consolidatedEntities ? {
+                      entities: consolidatedEntities,
+                      getValue: (e) => {
+                        if (cfg.label === 'Orders') return e.orderCount;
+                        if (cfg.label === 'Avg. Order') return e.avgOrder;
+                        if (cfg.label === 'Margin %') return e.marginPercent;
+                        if (cfg.label === 'Margin $') return e.marginAmount;
+                        if (cfg.label === 'Frequency') return e.frequency;
+                        return null;
+                      },
+                      formatValue: cfg.formatter,
+                      valueLabel: cfg.label,
+                    } : undefined}
                   />
                 ))}
                 cardRef={setCardRef(cfg.cardIndex)}
@@ -211,7 +237,19 @@ export function KPISection({
             formatter={(n) => kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(n))}
             statusDot={activity}
             onExpand={() => openModal('Last Order', (
-              <KPIModalContent value={kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(kpis.lastOrderDays))} />
+              <KPIModalContent
+                value={kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(kpis.lastOrderDays))}
+                perCustomer={consolidatedEntities ? {
+                  entities: consolidatedEntities,
+                  getValue: (e) => {
+                    if (!e.lastOrderDate) return null;
+                    const diff = (Date.now() - new Date(e.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
+                    return Math.round(diff);
+                  },
+                  formatValue: (d) => `${d}d`,
+                  valueLabel: 'Days ago',
+                } : undefined}
+              />
             ))}
             cardRef={setCardRef(6)}
             onCardFocus={onCardFocus(6)}

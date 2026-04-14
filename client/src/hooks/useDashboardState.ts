@@ -9,6 +9,9 @@ import { useContacts } from './useContacts';
 import { useEntitySelection } from './useEntitySelection';
 import { useFilters } from './useFilters';
 import { useFetchAll } from './useFetchAll';
+import { useReport2 } from './useReport2';
+import { useConsolidated2 } from './useConsolidated2';
+import { useCacheStatus } from './useCacheStatus';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
@@ -53,6 +56,10 @@ export function useDashboardState() {
   } = useFetchAll(activeDimension, activePeriod);
   const dataLoaded = fetchAllLoadState === 'loaded';
 
+  const report2 = useReport2(activeDimension, activePeriod);
+  const consolidated2 = useConsolidated2(activeDimension, activePeriod);
+  const cacheStatus = useCacheStatus(activePeriod);
+
   // --- Spec Section 13.1: Dimension switch resets ALL other state ---
   const switchDimension = useCallback((dim: Dimension) => {
     setShellDimension(dim);
@@ -61,7 +68,9 @@ export function useDashboardState() {
     clearFilters();
     resetSort();
     abortFetch();
-  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, abortFetch]);
+    report2.reset();
+    consolidated2.reset();
+  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, abortFetch, report2, consolidated2]);
 
   const prevDimensionRef = useRef(activeDimension);
   useEffect(() => {
@@ -164,6 +173,9 @@ export function useDashboardState() {
     fetchAllProgress,
     allDashboard,
     panelCollapsed,
+    report2,
+    consolidated2,
+    cacheStatus: cacheStatus.data,
 
     // Actions
     switchDimension,

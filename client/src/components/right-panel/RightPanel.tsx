@@ -29,29 +29,48 @@ interface RightPanelProps {
   onPeriodChange: (period: Period) => void;
   onTabChange: (tab: DetailTab) => void;
   onExport: () => void;
+  consolidatedMode?: boolean;
+  consolidatedEntities?: EntityListItem[];
+  perEntityProductMixes?: Record<string, Record<ProductMixType, ProductMixSegment[]>>;
+  perEntityTopSellers?: Record<string, TopSellerItem[]>;
+  hideDetailHeader?: boolean;
 }
 
 export function RightPanel({
   entity, kpis, monthlyRevenue, productMixes, topSellers,
   sparklines, orders, items, contacts, yearsAvailable, activePeriod, activeTab,
   onPeriodChange, onTabChange, onExport,
+  consolidatedMode, consolidatedEntities, perEntityProductMixes, perEntityTopSellers, hideDetailHeader,
 }: RightPanelProps) {
   return (
     <>
-      <DetailHeader
-        entity={entity} activePeriod={activePeriod} yearsAvailable={yearsAvailable}
-        onPeriodChange={onPeriodChange} onExport={onExport}
-      />
+      {!hideDetailHeader && (
+        <DetailHeader
+          entity={entity} activePeriod={activePeriod} yearsAvailable={yearsAvailable}
+          onPeriodChange={onPeriodChange} onExport={onExport}
+        />
+      )}
       <section aria-label="KPI summary">
         <KPISection
           kpis={kpis} monthlyRevenue={monthlyRevenue} sparklines={sparklines}
           activePeriod={activePeriod}
+          consolidatedEntities={consolidatedEntities}
         />
       </section>
       <section aria-label="Charts">
-        <ChartsRow productMixes={productMixes} topSellers={topSellers} />
+        <ChartsRow
+          productMixes={productMixes}
+          topSellers={topSellers}
+          consolidatedEntities={consolidatedEntities}
+          perEntityProductMixes={perEntityProductMixes}
+          perEntityTopSellers={perEntityTopSellers}
+        />
       </section>
-      <TabsSection activeTab={activeTab} onTabChange={onTabChange} orders={orders} items={items} contacts={contacts} />
+      <TabsSection
+        activeTab={activeTab} onTabChange={onTabChange}
+        orders={orders} items={items} contacts={contacts}
+        consolidatedMode={consolidatedMode}
+      />
     </>
   );
 }

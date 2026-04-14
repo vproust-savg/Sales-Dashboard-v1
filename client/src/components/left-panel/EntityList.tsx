@@ -3,10 +3,12 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: EntityList
 
-import type { EntityListItem as EntityListItemType, EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
+import type { EntityListItem as EntityListItemType, EntityListLoadState, DashboardPayload, CacheStatus } from '@shared/types/dashboard';
+import type { Report2State } from '../../hooks/useReport2';
 import { EntityListItem } from './EntityListItem';
 import { AllEntityEntry } from './AllEntityEntry';
 import { SelectionBar } from './SelectionBar';
+import { Report2Button } from './Report2Button';
 
 interface EntityListProps {
   entities: EntityListItemType[];
@@ -26,6 +28,12 @@ interface EntityListProps {
   selectedCount: number;
   onViewConsolidated: () => void;
   onClearSelection: () => void;
+  report2State: Report2State;
+  report2Payload: DashboardPayload | null;
+  cacheStatus: CacheStatus | undefined;
+  activeView: 'single' | 'report2' | 'consolidated2';
+  onReport2Click: () => void;
+  onViewConsolidated2: () => void;
 }
 
 export function EntityList({
@@ -46,6 +54,12 @@ export function EntityList({
   selectedCount,
   onViewConsolidated,
   onClearSelection,
+  report2State,
+  report2Payload,
+  cacheStatus,
+  activeView,
+  onReport2Click,
+  onViewConsolidated2,
 }: EntityListProps) {
   return (
     <div
@@ -69,6 +83,14 @@ export function EntityList({
         entitiesWithOrders={entitiesWithOrders}
         onClick={onAllClick}
         onRefresh={onRefresh}
+      />
+
+      <Report2Button
+        state={report2State}
+        payload={report2Payload}
+        cacheStatus={cacheStatus}
+        isActive={activeView === 'report2'}
+        onClick={onReport2Click}
       />
 
       {/* WHY: live region announces list count changes to screen readers */}
@@ -107,6 +129,7 @@ export function EntityList({
         selectedCount={selectedCount}
         dataLoaded={dataLoaded}
         onViewConsolidated={onViewConsolidated}
+        onViewConsolidated2={onViewConsolidated2}
         onClear={onClearSelection}
       />
     </div>

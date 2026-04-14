@@ -4,15 +4,17 @@
 // EXPORTS: SelectionBar
 
 import { AnimatePresence, motion } from 'framer-motion';
+import { ViewConsolidated2Button } from './ViewConsolidated2Button';
 
 interface SelectionBarProps {
   selectedCount: number;
   dataLoaded: boolean;
   onViewConsolidated: () => void;
+  onViewConsolidated2: () => void;
   onClear: () => void;
 }
 
-export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, onClear }: SelectionBarProps) {
+export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, onViewConsolidated2, onClear }: SelectionBarProps) {
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
@@ -63,6 +65,7 @@ export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, on
             >
               View Consolidated
             </button>
+            <ViewConsolidated2Button onClick={onViewConsolidated2} />
           </div>
         </motion.div>
       )}

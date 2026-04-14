@@ -8,8 +8,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { FetchAllFilters } from '@shared/types/dashboard';
 import { LeftPanel } from '../components/left-panel/LeftPanel';
 import { RightPanel } from '../components/right-panel/RightPanel';
+import { ConsolidatedHeader } from '../components/right-panel/ConsolidatedHeader';
 import { FetchAllProgress } from '../components/right-panel/FetchAllProgress';
 import { FetchAllDialog } from '../components/shared/FetchAllDialog';
+import { Report2FilterModal } from '../components/shared/Report2FilterModal';
+import { Report2ProgressModal } from '../components/shared/Report2ProgressModal';
+import { Consolidated2ConfirmModal } from '../components/shared/Consolidated2ConfirmModal';
 import { LoadingModal } from '../components/shared/LoadingModal';
 import { Skeleton } from '../components/shared/Skeleton';
 import { DIMENSION_CONFIG } from '../utils/dimension-config';
@@ -27,6 +31,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection, dataLoaded, fetchAllLoadState, fetchAllProgress, allDashboard,
     isConsolidated, isConsolidatedLoading,
+    report2, consolidated2, cacheStatus,
     startFetchAll,
     switchDimension, switchPeriod, selectEntity, toggleCheckbox,
     setActiveTab,
@@ -36,6 +41,17 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     panelCollapsed,
     togglePanel,
   } = props;
+
+  // WHY: v2 state takes priority over v1 — if Report 2 or Consolidated 2 is loaded,
+  // we render consolidated mode. Otherwise fall through to single-entity or v1 behavior.
+  const activeView: 'single' | 'report2' | 'consolidated2' =
+    report2.state === 'loaded' ? 'report2'
+    : consolidated2.state === 'loaded' ? 'consolidated2'
+    : 'single';
+
+  const consolidatedPayload = activeView === 'report2' ? report2.payload
+    : activeView === 'consolidated2' ? consolidated2.payload
+    : null;
 
   const exportData = dashboard && activeEntityId ? {
     entityName: entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
@@ -93,12 +109,20 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   const activeEntity = entities.find(e => e.id === activeEntityId) ?? null;
   const totalCount = entities.length;
   const sortActive = sortField !== 'id' || sortDirection !== 'asc';
+
   const handleAllClick = () => {
     if (fetchAllLoadState === 'loaded') { selectEntity('__ALL__'); }
     else if (fetchAllLoadState !== 'loading') { setDialogRefresh(false); setDialogOpen(true); }
   };
   const handleRefresh = () => { setDialogRefresh(true); setDialogOpen(true); };
   const handleDialogConfirm = (filters: FetchAllFilters) => { setDialogOpen(false); startFetchAll(filters, dialogRefresh); selectEntity('__ALL__'); };
+
+  const handleReport2Click = () => { report2.open(); };
+  const handleViewConsolidated2Click = () => { consolidated2.open(selectedEntityIds); };
+  const handleReport2Start = (filters: FetchAllFilters) => { report2.startReport(filters); };
+  const handleConsolidated2Start = () => { consolidated2.start(); };
+  const handleGoToReport2 = () => { consolidated2.reset(); report2.open(); };
+
   const displayDashboard = selectDisplayDashboard({ isConsolidated, activeEntityId, allDashboard, dashboard });
   const isAllActive = activeEntityId === '__ALL__';
 
@@ -106,6 +130,25 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     <>
       <LoadingModal stage={isDetailLoading && !isAllActive ? loadingStage : null} />
       <FetchAllDialog isOpen={dialogOpen} dimension={activeDimension} entities={allEntities} isRefresh={dialogRefresh} onConfirm={handleDialogConfirm} onCancel={() => setDialogOpen(false)} />
+      <Report2FilterModal
+        isOpen={report2.state === 'configuring'}
+        entities={allEntities}
+        onConfirm={handleReport2Start}
+        onCancel={report2.cancel}
+      />
+      <Report2ProgressModal
+        isOpen={report2.state === 'fetching'}
+        progress={report2.progress}
+      />
+      <Consolidated2ConfirmModal
+        isOpen={consolidated2.state === 'configuring' || consolidated2.state === 'fetching' || consolidated2.state === 'needs-report-2' || consolidated2.state === 'error'}
+        state={consolidated2.state}
+        selectedEntities={allEntities.filter(e => consolidated2.entityIds.includes(e.id))}
+        error={consolidated2.error}
+        onConfirm={handleConsolidated2Start}
+        onCancel={consolidated2.cancel}
+        onGoToReport2={handleGoToReport2}
+      />
 
       <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto">
         {panelCollapsed ? (
@@ -128,13 +171,17 @@ export function DashboardLayout(props: DashboardLayoutProps) {
               onAllClick={handleAllClick} onRefresh={handleRefresh} onSort={setSort} totalCount={totalCount}
               onDimensionChange={switchDimension} onEntitySelect={selectEntity} onEntityCheck={toggleCheckbox}
               onClearSelection={clearSelection} onViewConsolidated={viewConsolidated}
+              report2State={report2.state}
+              report2Payload={report2.payload}
+              cacheStatus={cacheStatus}
+              activeView={activeView}
+              onReport2Click={handleReport2Click}
+              onViewConsolidated2={handleViewConsolidated2Click}
             />
           </aside>
         )}
 
         <main className="flex min-w-0 flex-1 flex-col gap-[var(--spacing-base)] overflow-y-auto pr-[var(--spacing-xs)] max-lg:pr-0" aria-label="Dashboard details">
-          {/* WHY: fetchAllError is normally swallowed by the entities.length===0 gate.
-           *  Show it as a dismissable banner so the user knows what went wrong and can retry. */}
           {fetchAllLoadState === 'error' && error && (
             <div role="alert" className="flex items-center justify-between gap-3 rounded-[var(--radius-xl)] border border-[var(--color-red)] bg-[var(--color-bg-card)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)] text-[13px]">
               <span className="text-[var(--color-red)]">Failed to load data: {error}</span>
@@ -149,6 +196,50 @@ export function DashboardLayout(props: DashboardLayoutProps) {
           )}
           {fetchAllLoadState === 'loading' ? (
             <FetchAllProgress progress={fetchAllProgress} />
+          ) : activeView !== 'single' && consolidatedPayload ? (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeView}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex flex-col gap-[var(--spacing-base)]"
+              >
+                <ConsolidatedHeader
+                  mode={activeView === 'report2' ? 'report' : 'consolidated'}
+                  entityCount={consolidatedPayload.entities.length}
+                  dimensionLabel={DIMENSION_CONFIG[activeDimension].pluralLabel}
+                  filters={activeView === 'report2' ? report2.filters : null}
+                  yearsAvailable={consolidatedPayload.yearsAvailable}
+                  activePeriod={activePeriod}
+                  onPeriodChange={switchPeriod}
+                  onExport={exportCsv}
+                />
+                <RightPanel
+                  entity={null}
+                  kpis={consolidatedPayload.kpis}
+                  monthlyRevenue={consolidatedPayload.monthlyRevenue}
+                  productMixes={consolidatedPayload.productMixes}
+                  topSellers={consolidatedPayload.topSellers}
+                  sparklines={consolidatedPayload.sparklines}
+                  orders={consolidatedPayload.orders}
+                  items={consolidatedPayload.items}
+                  contacts={contacts}
+                  yearsAvailable={consolidatedPayload.yearsAvailable}
+                  activePeriod={activePeriod}
+                  activeTab={activeTab}
+                  onPeriodChange={switchPeriod}
+                  onTabChange={setActiveTab}
+                  onExport={exportCsv}
+                  consolidatedMode={true}
+                  consolidatedEntities={consolidatedPayload.entities}
+                  perEntityProductMixes={consolidatedPayload.perEntityProductMixes}
+                  perEntityTopSellers={consolidatedPayload.perEntityTopSellers}
+                  hideDetailHeader={true}
+                />
+              </motion.div>
+            </AnimatePresence>
           ) : (
             <AnimatePresence mode="wait">
               {displayDashboard ? (

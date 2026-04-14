@@ -4,7 +4,8 @@
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: LeftPanel
 
-import type { EntityListItem, Dimension, EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
+import type { EntityListItem, Dimension, EntityListLoadState, DashboardPayload, CacheStatus } from '@shared/types/dashboard';
+import type { Report2State } from '../../hooks/useReport2';
 import type { FilterCondition } from '../../hooks/useFilters';
 import type { SortField, SortDirection } from '../../hooks/sort-types';
 import { DIMENSION_CONFIG } from '../../utils/dimension-config';
@@ -36,6 +37,10 @@ interface LeftPanelProps {
   entitiesWithOrders: number;
   onAllClick: () => void;
   onRefresh: () => void;
+  report2State: Report2State;
+  report2Payload: DashboardPayload | null;
+  cacheStatus: CacheStatus | undefined;
+  activeView: 'single' | 'report2' | 'consolidated2';
 
   // Actions
   onDimensionChange: (dim: Dimension) => void;
@@ -43,6 +48,8 @@ interface LeftPanelProps {
   onEntityCheck: (id: string) => void;
   onClearSelection: () => void;
   onViewConsolidated: () => void;
+  onReport2Click: () => void;
+  onViewConsolidated2: () => void;
   onSearchChange: (term: string) => void;
   onFilterToggle: () => void;
   onAddCondition: () => void;
@@ -57,8 +64,9 @@ export function LeftPanel({
   searchTerm, filterOpen, filterCount, filterConditions,
   sortField, sortDirection, sortActive, dataLoaded,
   fetchAllLoadState, allDashboard, entitiesWithOrders, onAllClick, onRefresh,
+  report2State, report2Payload, cacheStatus, activeView,
   onDimensionChange, onEntitySelect, onEntityCheck, onClearSelection,
-  onViewConsolidated, onSearchChange, onFilterToggle,
+  onViewConsolidated, onReport2Click, onViewConsolidated2, onSearchChange, onFilterToggle,
   onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters,
   onSort,
 }: LeftPanelProps) {
@@ -115,6 +123,12 @@ export function LeftPanel({
           selectedCount={selectedEntityIds.length}
           onViewConsolidated={onViewConsolidated}
           onClearSelection={onClearSelection}
+          report2State={report2State}
+          report2Payload={report2Payload}
+          cacheStatus={cacheStatus}
+          activeView={activeView}
+          onReport2Click={onReport2Click}
+          onViewConsolidated2={onViewConsolidated2}
         />
       </div>
     </>

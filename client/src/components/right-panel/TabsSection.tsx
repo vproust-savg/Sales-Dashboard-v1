@@ -8,6 +8,8 @@ import type { OrderRow, FlatItem, Contact } from '@shared/types/dashboard';
 import { OrdersTab } from './OrdersTab';
 import { ItemsExplorer } from './ItemsExplorer';
 import { ContactsTable } from './ContactsTable';
+import { ConsolidatedOrdersTable } from './ConsolidatedOrdersTable';
+import { ConsolidatedContactsTable } from './ConsolidatedContactsTable';
 import type { DetailTab } from './detail-tab-types';
 
 interface TabsSectionProps {
@@ -16,6 +18,7 @@ interface TabsSectionProps {
   orders: OrderRow[];
   items: FlatItem[];
   contacts: Contact[];
+  consolidatedMode?: boolean;
 }
 
 interface TabDef {
@@ -24,7 +27,7 @@ interface TabDef {
   count: number;
 }
 
-export function TabsSection({ activeTab, onTabChange, orders, items, contacts }: TabsSectionProps) {
+export function TabsSection({ activeTab, onTabChange, orders, items, contacts, consolidatedMode }: TabsSectionProps) {
   const tabListRef = useRef<HTMLDivElement>(null);
 
   const tabs: TabDef[] = [
@@ -117,9 +120,17 @@ export function TabsSection({ activeTab, onTabChange, orders, items, contacts }:
           id={`panel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
         >
-          {activeTab === 'orders' && <OrdersTab orders={orders} />}
+          {activeTab === 'orders' && (
+            consolidatedMode
+              ? <ConsolidatedOrdersTable orders={orders} />
+              : <OrdersTab orders={orders} />
+          )}
           {activeTab === 'items' && <ItemsExplorer items={items} />}
-          {activeTab === 'contacts' && <ContactsTable contacts={contacts} />}
+          {activeTab === 'contacts' && (
+            consolidatedMode
+              ? <ConsolidatedContactsTable contacts={contacts} />
+              : <ContactsTable contacts={contacts} />
+          )}
         </div>
       </div>
     </div>
