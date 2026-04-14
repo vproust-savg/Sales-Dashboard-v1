@@ -24,12 +24,12 @@ interface ItemsTableProps {
 const COLUMNS: { label: string; field: ItemSortField | null; width: string }[] = [
   { label: 'Product', field: 'name', width: 'flex-1' },
   { label: 'Value', field: 'value', width: 'w-24' },
-  { label: 'Avg Margin %', field: 'marginPercent', width: 'w-24' },
+  { label: 'Avg Margin %', field: 'marginPercent', width: 'w-28' },
   { label: 'Margin $', field: 'marginAmount', width: 'w-24' },
   { label: 'Units', field: 'totalUnits', width: 'w-24' },
   { label: 'Freq', field: 'purchaseFrequency', width: 'w-20' },
   { label: 'Last $', field: 'lastPrice', width: 'w-24' },
-  { label: 'Last Order', field: null, width: 'w-24' },
+  { label: 'Last Order', field: 'lastOrderDate', width: 'w-24' },
 ];
 
 function SortArrow({ field, sortField, sortDirection }: { field: ItemSortField; sortField: ItemSortField; sortDirection: string }) {
