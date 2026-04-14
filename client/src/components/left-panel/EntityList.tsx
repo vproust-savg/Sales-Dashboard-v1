@@ -3,7 +3,6 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: EntityList
 
-import { useRef, useEffect } from 'react';
 import type { EntityListItem as EntityListItemType, EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
 import { EntityListItem } from './EntityListItem';
 import { AllEntityEntry } from './AllEntityEntry';
@@ -48,10 +47,6 @@ export function EntityList({
   onViewConsolidated,
   onClearSelection,
 }: EntityListProps) {
-  // WHY: Stagger animation on initial mount only — search/filter results appear instantly
-  const hasAnimated = useRef(false);
-  useEffect(() => { hasAnimated.current = true; }, []);
-
   return (
     <div
       className="flex flex-1 flex-col overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] shadow-[var(--shadow-card)]"
@@ -88,7 +83,7 @@ export function EntityList({
         aria-multiselectable="true"
         className={`min-h-0 flex-1 overflow-y-auto ${selectedCount > 0 ? 'pb-[57px]' : ''}`}
       >
-        {entities.map((entity, index) => (
+        {entities.map((entity) => (
           <EntityListItem
             key={entity.id}
             entity={entity}
@@ -96,7 +91,6 @@ export function EntityList({
             isSelected={selectedIds.includes(entity.id)}
             onSelect={onSelect}
             onCheck={onCheck}
-            animationDelay={hasAnimated.current ? 0 : index * 0.03}
           />
         ))}
 

@@ -3,7 +3,6 @@
 // USED BY: client/src/components/left-panel/EntityList.tsx
 // EXPORTS: EntityListItem (component)
 
-import { motion } from 'framer-motion';
 import type { EntityListItem as EntityListItemType } from '@shared/types/dashboard';
 
 interface EntityListItemProps {
@@ -12,10 +11,9 @@ interface EntityListItemProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   onCheck: (id: string) => void;
-  animationDelay?: number;
 }
 
-export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck, animationDelay = 0 }: EntityListItemProps) {
+export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck }: EntityListItemProps) {
   /** WHY: active state uses asymmetric padding — 13px left compensates for 3px border */
   const paddingClass = isActive
     ? 'py-[var(--spacing-lg)] pr-[var(--spacing-2xl)] pl-[13px]'
@@ -28,7 +26,7 @@ export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck
       : 'bg-transparent hover:bg-[var(--color-gold-hover)]';
 
   return (
-    <motion.div
+    <div
       role="option"
       aria-selected={isSelected}
       aria-current={isActive || undefined}
@@ -40,9 +38,6 @@ export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck
           onSelect(entity.id);
         }
       }}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: animationDelay, duration: 0.2 }}
       className={`
         relative flex cursor-pointer items-start gap-[var(--spacing-md)]
         ${paddingClass} ${bgClass}
@@ -87,6 +82,6 @@ export function EntityListItem({ entity, isActive, isSelected, onSelect, onCheck
           {entity.meta1}
         </span>
       </div>
-    </motion.div>
+    </div>
   );
 }
