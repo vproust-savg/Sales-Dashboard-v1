@@ -15,21 +15,27 @@ interface ItemsProductRowProps {
   showCompare: boolean;
 }
 
-function formatLastOrder(isoDate: string | null): { text: string; color: string } {
+/** WHY: color reflects how overdue the order is relative to the customer's actual purchase
+ *  cadence, not arbitrary fixed-day thresholds. intervalDays = 30 / freq converts
+ *  orders/month to the expected gap between orders in days. */
+function formatLastOrder(isoDate: string | null, purchaseFrequency: number): { text: string; color: string } {
   if (!isoDate) return { text: '\u2014', color: 'var(--color-text-muted)' };
   const days = Math.floor((Date.now() - new Date(isoDate).getTime()) / (1000 * 60 * 60 * 24));
   const text = days <= 0 ? 'Today' : days === 1 ? '1d' : days < 7 ? `${days}d` : days < 30 ? `${Math.floor(days / 7)}w` : `${Math.floor(days / 30)}mo`;
-  let color = 'var(--color-red)';
-  if (days <= 14) color = 'var(--color-green)';
-  else if (days <= 45) color = 'var(--color-gold-primary)';
-  else if (days <= 90) color = 'var(--color-yellow)';
+  if (purchaseFrequency <= 0) return { text, color: 'var(--color-text-muted)' };
+  const intervalDays = 30 / purchaseFrequency;
+  const color = days <= intervalDays
+    ? 'var(--color-green)'
+    : days <= 2 * intervalDays
+      ? 'var(--color-yellow)'
+      : 'var(--color-red)';
   return { text, color };
 }
 
 export function ItemsProductRow({ item, depth, showCompare }: ItemsProductRowProps) {
   /** WHY: depth * 24px + 24px base = indentation under deepest group level */
   const paddingLeft = `${depth * 24 + 24}px`;
-  const lastOrder = formatLastOrder(item.lastOrderDate);
+  const lastOrder = formatLastOrder(item.lastOrderDate, item.purchaseFrequency);
   /** WHY: Compute prev margin amount from prev year data for TrendArrow comparison */
   const prevMarginAmount = item.prevYearValue > 0 ? (item.prevYearMarginPercent / 100) * item.prevYearValue : 0;
 
@@ -49,7 +55,7 @@ export function ItemsProductRow({ item, depth, showCompare }: ItemsProductRowPro
           {formatCurrency(item.value)}
           <TrendArrow current={item.value} previous={item.prevYearValue} />
         </div>
-        <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
+        <div role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {formatPercent(item.marginPercent)}
           <TrendArrow current={item.marginPercent} previous={item.prevYearMarginPercent} />
         </div>
