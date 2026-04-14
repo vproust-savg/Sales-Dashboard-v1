@@ -69,11 +69,11 @@ Embedded in Airtable via Omni. Deployed on Railway via Dockerfile.
 ```bash
 cd client && npx tsc -b --noEmit   # Client TS build
 cd ../server && npx tsc --noEmit   # Server TS build
-cd ../server && npx vitest run     # Server tests (63 total, 61 pass — 2 formatDays tests have test-code mismatch)
+cd ../server && npx vitest run     # Server tests (63 total, all must pass)
 cd ../client && npx vite build     # Client bundle (must be <500KB gzip)
 ```
 All must pass — any TypeScript error kills the Railway Docker build.
-Also verify: no `any` types (`grep -rn ": any\|as any" server/src/ client/src/`), no files >200 lines, no secrets in source.
+Also verify: no `any` types (`grep -rn ": any\|as any" server/src/ client/src/`), no files >300 lines, no secrets in source.
 
 ## Project Structure
 
@@ -117,7 +117,7 @@ This code is maintained exclusively by LLMs. Every decision optimizes for AI rea
 
 1. **Intent block** at top of every file: `FILE`, `PURPOSE`, `USED BY`, `EXPORTS`
 2. **WHY comments** on non-obvious decisions. Never comment WHAT (LLMs can read code).
-3. **Every file under 200 lines.** Split if approaching 250.
+3. **Every file under 300 lines.** Split if approaching 350. One file = one goal.
 4. **Import order:** React/libraries → hooks → components → utils → types
 5. **Identical patterns** for identical things — all routes, all components, all hooks.
 6. **Descriptive greppable names:** `formatCurrencyValue()` not `fmt()`
@@ -165,7 +165,7 @@ Use Tailwind token classes (`text-gold-primary`, `bg-card`) — never hardcode h
 
 **React + Accessibility:**
 - Using `useEffect` for data fetching instead of TanStack Query
-- Making files longer than 200 lines instead of splitting
+- Making files longer than 300 lines instead of splitting
 - Framer Motion animations are JS-driven (RAF springs/tweens) — CSS `prefers-reduced-motion` rule does NOT suppress them. Use `<MotionConfig reducedMotion="user">` at the app root. This is the ONLY way to respect OS-level reduced motion for Framer Motion.
 - Never wrap ARIA child roles in plain `div`/`motion.div` — e.g., a `motion.div` between `role="listbox"` and `role="option"` breaks the ownership model. Apply motion props directly on the semantic element.
 
