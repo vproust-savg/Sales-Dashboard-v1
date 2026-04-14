@@ -152,6 +152,7 @@ export function useDashboardState() {
     activeEntityId,
     activeTab,
     selectedEntityIds: selectedIds,
+    isConsolidated,
     searchTerm,
     filterConditions: conditions,
     filterOpen,

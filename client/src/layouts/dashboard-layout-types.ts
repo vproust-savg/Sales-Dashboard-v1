@@ -32,6 +32,8 @@ export interface DashboardLayoutProps {
   sortField: SortField;
   sortDirection: SortDirection;
   dataLoaded: boolean;
+  isConsolidated: boolean;
+  isConsolidatedLoading: boolean;
   fetchAllLoadState: EntityListLoadState;
   fetchAllProgress: SSEProgressEvent | null;
   allDashboard: DashboardPayload | null;
