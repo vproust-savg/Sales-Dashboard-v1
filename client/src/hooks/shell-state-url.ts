@@ -5,7 +5,7 @@
 
 import type { Dimension, Period } from '@shared/types/dashboard';
 import type { DetailTab } from '../components/right-panel/detail-tab-types';
-import type { SortDirection, SortField } from './useSort';
+import type { SortDirection, SortField } from './sort-types';
 
 export interface DashboardShellState {
   activeDimension: Dimension;

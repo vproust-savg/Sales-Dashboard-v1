@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Dimension, Period } from '@shared/types/dashboard';
 import type { DetailTab } from '../components/right-panel/detail-tab-types';
-import type { SortField } from './useSort';
+import type { SortField } from './sort-types';
 import { parseSearchParams, buildSearch, DEFAULT_STATE } from './shell-state-url';
 import type { DashboardShellState } from './shell-state-url';
 

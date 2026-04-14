@@ -4,7 +4,7 @@
 // EXPORTS: sortEntities
 
 import type { EntityListItem } from '@shared/types/dashboard';
-import type { SortField, SortDirection } from '../hooks/useSort';
+import type { SortField, SortDirection } from '../hooks/sort-types';
 
 /** Sort entities by the specified field and direction — spec Section 15.4 */
 export function sortEntities(

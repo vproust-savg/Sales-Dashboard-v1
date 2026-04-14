@@ -6,7 +6,7 @@
 
 import type { EntityListItem, Dimension, EntityListLoadState, DashboardPayload } from '@shared/types/dashboard';
 import type { FilterCondition } from '../../hooks/useFilters';
-import type { SortField, SortDirection } from '../../hooks/useSort';
+import type { SortField, SortDirection } from '../../hooks/sort-types';
 import { DIMENSION_CONFIG } from '../../utils/dimension-config';
 import { DimensionToggles } from './DimensionToggles';
 import { SearchBox } from './SearchBox';

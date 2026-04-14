@@ -5,7 +5,7 @@
 
 import type { DashboardPayload, EntityListItem, Contact, Dimension, Period, EntityListLoadState, SSEProgressEvent, FetchAllFilters } from '@shared/types/dashboard';
 import type { FilterCondition } from '../hooks/useFilters';
-import type { SortField, SortDirection } from '../hooks/useSort';
+import type { SortField, SortDirection } from '../hooks/sort-types';
 import type { ApiResponse } from '@shared/types/api-responses';
 import type { DetailTab } from '../components/right-panel/detail-tab-types';
 
