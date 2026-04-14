@@ -1,5 +1,5 @@
 // FILE: server/tests/services/priority-client.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PriorityClient, PriorityApiError } from '../../src/services/priority-client';
 
 // WHY: We mock fetch to avoid hitting the real Priority API in tests.
@@ -98,6 +98,72 @@ describe('PriorityClient', () => {
       const client = makeClient();
       await expect(client.fetchEntity('ORDERS', { select: 'ORDNAME', top: 1 }))
         .rejects.toThrow('Line 1- error here');
+    });
+  });
+
+  describe('retry on transient errors', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('retries on 429 and succeeds when a later attempt returns 200', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ message: 'Too Many Requests' }, 429))
+        .mockResolvedValueOnce(jsonResponse({ message: 'Too Many Requests' }, 429))
+        .mockResolvedValueOnce(jsonResponse({ value: [{ ORDNAME: 'SO001' }] }));
+      const client = makeClient();
+
+      const promise = client.fetchEntity('ORDERS', { select: 'ORDNAME', top: 1 });
+      // Advance timers past the backoff delays so retries fire
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toEqual([{ ORDNAME: 'SO001' }]);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('retries on 500 and succeeds when a later attempt returns 200', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ 'odata.error': { message: { value: 'Server Error' } } }, 500))
+        .mockResolvedValueOnce(jsonResponse({ value: [{ ORDNAME: 'SO002' }] }));
+      const client = makeClient();
+
+      const promise = client.fetchEntity('ORDERS', { select: 'ORDNAME', top: 1 });
+      await vi.runAllTimersAsync();
+      const result = await promise;
+
+      expect(result).toEqual([{ ORDNAME: 'SO002' }]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry on 404 — throws immediately after one attempt', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, 404));
+      const client = makeClient();
+
+      await expect(client.fetchEntity('ORDERS', { select: 'ORDNAME', top: 1 }))
+        .rejects.toThrow(PriorityApiError);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws after exhausting all retries on persistent 429', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ message: 'Too Many Requests' }, 429))
+        .mockResolvedValueOnce(jsonResponse({ message: 'Too Many Requests' }, 429))
+        .mockResolvedValueOnce(jsonResponse({ message: 'Too Many Requests' }, 429));
+      const client = makeClient();
+
+      const promise = client.fetchEntity('ORDERS', { select: 'ORDNAME', top: 1 });
+      // WHY: Attach assertion BEFORE advancing timers so the rejection is always
+      // handled — avoids the "PromiseRejectionHandledWarning: handled asynchronously" warning.
+      const assertion = expect(promise).rejects.toThrow(PriorityApiError);
+      await vi.runAllTimersAsync();
+      await assertion;
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
     });
   });
 

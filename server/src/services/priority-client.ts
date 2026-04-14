@@ -44,33 +44,46 @@ export class PriorityClient {
     this.authHeader = 'Basic ' + Buffer.from(`${config.username}:${config.password}`).toString('base64');
   }
 
-  /** Fetch a single page from a Priority entity */
+  /** Fetch a single page from a Priority entity — retries on 429/5xx (spec Section 14) */
   async fetchEntity<T = Record<string, unknown>>(
     entity: string,
     opts: FetchOptions,
   ): Promise<T[]> {
-    await this.throttle();
-    const url = buildODataUrl(this.baseUrl, entity, opts);
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'IEEE754Compatible': 'true',
-        'Prefer': 'odata.maxpagesize=49900',
-        'Authorization': this.authHeader,
-      },
-      signal: AbortSignal.timeout(API_LIMITS.REQUEST_TIMEOUT_MS),
-    });
+    let lastError: PriorityApiError | null = null;
 
-    if (!response.ok) {
+    for (let attempt = 0; attempt < API_LIMITS.MAX_RETRIES; attempt++) {
+      await this.throttle();
+      const url = buildODataUrl(this.baseUrl, entity, opts);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'IEEE754Compatible': 'true',
+          'Prefer': 'odata.maxpagesize=49900',
+          'Authorization': this.authHeader,
+        },
+        signal: AbortSignal.timeout(API_LIMITS.REQUEST_TIMEOUT_MS),
+      });
+
+      if (response.ok) {
+        const body = await response.json();
+        return body.value ?? [];
+      }
+
       const body = await response.json().catch(() => null);
       const message = extractPriorityError(body, response);
       const retryable = response.status === 429 || response.status >= 500;
-      throw new PriorityApiError(message, response.status, retryable);
+      lastError = new PriorityApiError(message, response.status, retryable);
+
+      // WHY: Non-retryable (4xx except 429) — no point waiting, throw immediately
+      if (!retryable) throw lastError;
+
+      // WHY: Exponential backoff: 2s, 4s, 8s — capped at 60s per spec Section 14
+      const waitMs = Math.min(60_000, 1_000 * 2 ** (attempt + 1));
+      await new Promise(r => setTimeout(r, waitMs));
     }
 
-    const body = await response.json();
-    return body.value ?? [];
+    throw lastError!;
   }
 
   /** Fetch all pages with cursor-based pagination for MAXAPILINES — spec Section 17.4 */
