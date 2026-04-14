@@ -7,6 +7,7 @@ import type { KPIs, MonthlyRevenue } from '@shared/types/dashboard';
 import type { KPISubItem } from './KPICard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
 import { YoYBarChart } from './YoYBarChart';
+import { useContainerSize } from '../../hooks/useContainerSize';
 
 interface KPIModalContentProps {
   value: string;
@@ -66,9 +67,10 @@ interface HeroRevenueModalContentProps {
 }
 
 export function HeroRevenueModalContent({ kpis, monthlyRevenue }: HeroRevenueModalContentProps) {
+  const [chartRef, chartSize] = useContainerSize();
   return (
     <div className="flex flex-col gap-[var(--spacing-2xl)]">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-[var(--spacing-xs)]">
         <span className="tabular-nums text-[36px] font-[800] leading-tight tracking-[-1px] text-[var(--color-text-primary)]">
           {formatCurrency(Math.round(kpis.totalRevenue))}
         </span>
@@ -78,8 +80,8 @@ export function HeroRevenueModalContent({ kpis, monthlyRevenue }: HeroRevenueMod
           </span>
         )}
       </div>
-      <div className="h-[300px]">
-        <YoYBarChart data={monthlyRevenue} height={300} />
+      <div ref={chartRef} className="h-[300px]">
+        {chartSize.width > 0 && <YoYBarChart data={monthlyRevenue} width={chartSize.width} height={300} />}
       </div>
       <div className="flex gap-[var(--spacing-4xl)] border-t border-[var(--color-gold-subtle)] pt-[var(--spacing-lg)]">
         <div className="flex flex-col">

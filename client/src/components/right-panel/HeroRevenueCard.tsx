@@ -3,6 +3,7 @@
 // USED BY: KPISection.tsx
 // EXPORTS: HeroRevenueCard
 
+import { useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KPIs, MonthlyRevenue, Period } from '@shared/types/dashboard';
 import { formatCurrency, formatPercent } from '@shared/utils/formatting';
@@ -24,16 +25,28 @@ interface HeroRevenueCardProps {
 }
 
 export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetails, onExpand, cardRef, onCardFocus, onCardBlur }: HeroRevenueCardProps) {
+  const [cardSizeRef, cardSizeState] = useContainerSize();
   const [chartRef, chartSize] = useContainerSize();
-  /** WHY clamp: min 80px for usability, max 400px to prevent oversized chart on 27" */
-  const chartHeight = Math.max(80, Math.min(400, chartSize.height));
+
+  /** WHY: flex-1 cannot grow in this CSS Grid context — h-full resolves to auto on grid items
+   * whose grid container has no explicit height. Measure the card height directly via
+   * ResizeObserver and subtract fixed overhead (padding + header + margin + subitems hint). */
+  const CHART_OVERHEAD_PX = 146; // py-spacing-2xl(32) + header-row(79) + chart-mt(14) + subitems-hint(21)
+  const chartHeight = Math.max(80, Math.min(400, cardSizeState.height > 0 ? cardSizeState.height - CHART_OVERHEAD_PX : 120));
+
   const changePercent = kpis.revenueChangePercent;
   const isPositive = changePercent !== null && changePercent >= 0;
   const trendColor = isPositive ? 'var(--color-green)' : 'var(--color-red)';
 
+  /** WHY: combined ref attaches both ResizeObserver (for chart height calc) and keyboard-nav ref */
+  const mergedCardRef = useCallback((el: HTMLDivElement | null) => {
+    (cardSizeRef as { current: HTMLDivElement | null }).current = el;
+    cardRef?.(el);
+  }, [cardRef, cardSizeRef]);
+
   return (
     <div
-      ref={cardRef}
+      ref={mergedCardRef}
       onFocus={onCardFocus}
       onBlur={onCardBlur}
       className="relative flex h-full cursor-pointer flex-col justify-between rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)] transition-[transform,box-shadow] duration-150 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
@@ -101,9 +114,9 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
           </div>
         </div>
 
-        {/* YoY bar chart — flex-1 fills remaining vertical space */}
-        <div ref={chartRef} className="mt-[var(--spacing-md)] h-[120px]">
-          {chartSize.height > 0 && <YoYBarChart data={monthlyRevenue} width={chartSize.width} height={chartHeight} />}
+        {/* YoY bar chart — explicit height computed from measured card height */}
+        <div ref={chartRef} className="mt-[14px]" style={{ height: chartHeight }}>
+          {chartSize.width > 0 && <YoYBarChart data={monthlyRevenue} width={chartSize.width} height={chartHeight} />}
         </div>
       </div>
 
