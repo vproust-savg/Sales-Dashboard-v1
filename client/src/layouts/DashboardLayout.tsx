@@ -16,6 +16,7 @@ import { DIMENSION_CONFIG } from '../utils/dimension-config';
 import { useExport } from '../hooks/useExport';
 import { CollapsedPanel } from '../components/left-panel/CollapsedPanel';
 import type { DashboardLayoutProps } from './dashboard-layout-types';
+import { selectDisplayDashboard } from './select-display-dashboard';
 
 export type { DashboardLayoutProps };
 
@@ -25,6 +26,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds, yearsAvailable,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection, dataLoaded, fetchAllLoadState, fetchAllProgress, allDashboard,
+    isConsolidated, isConsolidatedLoading,
     startFetchAll,
     switchDimension, switchPeriod, selectEntity, toggleCheckbox,
     setActiveTab,
@@ -97,7 +99,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   };
   const handleRefresh = () => { setDialogRefresh(true); setDialogOpen(true); };
   const handleDialogConfirm = (filters: FetchAllFilters) => { setDialogOpen(false); startFetchAll(filters, dialogRefresh); selectEntity('__ALL__'); };
-  const displayDashboard = activeEntityId === '__ALL__' && allDashboard ? allDashboard : dashboard;
+  const displayDashboard = selectDisplayDashboard({ isConsolidated, activeEntityId, allDashboard, dashboard });
   const isAllActive = activeEntityId === '__ALL__';
 
   return (
@@ -148,7 +150,11 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                 </motion.div>
               ) : (
                 <motion.div key="placeholder" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-1 items-center justify-center">
-                  <p className="text-[14px] text-[var(--color-text-muted)]">Select a {DIMENSION_CONFIG[activeDimension].singularLabel} to view details</p>
+                  <p className="text-[14px] text-[var(--color-text-muted)]">
+                    {isConsolidatedLoading
+                      ? 'Loading consolidated view\u2026'
+                      : `Select a ${DIMENSION_CONFIG[activeDimension].singularLabel} to view details`}
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
