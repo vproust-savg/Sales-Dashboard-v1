@@ -1,24 +1,15 @@
 // FILE: client/src/components/left-panel/CollapsedPanel.tsx
-// PURPOSE: Narrow 48px rail shown when left panel is collapsed — expand button + dimension icon
+// PURPOSE: Narrow 48px rail shown when left panel is collapsed — expand button + vertical dimension label
 // USED BY: DashboardLayout.tsx
 // EXPORTS: CollapsedPanel
 
 import type { Dimension } from '@shared/types/dashboard';
+import { DIMENSION_CONFIG } from '../../utils/dimension-config';
 
 interface CollapsedPanelProps {
   activeDimension: Dimension;
   onExpand: () => void;
 }
-
-/** WHY: Map dimensions to single-letter representations for the collapsed rail */
-const DIMENSION_ICONS: Record<Dimension, string> = {
-  customer: 'C',
-  zone: 'Z',
-  vendor: 'V',
-  brand: 'B',
-  product_type: 'T',
-  product: 'P',
-};
 
 export function CollapsedPanel({ activeDimension, onExpand }: CollapsedPanelProps) {
   return (
@@ -36,12 +27,15 @@ export function CollapsedPanel({ activeDimension, onExpand }: CollapsedPanelProp
         </svg>
       </button>
 
-      {/* Active dimension indicator */}
-      <div
-        className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-md)] bg-[var(--color-dark)] text-[10px] font-bold text-white"
-        title={activeDimension}
-      >
-        {DIMENSION_ICONS[activeDimension]}
+      {/* WHY: writing-mode + rotate(180deg) renders the label top-to-bottom so it reads
+       *  naturally along the left edge without overlapping the expand button */}
+      <div className="flex flex-1 items-center justify-center">
+        <span
+          className="text-[11px] font-semibold tracking-[0.15em] text-[var(--color-text-muted)]"
+          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+        >
+          {DIMENSION_CONFIG[activeDimension].label.toUpperCase()}
+        </span>
       </div>
     </div>
   );
