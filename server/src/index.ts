@@ -12,6 +12,7 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { entitiesRouter } from './routes/entities.js';
 import { contactsRouter } from './routes/contacts.js';
 import { fetchAllRouter } from './routes/fetch-all.js';
+import { cacheStatusRouter } from './routes/cache-status.js';
 import { healthRouter } from './routes/health.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { warmEntityCache } from './services/warm-cache.js';
@@ -42,6 +43,7 @@ app.use('/api/sales', entitiesRouter);
 app.use('/api/sales', dashboardRouter);
 app.use('/api/sales', contactsRouter);
 app.use('/api/sales', fetchAllRouter);
+app.use('/api/sales', cacheStatusRouter);
 app.use('/api', healthRouter);
 
 // In production, serve the React client
