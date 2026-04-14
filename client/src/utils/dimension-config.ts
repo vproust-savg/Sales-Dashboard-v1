@@ -1,6 +1,6 @@
 // FILE: client/src/utils/dimension-config.ts
 // PURPOSE: Per-dimension labels, search placeholders, filter fields — spec Section 15
-// USED BY: client/src/components/left-panel/LeftPanel.tsx, SearchBox.tsx, FilterPanel.tsx
+// USED BY: client/src/components/left-panel/LeftPanel.tsx, CollapsedPanel.tsx, SearchBox.tsx, FilterPanel.tsx
 // EXPORTS: DIMENSION_CONFIG, DimensionConfig
 
 import type { Dimension } from '@shared/types/dashboard';
