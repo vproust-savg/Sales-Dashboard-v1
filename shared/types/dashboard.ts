@@ -128,6 +128,8 @@ export interface OrderLineItem {
 export interface OrderRow {
   date: string;           // ISO date
   orderNumber: string;
+  /** WHY: Populated only in consolidated mode (Report 2 / View Consolidated 2). Absent in single-entity mode. */
+  customerName?: string;
   itemCount: number;
   amount: number;
   marginPercent: number;
@@ -140,6 +142,8 @@ export interface OrderRow {
 export interface FlatItem {
   name: string;
   sku: string;
+  /** WHY: Populated only in per-customer toggle view within consolidated mode. Null in main page (SKU-aggregated). */
+  customerName?: string;
   value: number;
   marginPercent: number;
   marginAmount: number;
@@ -173,6 +177,8 @@ export interface Contact {
   position: string;
   phone: string;
   email: string;
+  /** WHY: Populated only in consolidated mode (Report 2 / View Consolidated 2). */
+  customerName?: string;
 }
 
 /** Available dimensions — spec Section 5 */
@@ -209,4 +215,17 @@ export interface DashboardPayload {
   orders: OrderRow[];
   items: FlatItem[];
   yearsAvailable: string[];
+
+  /** WHY: Per-entity breakdowns — populated only in consolidated mode for per-customer toggle tables. */
+  perEntityProductMixes?: Record<string, Record<ProductMixType, ProductMixSegment[]>>;
+  perEntityTopSellers?: Record<string, TopSellerItem[]>;
+  perEntityMonthlyRevenue?: Record<string, MonthlyRevenue[]>;
+}
+
+/** Response shape from GET /api/sales/cache-status — enables iframe-reload resilience */
+export interface CacheStatus {
+  raw: boolean;
+  lastFetchDate: string | null;
+  rowCount: number;
+  filterHashes: string[];
 }
