@@ -28,15 +28,14 @@ export function CollapsedPanel({ activeDimension, onExpand }: CollapsedPanelProp
       </button>
 
       {/* WHY: writing-mode + rotate(180deg) renders the label top-to-bottom so it reads
-       *  naturally along the left edge without overlapping the expand button */}
-      <div className="flex flex-1 items-center justify-center">
-        <span
-          className="text-[11px] font-semibold tracking-[0.15em] text-[var(--color-text-muted)]"
-          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-        >
-          {DIMENSION_CONFIG[activeDimension].label.toUpperCase()}
-        </span>
-      </div>
+       *  naturally along the left edge. Placed directly in the flex-col so it sits
+       *  just below the expand button rather than vertically centered in remaining space. */}
+      <span
+        className="text-[11px] font-semibold tracking-[0.15em] text-[var(--color-text-muted)]"
+        style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+      >
+        {DIMENSION_CONFIG[activeDimension].label.toUpperCase()}
+      </span>
     </div>
   );
 }
