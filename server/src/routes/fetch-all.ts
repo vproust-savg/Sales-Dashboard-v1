@@ -46,6 +46,9 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
 
+  // WHY: Railway nginx has ~60s idle timeout. Heartbeat keeps SSE alive during long
+  // async operations (Redis writes, aggregation) that don't send their own events.
+  const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25_000);
   try {
     const filterHash = buildFilterHash(agentName, zone, customerType);
     const rawKey = cacheKey('orders_raw', period, `${groupBy}:${filterHash}`);
@@ -128,12 +131,21 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
     const message = err instanceof Error ? err.message : 'Unknown error';
     sendEvent('error', { message });
     res.end();
+  } finally {
+    clearInterval(heartbeat);
   }
 });
+
 async function fullFetch(startDate: string, endDate: string, extraFilter: string | undefined,
   sendEvent: (event: string, data: unknown) => void): Promise<RawOrder[]> {
   sendEvent('progress', { phase: 'fetching', rowsFetched: 0, estimatedTotal: 0 });
-  return fetchOrders(priorityClient, startDate, endDate, true, extraFilter);
+  // WHY: onProgress sends SSE events as each page arrives, preventing Railway proxy timeout
+  // during the 1–5 min it takes to paginate 50,000 orders from Priority API.
+  return fetchOrders(priorityClient, startDate, endDate, true, extraFilter,
+    (rowsFetched, estimatedTotal) => {
+      sendEvent('progress', { phase: 'fetching', rowsFetched, estimatedTotal });
+    },
+  );
 }
 
 async function tryIncrementalRefresh(
@@ -163,7 +175,11 @@ async function tryIncrementalRefresh(
   const sinceDateStr = sinceDate.toISOString().split('T')[0] + 'T00:00:00Z';
   sendEvent('progress', { phase: 'incremental', message: `Fetching orders since ${sinceDate.toLocaleDateString()}...`, rowsFetched: 0 });
 
-  const newOrders = await fetchOrders(priorityClient, sinceDateStr, endDate, true, extraFilter);
+  const newOrders = await fetchOrders(priorityClient, sinceDateStr, endDate, true, extraFilter,
+    (rowsFetched, estimatedTotal) => {
+      sendEvent('progress', { phase: 'incremental', rowsFetched, estimatedTotal });
+    },
+  );
   sendEvent('progress', { phase: 'merging', message: `Merging ${newOrders.length} new orders with ${cachedOrders.length} cached...` });
 
   // Deduplicate by ORDNAME — new version wins
