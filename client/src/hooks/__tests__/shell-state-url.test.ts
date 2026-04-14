@@ -48,11 +48,18 @@ describe('parseSearchParams', () => {
     expect(state.sortDirection).toBe('asc');
   });
   it('parses full valid URL', () => {
-    const state = parseSearchParams(new URLSearchParams('dim=zone&period=2023&entity=Z100&tab=contacts&q=west&sort=orders&dir=desc'));
+    const state = parseSearchParams(new URLSearchParams('dim=zone&period=2023&entity=Z100&tab=contacts&q=west&sort=orders&dir=desc&collapsed=1'));
     expect(state).toEqual({
       activeDimension: 'zone', activePeriod: '2023', activeEntityId: 'Z100',
       activeTab: 'contacts', searchTerm: 'west', sortField: 'orders', sortDirection: 'desc',
+      panelCollapsed: true,
     });
+  });
+  it('parses collapsed=1 as true', () => {
+    expect(parseSearchParams(new URLSearchParams('collapsed=1')).panelCollapsed).toBe(true);
+  });
+  it('defaults panelCollapsed to false when param missing', () => {
+    expect(parseSearchParams(new URLSearchParams('')).panelCollapsed).toBe(false);
   });
 });
 
@@ -78,6 +85,7 @@ describe('buildSearch', () => {
       activeDimension: 'brand' as const, activePeriod: '2025', activeEntityId: 'B42',
       activeTab: 'items' as const, searchTerm: 'cheese',
       sortField: 'marginPercent' as const, sortDirection: 'desc' as const,
+      panelCollapsed: false,
     });
     expect(result).toContain('dim=brand');
     expect(result).toContain('period=2025');
@@ -87,11 +95,17 @@ describe('buildSearch', () => {
     expect(result).toContain('sort=marginPercent');
     expect(result).toContain('dir=desc');
   });
+  it('includes collapsed=1 when panelCollapsed is true', () => {
+    expect(buildSearch({ ...DEFAULT_STATE, panelCollapsed: true })).toBe('collapsed=1');
+  });
+  it('omits collapsed when panelCollapsed is false', () => {
+    expect(buildSearch({ ...DEFAULT_STATE, panelCollapsed: false })).toBe('');
+  });
 });
 
 describe('round-trip', () => {
   it('preserves valid URLs', () => {
-    const original = 'dim=vendor&period=2024&entity=C7826&tab=items&q=acme&sort=revenue&dir=desc';
+    const original = 'dim=vendor&period=2024&entity=C7826&tab=items&q=acme&sort=revenue&dir=desc&collapsed=1';
     const state = parseSearchParams(new URLSearchParams(original));
     const rebuilt = buildSearch(state);
     expect(parseSearchParams(new URLSearchParams(rebuilt))).toEqual(state);

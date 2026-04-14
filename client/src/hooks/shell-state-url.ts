@@ -15,6 +15,7 @@ export interface DashboardShellState {
   searchTerm: string;
   sortField: SortField;
   sortDirection: SortDirection;
+  panelCollapsed: boolean;
 }
 
 export const DEFAULT_STATE: DashboardShellState = {
@@ -25,6 +26,7 @@ export const DEFAULT_STATE: DashboardShellState = {
   searchTerm: '',
   sortField: 'id',
   sortDirection: 'asc',
+  panelCollapsed: false,
 };
 
 export const VALID_DIMENSIONS = new Set<Dimension>(['customer', 'zone', 'vendor', 'brand', 'product_type', 'product']);
@@ -41,6 +43,7 @@ export function parseSearchParams(params: URLSearchParams): DashboardShellState 
   const q = params.get('q');
   const sort = params.get('sort');
   const dir = params.get('dir');
+  const collapsed = params.get('collapsed');
 
   return {
     activeDimension: VALID_DIMENSIONS.has(dim as Dimension) ? dim as Dimension : DEFAULT_STATE.activeDimension,
@@ -50,6 +53,7 @@ export function parseSearchParams(params: URLSearchParams): DashboardShellState 
     searchTerm: q ?? DEFAULT_STATE.searchTerm,
     sortField: VALID_SORT_FIELDS.has(sort as SortField) ? sort as SortField : DEFAULT_STATE.sortField,
     sortDirection: VALID_SORT_DIRECTIONS.has(dir as SortDirection) ? dir as SortDirection : DEFAULT_STATE.sortDirection,
+    panelCollapsed: collapsed === '1',
   };
 }
 
@@ -68,6 +72,7 @@ export function buildSearch(state: DashboardShellState): string {
     params.set('sort', state.sortField);
     params.set('dir', state.sortDirection);
   }
+  if (state.panelCollapsed) params.set('collapsed', '1');
 
   return params.toString();
 }

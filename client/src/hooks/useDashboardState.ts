@@ -34,6 +34,8 @@ export function useDashboardState() {
     resetSearch,
     setSort,
     resetSort,
+    panelCollapsed,
+    togglePanel,
   } = useDashboardShellState();
   const {
     activeEntityId, selectedIds, isConsolidated,
@@ -160,6 +162,7 @@ export function useDashboardState() {
     fetchAllLoadState,
     fetchAllProgress,
     allDashboard,
+    panelCollapsed,
 
     // Actions
     switchDimension,
@@ -178,5 +181,6 @@ export function useDashboardState() {
     setSort,
     startFetchAll,
     abortFetch,
+    togglePanel,
   };
 }

@@ -14,7 +14,6 @@ import { LoadingModal } from '../components/shared/LoadingModal';
 import { Skeleton } from '../components/shared/Skeleton';
 import { DIMENSION_CONFIG } from '../utils/dimension-config';
 import { useExport } from '../hooks/useExport';
-import { useDashboardLayout } from '../hooks/useDashboardLayout';
 import { CollapsedPanel } from '../components/left-panel/CollapsedPanel';
 import type { DashboardLayoutProps } from './dashboard-layout-types';
 
@@ -32,6 +31,8 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     viewConsolidated, clearSelection, setSearchTerm,
     addCondition, updateCondition, removeCondition, clearFilters, toggleFilterPanel,
     setSort,
+    panelCollapsed,
+    togglePanel,
   } = props;
 
   const exportData = dashboard && activeEntityId ? {
@@ -39,7 +40,6 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     period: activePeriod, kpis: dashboard.kpis, orders: dashboard.orders, items: dashboard.items,
   } : null;
   const { exportCsv } = useExport(exportData);
-  const { layout, heroKpiGridTemplate, togglePanel, setHeroKpiRatio, setKpiChartsRatio, setPreset, reset } = useDashboardLayout();
 
   /** WHY: [ key toggles left panel collapse — quick keyboard shortcut per spec */
   useEffect(() => {
@@ -51,6 +51,11 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [togglePanel]);
+
+  /** WHY: One-time cleanup of stale layout localStorage from the removed resize/preset system */
+  useEffect(() => {
+    localStorage.removeItem('sg-dashboard-layout');
+  }, []);
 
   // WHY: All hooks must be called before any early returns (React Rules of Hooks)
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -101,7 +106,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
       <FetchAllDialog isOpen={dialogOpen} dimension={activeDimension} entities={allEntities} isRefresh={dialogRefresh} onConfirm={handleDialogConfirm} onCancel={() => setDialogOpen(false)} />
 
       <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto">
-        {layout.panelCollapsed ? (
+        {panelCollapsed ? (
           <aside className="w-auto shrink-0" aria-label="Entity list and filters">
             <CollapsedPanel activeDimension={activeDimension} onExpand={togglePanel} />
           </aside>
@@ -139,10 +144,6 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                     orders={displayDashboard.orders} items={displayDashboard.items} contacts={contacts}
                     yearsAvailable={yearsAvailable} activePeriod={activePeriod} activeTab={activeTab}
                     onPeriodChange={switchPeriod} onTabChange={setActiveTab} onExport={exportCsv}
-                    heroKpiGridTemplate={heroKpiGridTemplate} heroKpiRatio={layout.heroKpiRatio}
-                    kpiChartsRatio={layout.kpiChartsRatio} onHeroKpiRatioChange={setHeroKpiRatio}
-                    onKpiChartsRatioChange={setKpiChartsRatio} activePreset={layout.preset}
-                    onPresetChange={setPreset} onResetLayout={reset}
                   />
                 </motion.div>
               ) : (

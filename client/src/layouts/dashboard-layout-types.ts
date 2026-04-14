@@ -51,4 +51,6 @@ export interface DashboardLayoutProps {
   clearFilters: () => void;
   toggleFilterPanel: () => void;
   setSort: (field: SortField) => void;
+  panelCollapsed: boolean;
+  togglePanel: () => void;
 }
