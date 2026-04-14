@@ -119,7 +119,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
             className="overflow-hidden"
           >
             <div className="mt-[var(--spacing-sm)] flex gap-[var(--spacing-3xl)] border-t border-[var(--color-gold-subtle)] pt-[var(--spacing-sm)]">
-              <SubItem label="This Quarter" value={kpis.thisQuarterRevenue} />
+              <SubItem label={kpis.quarterLabel} value={kpis.thisQuarterRevenue} />
               <SubItem label="Last Month" value={kpis.lastMonthRevenue} suffix={kpis.lastMonthName} />
               <SubItem label="Best Month" value={kpis.bestMonth.amount} suffix={kpis.bestMonth.name} />
             </div>

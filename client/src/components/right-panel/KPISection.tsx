@@ -57,7 +57,7 @@ function nullableFmt(value: number, fmt: (n: number) => string): string {
 function standardSubItems(bd: KPIMetricBreakdown, fmt: (n: number) => string, nullable: boolean): KPISubItem[] {
   const f = nullable ? (n: number) => nullableFmt(n, fmt) : fmt;
   return [
-    { label: 'This Quarter', value: f(bd.thisQuarter) },
+    { label: bd.quarterLabel, value: f(bd.thisQuarter) },
     { label: 'Last Month', value: f(bd.lastMonth), suffix: bd.lastMonthName },
     { label: 'Best Month', value: f(bd.bestMonth.value), suffix: bd.bestMonth.name },
   ];
@@ -115,7 +115,7 @@ const KPI_CONFIGS: KPICardConfig[] = [
     formatter: formatFrequency,
     getBreakdown: (k) => k.frequencyBreakdown,
     buildSubItems: (bd) => [
-      { label: 'This Quarter', value: nullableFmt(bd.thisQuarter, formatFrequency) },
+      { label: bd.quarterLabel, value: nullableFmt(bd.thisQuarter, formatFrequency) },
       { label: 'Last Month', value: formatInteger(bd.lastMonth), suffix: bd.lastMonthName },
       { label: 'Best Month', value: formatInteger(bd.bestMonth.value), suffix: bd.bestMonth.name },
     ],

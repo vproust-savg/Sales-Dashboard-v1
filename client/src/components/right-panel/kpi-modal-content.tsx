@@ -83,7 +83,7 @@ export function HeroRevenueModalContent({ kpis, monthlyRevenue }: HeroRevenueMod
       </div>
       <div className="flex gap-[var(--spacing-4xl)] border-t border-[var(--color-gold-subtle)] pt-[var(--spacing-lg)]">
         <div className="flex flex-col">
-          <span className="text-[11px] text-[var(--color-text-muted)]">This Quarter</span>
+          <span className="text-[11px] text-[var(--color-text-muted)]">{kpis.quarterLabel}</span>
           <span className="text-[16px] font-semibold text-[var(--color-text-secondary)]">{formatCurrency(kpis.thisQuarterRevenue)}</span>
         </div>
         <div className="flex flex-col">

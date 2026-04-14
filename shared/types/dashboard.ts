@@ -28,6 +28,7 @@ export interface KPIMetricBreakdown {
   prevYear: number;      // same-period previous year (apples-to-apples)
   prevYearFull: number;  // full previous year (all 12 months)
   thisQuarter: number;
+  quarterLabel: string;  // e.g. "Q1" — the effective completed quarter (may differ from calendar quarter)
   lastMonth: number;
   lastMonthName: string;
   bestMonth: { name: string; value: number };
@@ -44,6 +45,7 @@ export interface KPIs {
   lastQuarterRevenue: number;
   lastMonthRevenue: number;
   lastMonthName: string;           // e.g. "Feb" — label for the sub-item
+  quarterLabel: string;            // e.g. "Q1" — the effective completed quarter
   bestMonth: { name: string; amount: number };
   orders: number;
   ordersChange: number;          // vs prev quarter
