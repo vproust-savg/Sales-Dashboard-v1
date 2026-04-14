@@ -123,7 +123,7 @@ export function BestSellers({ data }: BestSellersProps) {
           <div className="flex items-center gap-[var(--spacing-sm)]">
             <button
               type="button"
-              onClick={goPrev}
+              onClick={(e) => { e.stopPropagation(); goPrev(); }}
               disabled={isFirst}
               className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-gold-primary)] disabled:cursor-default disabled:opacity-30"
               aria-label="Previous sellers"
@@ -137,7 +137,7 @@ export function BestSellers({ data }: BestSellersProps) {
             </span>
             <button
               type="button"
-              onClick={goNext}
+              onClick={(e) => { e.stopPropagation(); goNext(); }}
               disabled={isLast}
               className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-gold-primary)] disabled:cursor-default disabled:opacity-30"
               aria-label="Next sellers"

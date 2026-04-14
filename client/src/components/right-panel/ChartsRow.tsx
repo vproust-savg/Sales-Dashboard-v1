@@ -7,7 +7,6 @@ import type { ProductMixSegment, ProductMixType, TopSellerItem } from '@shared/t
 import { ProductMixCarousel, ProductMixExpanded } from './ProductMixCarousel';
 import { BestSellers, BestSellersExpanded } from './BestSellers';
 import { useModal } from '../shared/ModalProvider';
-import { ExpandIcon } from '../shared/ExpandIcon';
 
 interface ChartsRowProps {
   productMixes: Record<ProductMixType, ProductMixSegment[]>;
@@ -32,7 +31,6 @@ export function ChartsRow({ productMixes, topSellers }: ChartsRowProps) {
           }
         }}
       >
-        <ExpandIcon />
         <ProductMixCarousel mixes={productMixes} />
       </div>
 
@@ -49,7 +47,6 @@ export function ChartsRow({ productMixes, topSellers }: ChartsRowProps) {
           }
         }}
       >
-        <ExpandIcon />
         <BestSellers data={topSellers} />
       </div>
     </div>

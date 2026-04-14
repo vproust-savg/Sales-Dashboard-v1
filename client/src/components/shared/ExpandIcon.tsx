@@ -1,6 +1,6 @@
 // FILE: client/src/components/shared/ExpandIcon.tsx
 // PURPOSE: Tiny expand icon that fades in on card hover — signals click-to-expand
-// USED BY: KPICard.tsx, HeroRevenueCard.tsx, ChartsRow.tsx
+// USED BY: KPICard.tsx, HeroRevenueCard.tsx
 // EXPORTS: ExpandIcon
 
 export function ExpandIcon() {

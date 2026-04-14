@@ -98,7 +98,7 @@ export function ProductMixCarousel({ mixes }: ProductMixCarouselProps) {
       <div className="mb-[var(--spacing-lg)] flex items-center justify-between">
         <button
           type="button"
-          onClick={goPrev}
+          onClick={(e) => { e.stopPropagation(); goPrev(); }}
           className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-gold-primary)]"
           aria-label="Previous chart type"
         >
@@ -113,7 +113,7 @@ export function ProductMixCarousel({ mixes }: ProductMixCarouselProps) {
         </h2>
         <button
           type="button"
-          onClick={goNext}
+          onClick={(e) => { e.stopPropagation(); goNext(); }}
           className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-gold-primary)]"
           aria-label="Next chart type"
         >
@@ -143,7 +143,7 @@ export function ProductMixCarousel({ mixes }: ProductMixCarouselProps) {
           <button
             key={mixType}
             type="button"
-            onClick={() => goTo(i, i > activeIdx ? 1 : -1)}
+            onClick={(e) => { e.stopPropagation(); goTo(i, i > activeIdx ? 1 : -1); }}
             className={`h-[6px] w-[6px] cursor-pointer rounded-full transition-colors ${
               i === activeIdx
                 ? 'bg-[var(--color-gold-primary)]'
