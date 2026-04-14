@@ -112,6 +112,10 @@ export function useDashboardShellState() {
     }), 'replace');
   }, [updateState]);
 
+  const togglePanel = useCallback(() => {
+    updateState((prev) => ({ ...prev, panelCollapsed: !prev.panelCollapsed }), 'replace');
+  }, [updateState]);
+
   return {
     ...state,
     switchDimension,
@@ -122,5 +126,6 @@ export function useDashboardShellState() {
     resetSearch,
     setSort,
     resetSort,
+    togglePanel,
   };
 }
