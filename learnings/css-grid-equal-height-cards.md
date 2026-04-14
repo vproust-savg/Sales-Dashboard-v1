@@ -37,6 +37,54 @@ With `justify-between`, expanding/collapsing sub-items via Framer Motion `Animat
 
 On `max-lg:grid-cols-1`, the grid stacks to a single column. `h-full` resolves to content height (no stretching target), so the card just wraps its content naturally. No special handling needed.
 
+## Variant: Chart Needs to Fill Available Height
+
+The `justify-between` approach works when extra height can silently become gap. But when you
+need the chart itself to actually fill the remaining space (dead white space is visible and
+looks wrong), measure the card height explicitly with `useContainerSize`:
+
+```tsx
+const [cardSizeRef, cardSizeState] = useContainerSize(); // measures the card div
+const [chartRef, chartSize] = useContainerSize();        // measures chart container width
+
+// Overhead = padding-top(16) + header-row(79) + chart-margin-top(14) + subitems-hint(21) + padding-bottom(16)
+const CHART_OVERHEAD_PX = 146;
+const chartHeight = Math.max(80, Math.min(400,
+  cardSizeState.height > 0 ? cardSizeState.height - CHART_OVERHEAD_PX : 120
+));
+```
+
+The card structure stays the same (`h-full flex-col justify-between`), but the chart gets an
+explicit pixel height instead of `flex-1`:
+
+```tsx
+<div ref={mergedCardRef} className="relative flex h-full flex-col justify-between ...">
+  <div>  {/* top section — plain div, no flex-1 */}
+    <div ...>{/* header row */}</div>
+    <div ref={chartRef} style={{ height: chartHeight }}>
+      {chartSize.width > 0 && <YoYBarChart width={chartSize.width} height={chartHeight} />}
+    </div>
+  </div>
+  <AnimatePresence>{/* sub-items / hint */}</AnimatePresence>
+</div>
+```
+
+**Combined ref for grid nav + ResizeObserver on the same element:**
+```tsx
+const mergedCardRef = useCallback((el: HTMLDivElement | null) => {
+  (cardSizeRef as { current: HTMLDivElement | null }).current = el;
+  cardRef?.(el); // keyboard nav ref from parent
+}, [cardRef, cardSizeRef]);
+```
+
+WHY: `useContainerSize` returns a `RefObject`, not a callback ref, so it can't be spread
+with another callback ref. Casting `.current` is safe — `useContainerSize` only reads
+`.current` inside the ResizeObserver callback.
+
+Also note: always pass `width={chartSize.width}` to `<YoYBarChart>` — without it the SVG
+letterboxes at 400px due to `preserveAspectRatio="xMinYMin meet"` default behavior.
+
 ## Discovered
 
 2026-03-31 — after two failed attempts with ResizeObserver and flex-1 approaches
+2026-04-14 — chart-fills-height variant added after discovering dead white space in hero card
