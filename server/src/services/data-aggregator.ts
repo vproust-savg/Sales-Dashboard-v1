@@ -1,10 +1,10 @@
 // FILE: server/src/services/data-aggregator.ts
 // PURPOSE: Transform raw Priority orders into dashboard-ready payload (KPIs, charts, tables)
-// USED BY: server/src/routes/dashboard.ts
-// EXPORTS: aggregateOrders
+// USED BY: server/src/routes/dashboard.ts, server/src/routes/fetch-all.ts
+// EXPORTS: aggregateOrders, AggregateOptions
 
-import type { KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, TopSellerItem, OrderRow, FlatItem, SparklineData } from '@shared/types/dashboard';
-import type { RawOrder, RawOrderItem } from './priority-queries.js';
+import type { KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, TopSellerItem, OrderRow, FlatItem, SparklineData, Dimension } from '@shared/types/dashboard';
+import type { RawOrder, RawOrderItem, RawCustomer } from './priority-queries.js';
 import { computeKPIs, computeMonthlyRevenue, computeSparklines } from './kpi-aggregator.js';
 
 interface AggregateResult {
@@ -15,12 +15,25 @@ interface AggregateResult {
   sparklines: Record<string, SparklineData>;
   orders: OrderRow[];
   items: FlatItem[];
+  perEntityProductMixes?: Record<string, Record<ProductMixType, ProductMixSegment[]>>;
+  perEntityTopSellers?: Record<string, TopSellerItem[]>;
+  perEntityMonthlyRevenue?: Record<string, MonthlyRevenue[]>;
+}
+
+export interface AggregateOptions {
+  /** When true, populate customerName on OrderRow using the customers lookup */
+  preserveEntityIdentity?: boolean;
+  /** Customer lookup used to resolve CUSTNAME → CUSTDES; required when preserveEntityIdentity is true */
+  customers?: RawCustomer[];
+  /** When set, compute per-entity breakdowns (perEntityProductMixes, perEntityTopSellers, perEntityMonthlyRevenue) */
+  dimension?: Dimension;
 }
 
 export function aggregateOrders(
   currentOrders: RawOrder[],
   prevOrders: RawOrder[],
   period: string,
+  opts?: AggregateOptions,
 ): AggregateResult {
   /** WHY: $0 orders are noise — no revenue, no margin contribution. Filter before all downstream
    * consumers so both order rows and KPI counts are consistent. Negative totals (credit memos) kept. */
@@ -28,15 +41,27 @@ export function aggregateOrders(
   const allItems = nonZeroOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
   const prevItems = prevOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
 
+  const custMap = opts?.preserveEntityIdentity && opts?.customers
+    ? new Map(opts.customers.map(c => [c.CUSTNAME, c.CUSTDES]))
+    : null;
+
   const kpis = computeKPIs(nonZeroOrders, prevOrders, allItems, prevItems, period);
   const monthlyRevenue = computeMonthlyRevenue(nonZeroOrders, prevOrders);
   const productMixes = computeAllProductMixes(allItems);
   const topSellers = computeTopSellers(allItems);
   const sparklines = computeSparklines(nonZeroOrders);
-  const orders = buildOrderRows(nonZeroOrders);
+  const orders = buildOrderRows(nonZeroOrders, custMap);
   const items = buildFlatItems(nonZeroOrders, prevOrders, period);
 
-  return { kpis, monthlyRevenue, productMixes, topSellers, sparklines, orders, items };
+  const result: AggregateResult = { kpis, monthlyRevenue, productMixes, topSellers, sparklines, orders, items };
+
+  if (opts?.dimension) {
+    result.perEntityProductMixes = computePerEntityProductMixes(nonZeroOrders, opts.dimension);
+    result.perEntityTopSellers = computePerEntityTopSellers(nonZeroOrders, opts.dimension);
+    result.perEntityMonthlyRevenue = computePerEntityMonthlyRevenue(nonZeroOrders, prevOrders, opts.dimension);
+  }
+
+  return result;
 }
 
 /** Spec Section 20.2 — Group items by a category field, max 7 segments */
@@ -109,28 +134,34 @@ function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
 }
 
 /** Spec Section 10.4 + 13.6 — Order table rows */
-function buildOrderRows(orders: RawOrder[]): OrderRow[] {
+function buildOrderRows(orders: RawOrder[], custMap: Map<string, string> | null): OrderRow[] {
   return orders
-    .map(o => ({
-      date: o.CURDATE,
-      orderNumber: o.ORDNAME,
-      itemCount: o.ORDERITEMS_SUBFORM?.length ?? 0,
-      amount: o.TOTPRICE,
-      marginPercent: computeOrderMarginPct(o),
-      marginAmount: (o.ORDERITEMS_SUBFORM ?? []).reduce((s, i) => s + i.QPROFIT, 0),
-      status: o.ORDSTATUSDES as OrderRow['status'],
-      items: (o.ORDERITEMS_SUBFORM ?? [])
-        .map(i => ({
-          productName: i.PDES,
-          sku: i.PARTNAME,
-          quantity: i.TQUANT,
-          unit: i.TUNITNAME || 'units',
-          unitPrice: i.PRICE,
-          lineTotal: i.QPRICE,
-          marginPercent: i.PERCENT,
-        }))
-        .sort((a, b) => b.lineTotal - a.lineTotal),
-    }));
+    .map(o => {
+      const row: OrderRow = {
+        date: o.CURDATE,
+        orderNumber: o.ORDNAME,
+        itemCount: o.ORDERITEMS_SUBFORM?.length ?? 0,
+        amount: o.TOTPRICE,
+        marginPercent: computeOrderMarginPct(o),
+        marginAmount: (o.ORDERITEMS_SUBFORM ?? []).reduce((s, i) => s + i.QPROFIT, 0),
+        status: o.ORDSTATUSDES as OrderRow['status'],
+        items: (o.ORDERITEMS_SUBFORM ?? [])
+          .map(i => ({
+            productName: i.PDES,
+            sku: i.PARTNAME,
+            quantity: i.TQUANT,
+            unit: i.TUNITNAME || 'units',
+            unitPrice: i.PRICE,
+            lineTotal: i.QPRICE,
+            marginPercent: i.PERCENT,
+          }))
+          .sort((a, b) => b.lineTotal - a.lineTotal),
+      };
+      if (custMap) {
+        row.customerName = custMap.get(o.CUSTNAME) ?? o.CUSTNAME;
+      }
+      return row;
+    });
     // WHY: Client-side OrdersTable handles sorting — users can change direction
 }
 
@@ -238,4 +269,98 @@ function buildFlatItems(
       prevYearUnits: prev?.units ?? 0,
     };
   });
+}
+
+/** Group orders by the entity key for the given dimension.
+ * WHY: Per-customer toggle tables need breakdowns by entity. Returns a map
+ * from entity-ID to the subset of orders belonging to that entity. For item-level
+ * dimensions (vendor, brand, product_type, product), one order may appear under
+ * multiple entity groups. */
+function groupOrdersByDimension(orders: RawOrder[], dimension: Dimension): Map<string, RawOrder[]> {
+  const groups = new Map<string, RawOrder[]>();
+
+  orders.forEach(order => {
+    const keys = extractDimensionKeys(order, dimension);
+    keys.forEach(key => {
+      if (!key) return;
+      const existing = groups.get(key);
+      if (existing) {
+        existing.push(order);
+      } else {
+        groups.set(key, [order]);
+      }
+    });
+  });
+
+  return groups;
+}
+
+function extractDimensionKeys(order: RawOrder, dimension: Dimension): string[] {
+  switch (dimension) {
+    case 'customer':
+    case 'zone':
+      // WHY: Zone lives on CUSTOMERS, not ORDERS — for per-entity breakdowns in consolidated mode,
+      // we group by CUSTNAME. The caller already filtered orders to the relevant entity IDs.
+      return [order.CUSTNAME];
+    case 'vendor': {
+      const vendors = new Set((order.ORDERITEMS_SUBFORM ?? []).map(i => i.Y_1159_5_ESH).filter(Boolean));
+      return [...vendors];
+    }
+    case 'brand': {
+      const brands = new Set((order.ORDERITEMS_SUBFORM ?? []).map(i => i.Y_9952_5_ESH).filter(Boolean));
+      return [...brands];
+    }
+    case 'product_type': {
+      const types = new Set((order.ORDERITEMS_SUBFORM ?? [])
+        .map(i => i.Y_3020_5_ESH || i.Y_3021_5_ESH).filter(Boolean));
+      return [...types];
+    }
+    case 'product': {
+      const skus = new Set((order.ORDERITEMS_SUBFORM ?? []).map(i => i.PARTNAME).filter(Boolean));
+      return [...skus];
+    }
+    default:
+      return [];
+  }
+}
+
+function computePerEntityProductMixes(
+  orders: RawOrder[],
+  dimension: Dimension,
+): Record<string, Record<ProductMixType, ProductMixSegment[]>> {
+  const grouped = groupOrdersByDimension(orders, dimension);
+  const result: Record<string, Record<ProductMixType, ProductMixSegment[]>> = {};
+  grouped.forEach((entityOrders, entityId) => {
+    const entityItems = entityOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
+    result[entityId] = computeAllProductMixes(entityItems);
+  });
+  return result;
+}
+
+function computePerEntityTopSellers(
+  orders: RawOrder[],
+  dimension: Dimension,
+): Record<string, TopSellerItem[]> {
+  const grouped = groupOrdersByDimension(orders, dimension);
+  const result: Record<string, TopSellerItem[]> = {};
+  grouped.forEach((entityOrders, entityId) => {
+    const entityItems = entityOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
+    result[entityId] = computeTopSellers(entityItems);
+  });
+  return result;
+}
+
+function computePerEntityMonthlyRevenue(
+  orders: RawOrder[],
+  prevOrders: RawOrder[],
+  dimension: Dimension,
+): Record<string, MonthlyRevenue[]> {
+  const grouped = groupOrdersByDimension(orders, dimension);
+  const prevGrouped = groupOrdersByDimension(prevOrders, dimension);
+  const result: Record<string, MonthlyRevenue[]> = {};
+  grouped.forEach((entityOrders, entityId) => {
+    const prevEntityOrders = prevGrouped.get(entityId) ?? [];
+    result[entityId] = computeMonthlyRevenue(entityOrders, prevEntityOrders);
+  });
+  return result;
 }
