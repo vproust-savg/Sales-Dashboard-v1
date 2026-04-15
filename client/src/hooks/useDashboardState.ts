@@ -10,7 +10,6 @@ import { useEntitySelection } from './useEntitySelection';
 import { useFilters } from './useFilters';
 import { useReport } from './useReport';
 import { useConsolidated } from './useConsolidated';
-import { useCacheStatus } from './useCacheStatus';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
@@ -50,7 +49,6 @@ export function useDashboardState() {
   } = useFilters();
   const report = useReport(activeDimension, activePeriod);
   const consolidated = useConsolidated(activeDimension, activePeriod);
-  const cacheStatus = useCacheStatus(activePeriod);
 
   // --- Spec Section 13.1: Dimension switch resets ALL other state ---
   const switchDimension = useCallback((dim: Dimension) => {
@@ -162,7 +160,6 @@ export function useDashboardState() {
     panelCollapsed,
     report,
     consolidated,
-    cacheStatus: cacheStatus.data,
 
     // Actions
     switchDimension,

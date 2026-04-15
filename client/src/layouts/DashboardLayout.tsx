@@ -27,7 +27,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds, yearsAvailable,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection,
-    report, consolidated, cacheStatus,
+    report, consolidated,
     switchDimension, switchPeriod, selectEntity, toggleCheckbox,
     setActiveTab,
     clearSelection, setSearchTerm,
@@ -169,8 +169,6 @@ export function DashboardLayout(props: DashboardLayoutProps) {
               onDimensionChange={switchDimension} onEntitySelect={selectEntity} onEntityCheck={toggleCheckbox}
               onClearSelection={clearSelection}
               reportState={report.state}
-              reportPayload={report.payload}
-              cacheStatus={cacheStatus}
               activeView={activeView}
               onReportClick={handleReportClick}
               onViewConsolidatedClick={handleViewConsolidatedClick}

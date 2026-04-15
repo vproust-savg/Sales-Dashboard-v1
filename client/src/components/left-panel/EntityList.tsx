@@ -3,7 +3,7 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: EntityList
 
-import type { EntityListItem as EntityListItemType, DashboardPayload, CacheStatus } from '@shared/types/dashboard';
+import type { EntityListItem as EntityListItemType } from '@shared/types/dashboard';
 import type { ReportState } from '../../hooks/useReport';
 import { EntityListItem } from './EntityListItem';
 import { SelectionBar } from './SelectionBar';
@@ -20,8 +20,6 @@ interface EntityListProps {
   selectedCount: number;
   onClearSelection: () => void;
   reportState: ReportState;
-  reportPayload: DashboardPayload | null;
-  cacheStatus: CacheStatus | undefined;
   activeView: 'single' | 'report' | 'consolidated';
   onReportClick: () => void;
   onViewConsolidatedClick: () => void;
@@ -38,8 +36,6 @@ export function EntityList({
   selectedCount,
   onClearSelection,
   reportState,
-  reportPayload,
-  cacheStatus,
   activeView,
   onReportClick,
   onViewConsolidatedClick,
@@ -57,8 +53,6 @@ export function EntityList({
 
       <ReportButton
         state={reportState}
-        payload={reportPayload}
-        cacheStatus={cacheStatus}
         isActive={activeView === 'report'}
         onClick={onReportClick}
       />

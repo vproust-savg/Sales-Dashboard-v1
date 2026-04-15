@@ -4,7 +4,7 @@
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: LeftPanel
 
-import type { EntityListItem, DashboardPayload, Dimension, CacheStatus } from '@shared/types/dashboard';
+import type { EntityListItem, Dimension } from '@shared/types/dashboard';
 import type { ReportState } from '../../hooks/useReport';
 import type { FilterCondition } from '../../hooks/useFilters';
 import type { SortField, SortDirection } from '../../hooks/sort-types';
@@ -32,8 +32,6 @@ interface LeftPanelProps {
   sortDirection: SortDirection;
   sortActive: boolean;
   reportState: ReportState;
-  reportPayload: DashboardPayload | null;
-  cacheStatus: CacheStatus | undefined;
   activeView: 'single' | 'report' | 'consolidated';
 
   // Actions
@@ -56,7 +54,7 @@ export function LeftPanel({
   entities, totalCount, activeDimension, activeEntityId, selectedEntityIds,
   searchTerm, filterOpen, filterCount, filterConditions,
   sortField, sortDirection, sortActive,
-  reportState, reportPayload, cacheStatus, activeView,
+  reportState, activeView,
   onDimensionChange, onEntitySelect, onEntityCheck, onClearSelection,
   onReportClick, onViewConsolidatedClick, onSearchChange, onFilterToggle,
   onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters,
@@ -108,8 +106,6 @@ export function LeftPanel({
           selectedCount={selectedEntityIds.length}
           onClearSelection={onClearSelection}
           reportState={reportState}
-          reportPayload={reportPayload}
-          cacheStatus={cacheStatus}
           activeView={activeView}
           onReportClick={onReportClick}
           onViewConsolidatedClick={onViewConsolidatedClick}

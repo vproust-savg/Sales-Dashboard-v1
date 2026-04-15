@@ -3,7 +3,7 @@
 // USED BY: DashboardLayout.tsx, App.tsx (via DashboardLayout)
 // EXPORTS: DashboardLayoutProps
 
-import type { DashboardPayload, EntityListItem, Contact, Dimension, Period, CacheStatus } from '@shared/types/dashboard';
+import type { DashboardPayload, EntityListItem, Contact, Dimension, Period } from '@shared/types/dashboard';
 import type { FilterCondition } from '../hooks/useFilters';
 import type { SortField, SortDirection } from '../hooks/sort-types';
 import type { ApiResponse } from '@shared/types/api-responses';
@@ -50,5 +50,4 @@ export interface DashboardLayoutProps {
   togglePanel: () => void;
   report: UseReportReturn;
   consolidated: UseConsolidatedReturn;
-  cacheStatus: CacheStatus | undefined;
 }
