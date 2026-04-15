@@ -10,7 +10,6 @@ export interface DimensionConfig {
   singularLabel: string;
   pluralLabel: string;
   searchPlaceholder: string;
-  allLabel: string;
   filterFields: string[];
 }
 
@@ -20,7 +19,6 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     singularLabel: 'customer',
     pluralLabel: 'CUSTOMERS',
     searchPlaceholder: 'Search customers...',
-    allLabel: 'Report',
     filterFields: [
       'Rep', 'Customer Type', 'Zone', 'Last Order Date',
       'Margin %', 'Margin $', 'Total Revenue', 'Average Order',
@@ -32,7 +30,6 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     singularLabel: 'zone',
     pluralLabel: 'ZONES',
     searchPlaceholder: 'Search zones...',
-    allLabel: 'Report',
     filterFields: [
       'Rep', 'Last Order Date', 'Margin %', 'Margin $',
       'Total Revenue', 'Average Order', 'Frequency', 'Outstanding',
@@ -43,7 +40,6 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     singularLabel: 'vendor',
     pluralLabel: 'VENDORS',
     searchPlaceholder: 'Search vendors...',
-    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',
@@ -54,7 +50,6 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     singularLabel: 'brand',
     pluralLabel: 'BRANDS',
     searchPlaceholder: 'Search brands...',
-    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',
@@ -65,7 +60,6 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     singularLabel: 'product type',
     pluralLabel: 'PRODUCT TYPES',
     searchPlaceholder: 'Search product types...',
-    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',
@@ -76,7 +70,6 @@ export const DIMENSION_CONFIG: Record<Dimension, DimensionConfig> = {
     singularLabel: 'product',
     pluralLabel: 'PRODUCTS',
     searchPlaceholder: 'Search products...',
-    allLabel: 'Report',
     filterFields: [
       'Last Order Date', 'Margin %', 'Margin $', 'Total Revenue',
       'Average Order', 'Frequency', 'Outstanding',

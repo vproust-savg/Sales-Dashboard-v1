@@ -45,7 +45,7 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
 
-    // WHY: entityIds (comma-separated) enables View Consolidated 2 — filters cached raw orders
+    // WHY: entityIds (comma-separated) enables View Consolidated — filters cached raw orders
     // and re-aggregates for only the selected subset.
     const entityIdList = entityIds ? entityIds.split(',').map(s => s.trim()) : undefined;
     if (entityIdList && entityIdList.length > 0) {
@@ -53,7 +53,7 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
       // WHY: Compute filterHash using the same function fetch-all writes with, so the probe
       // hits the exact same raw cache entry that was just populated. If filters are absent
       // ('all'), we probe the unfiltered cache. If filters are present but the matching raw
-      // cache is missing (no prior Report 2 with that filter), we try 'all' as a fallback.
+      // cache is missing (no prior Report with that filter), we try 'all' as a fallback.
       const filterHash = buildFilterHash(agentName, zone, customerType);
       const rawCached = await readFirstMatchingRaw(period, filterHash);
       if (rawCached) {
@@ -92,7 +92,7 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
        *  instead of the consolidated subset — wrong data is worse than a clear error.
        *  The client (TanStack Query) surfaces this as a visible error state. */
       return res.status(422).json({
-        error: { message: 'Consolidated view requires loaded data. Use "Report 2" first, then try again.' },
+        error: { message: 'Consolidated view requires loaded data. Use "Report" first, then try again.' },
       });
     }
 
@@ -162,8 +162,8 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
 
 /**
  * Probe raw-orders cache: first try the exact filterHash, then fall back to 'all'.
- * WHY: Report 2 can be run with filters (raw cache written under computed hash) or without
- * (written under 'all'). Consolidated 2 must find whichever exists; previously the reader
+ * WHY: Report can be run with filters (raw cache written under computed hash) or without
+ * (written under 'all'). Consolidated must find whichever exists; previously the reader
  * hardcoded 'all' and ignored the filtered variant, causing false 422 errors.
  */
 async function readFirstMatchingRaw(period: string, filterHash: string): Promise<RawOrder[] | null> {

@@ -1,7 +1,7 @@
 // FILE: client/src/hooks/useDashboardData.ts
 // PURPOSE: TanStack Query hooks for two-stage dashboard loading
 // USED BY: client/src/hooks/useDashboardState.ts
-// EXPORTS: useEntities, useDashboardDetail, useConsolidatedDashboard
+// EXPORTS: useEntities, useDashboardDetail
 
 import { useQuery } from '@tanstack/react-query';
 import type { DashboardPayload, EntityListItem, Dimension, Period } from '@shared/types/dashboard';
@@ -77,48 +77,8 @@ export function useDashboardDetail({
     queryKey: ['dashboard', entityId, groupBy, period],
     queryFn: () => fetchDashboard(entityId!, groupBy, period),
     // WHY: Only fetch when an entity is selected
-    enabled: entityId !== null && entityId !== '__ALL__',
+    enabled: entityId !== null,
     staleTime: period === 'ytd' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000,
   });
 }
 
-// --- Stage 3: Consolidated data for multi-select ---
-
-async function fetchConsolidatedDashboard(
-  entityIds: string[],
-  groupBy: Dimension,
-  period: Period,
-): Promise<ApiResponse<DashboardPayload>> {
-  // WHY: Sort IDs so the URL is stable regardless of selection order.
-  const idsParam = entityIds.slice().sort().join(',');
-  const params = new URLSearchParams({ entityIds: idsParam, groupBy, period });
-  const response = await fetch(`/api/sales/dashboard?${params}`);
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: 'Network error' } }));
-    throw new Error(
-      (error as { error?: { message?: string } }).error?.message ?? `HTTP ${response.status}`,
-    );
-  }
-
-  return response.json() as Promise<ApiResponse<DashboardPayload>>;
-}
-
-/** Stage 3: Consolidated data for multi-select — fetches /dashboard with entityIds param.
- * WHY: "View Consolidated" needs a real multi-entity payload, not single-entity data
- * with client-side aggregation. The server already supports entityIds. */
-export function useConsolidatedDashboard(params: {
-  entityIds: string[];
-  groupBy: Dimension;
-  period: Period;
-  enabled: boolean;
-}) {
-  // WHY: Sort IDs so the query key is stable regardless of selection order.
-  const idsParam = params.entityIds.slice().sort().join(',');
-  return useQuery({
-    queryKey: ['dashboard', 'consolidated', idsParam, params.groupBy, params.period],
-    queryFn: () => fetchConsolidatedDashboard(params.entityIds, params.groupBy, params.period),
-    enabled: params.enabled && params.entityIds.length > 0,
-    staleTime: 5 * 60 * 1000,
-  });
-}

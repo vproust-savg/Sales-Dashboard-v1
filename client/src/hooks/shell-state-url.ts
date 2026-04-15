@@ -48,7 +48,14 @@ export function parseSearchParams(params: URLSearchParams): DashboardShellState 
   return {
     activeDimension: VALID_DIMENSIONS.has(dim as Dimension) ? dim as Dimension : DEFAULT_STATE.activeDimension,
     activePeriod: period && period.trim() ? period : DEFAULT_STATE.activePeriod,
-    activeEntityId: entity && entity.trim() ? entity : null,
+    // WHY: `__ALL__` was the v1 "load-all-entities" sentinel. It's gone from live code,
+    // but legacy URLs (iframe reload state, browser history, bookmarks from pre-v2
+    // sessions) can still carry `entity=__ALL__`. Without this sanitize, that value
+    // would flow into useDashboardDetail and trigger `/api/sales/dashboard?entityId=__ALL__`
+    // — which returns 0 rows on customer and an all-orders payload rendered as a single
+    // entity on other dimensions. Drop the sentinel at the parse boundary so no
+    // downstream consumer can ever see it.
+    activeEntityId: entity && entity.trim() && entity !== '__ALL__' ? entity : null,
     activeTab: VALID_TABS.has(tab as DetailTab) ? tab as DetailTab : DEFAULT_STATE.activeTab,
     searchTerm: q ?? DEFAULT_STATE.searchTerm,
     sortField: VALID_SORT_FIELDS.has(sort as SortField) ? sort as SortField : DEFAULT_STATE.sortField,

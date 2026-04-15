@@ -1,20 +1,18 @@
 // FILE: client/src/components/left-panel/SelectionBar.tsx
-// PURPOSE: Slide-up bar at bottom of entity list showing selected count + "View Consolidated"
+// PURPOSE: Slide-up bar at bottom of entity list showing selected count, Clear, and View Consolidated button
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: SelectionBar
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { ViewConsolidated2Button } from './ViewConsolidated2Button';
+import { ViewConsolidatedButton } from './ViewConsolidatedButton';
 
 interface SelectionBarProps {
   selectedCount: number;
-  dataLoaded: boolean;
-  onViewConsolidated: () => void;
-  onViewConsolidated2: () => void;
+  onViewConsolidatedClick: () => void;
   onClear: () => void;
 }
 
-export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, onViewConsolidated2, onClear }: SelectionBarProps) {
+export function SelectionBar({ selectedCount, onViewConsolidatedClick, onClear }: SelectionBarProps) {
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
@@ -42,7 +40,7 @@ export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, on
             </span>
           </div>
 
-          {/* Right — "View Consolidated" button + "Clear" link */}
+          {/* Right — Clear link + View Consolidated button */}
           <div className="flex items-center gap-[var(--spacing-md)]">
             <button
               type="button"
@@ -51,21 +49,7 @@ export function SelectionBar({ selectedCount, dataLoaded, onViewConsolidated, on
             >
               Clear
             </button>
-            <button
-              type="button"
-              onClick={dataLoaded ? onViewConsolidated : undefined}
-              disabled={!dataLoaded}
-              title={dataLoaded ? undefined : 'Load all data first to view consolidated'}
-              className={`
-                h-[36px] rounded-[var(--radius-base)] bg-[var(--color-dark)]
-                px-[var(--spacing-lg)] py-[5px] text-[11px] font-medium text-white
-                transition-colors duration-150
-                ${dataLoaded ? 'hover:bg-[var(--color-dark-hover)]' : 'cursor-not-allowed opacity-50'}
-              `}
-            >
-              View Consolidated
-            </button>
-            <ViewConsolidated2Button onClick={onViewConsolidated2} />
+            <ViewConsolidatedButton onClick={onViewConsolidatedClick} />
           </div>
         </motion.div>
       )}

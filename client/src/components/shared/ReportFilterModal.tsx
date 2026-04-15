@@ -1,14 +1,14 @@
-// FILE: client/src/components/shared/Report2FilterModal.tsx
-// PURPOSE: Filter selection modal for Report 2 — Sales Rep / Zone / Customer Type dropdowns
+// FILE: client/src/components/shared/ReportFilterModal.tsx
+// PURPOSE: Filter selection modal for Report — Sales Rep / Zone / Customer Type dropdowns
 // USED BY: client/src/layouts/DashboardLayout.tsx
-// EXPORTS: Report2FilterModal
+// EXPORTS: ReportFilterModal
 
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { EntityListItem, FetchAllFilters } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
 
-interface Report2FilterModalProps {
+interface ReportFilterModalProps {
   isOpen: boolean;
   entities: EntityListItem[];
   onConfirm: (filters: FetchAllFilters) => void;
@@ -28,11 +28,11 @@ function uniqueValues(entities: EntityListItem[], getter: (e: EntityListItem) =>
 // reinitialize on every open, so the previous report's selection cannot leak into the next.
 // A useEffect-based reset is unreliable because the modal may be always-mounted and React
 // can batch the close+reopen transitions.
-export function Report2FilterModal({ isOpen, entities, onConfirm, onCancel }: Report2FilterModalProps) {
+export function ReportFilterModal({ isOpen, entities, onConfirm, onCancel }: ReportFilterModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <Report2FilterModalContent
+        <ReportFilterModalContent
           entities={entities}
           onConfirm={onConfirm}
           onCancel={onCancel}
@@ -42,11 +42,11 @@ export function Report2FilterModal({ isOpen, entities, onConfirm, onCancel }: Re
   );
 }
 
-function Report2FilterModalContent({
+function ReportFilterModalContent({
   entities,
   onConfirm,
   onCancel,
-}: Omit<Report2FilterModalProps, 'isOpen'>) {
+}: Omit<ReportFilterModalProps, 'isOpen'>) {
   const [selectedReps, setSelectedReps] = useState<string[]>([]);
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -88,7 +88,7 @@ function Report2FilterModalContent({
         onClick={(e) => e.stopPropagation()}
         className="flex w-[420px] max-w-[90vw] flex-col gap-[var(--spacing-2xl)] rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] p-[var(--spacing-3xl)] shadow-[var(--shadow-card)]"
         role="dialog"
-        aria-label="Report 2 filters"
+        aria-label="Report filters"
       >
         <div className="flex flex-col items-center gap-[var(--spacing-md)]">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-gold-subtle)]">

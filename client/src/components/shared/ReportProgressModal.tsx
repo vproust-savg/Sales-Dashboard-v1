@@ -1,18 +1,18 @@
-// FILE: client/src/components/shared/Report2ProgressModal.tsx
-// PURPOSE: Two-phase progress modal during Report 2 SSE fetch (Phase 1: fetch, Phase 2: compute)
+// FILE: client/src/components/shared/ReportProgressModal.tsx
+// PURPOSE: Two-phase progress modal during Report SSE fetch (Phase 1: fetch, Phase 2: compute)
 // USED BY: client/src/layouts/DashboardLayout.tsx
-// EXPORTS: Report2ProgressModal
+// EXPORTS: ReportProgressModal
 
 import { AnimatePresence, motion } from 'framer-motion';
 import type { SSEProgressEvent } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
 
-interface Report2ProgressModalProps {
+interface ReportProgressModalProps {
   isOpen: boolean;
   progress: SSEProgressEvent | null;
 }
 
-export function Report2ProgressModal({ isOpen, progress }: Report2ProgressModalProps) {
+export function ReportProgressModal({ isOpen, progress }: ReportProgressModalProps) {
   const phase = progress?.phase ?? 'fetching';
   // WHY: SSEProgressEvent is a union — 'rowsFetched'/'estimatedTotal' only exist on fetching/incremental
   const rows = progress && 'rowsFetched' in progress ? progress.rowsFetched : 0;

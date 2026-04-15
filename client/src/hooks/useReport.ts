@@ -1,7 +1,7 @@
-// FILE: client/src/hooks/useReport2.ts
-// PURPOSE: Report 2 state machine — manages filter modal, SSE connection, progress, and loaded payload
+// FILE: client/src/hooks/useReport.ts
+// PURPOSE: Report state machine — manages filter modal, SSE connection, progress, and loaded payload
 // USED BY: client/src/hooks/useDashboardState.ts
-// EXPORTS: useReport2, Report2State, UseReport2Return
+// EXPORTS: useReport, ReportState, UseReportReturn
 
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,10 +9,10 @@ import type {
   Dimension, Period, DashboardPayload, FetchAllFilters, SSEProgressEvent,
 } from '@shared/types/dashboard';
 
-export type Report2State = 'idle' | 'configuring' | 'fetching' | 'loaded' | 'error';
+export type ReportState = 'idle' | 'configuring' | 'fetching' | 'loaded' | 'error';
 
-export interface UseReport2Return {
-  state: Report2State;
+export interface UseReportReturn {
+  state: ReportState;
   progress: SSEProgressEvent | null;
   payload: DashboardPayload | null;
   error: string | null;
@@ -26,10 +26,10 @@ export interface UseReport2Return {
 
 const EMPTY_FILTERS: FetchAllFilters = {};
 
-export function useReport2(dimension: Dimension, period: Period): UseReport2Return {
+export function useReport(dimension: Dimension, period: Period): UseReportReturn {
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
-  const [state, setState] = useState<Report2State>('idle');
+  const [state, setState] = useState<ReportState>('idle');
   const [progress, setProgress] = useState<SSEProgressEvent | null>(null);
   const [payload, setPayload] = useState<DashboardPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +94,7 @@ export function useReport2(dimension: Dimension, period: Period): UseReport2Retu
       es.close();
       eventSourceRef.current = null;
 
-      // WHY: Invalidate cache-status so Report 2 button reflects new cache state
+      // WHY: Invalidate cache-status so Report button reflects new cache state
       queryClient.invalidateQueries({ queryKey: ['cache-status', period] });
       queryClient.invalidateQueries({ queryKey: ['entities', dimension, period] });
     });

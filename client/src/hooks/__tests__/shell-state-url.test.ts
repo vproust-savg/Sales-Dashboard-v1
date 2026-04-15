@@ -28,6 +28,15 @@ describe('parseSearchParams', () => {
   it('returns null entity for missing param', () => {
     expect(parseSearchParams(new URLSearchParams('')).activeEntityId).toBeNull();
   });
+  it('sanitizes legacy __ALL__ sentinel to null (pre-v2 URL migration)', () => {
+    expect(parseSearchParams(new URLSearchParams('entity=__ALL__')).activeEntityId).toBeNull();
+  });
+  it('sanitizes __ALL__ even when other params are valid', () => {
+    const state = parseSearchParams(new URLSearchParams('dim=zone&entity=__ALL__&tab=items'));
+    expect(state.activeEntityId).toBeNull();
+    expect(state.activeDimension).toBe('zone');
+    expect(state.activeTab).toBe('items');
+  });
   it('parses valid tab', () => {
     expect(parseSearchParams(new URLSearchParams('tab=items')).activeTab).toBe('items');
   });

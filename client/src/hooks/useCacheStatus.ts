@@ -16,7 +16,7 @@ async function fetchCacheStatus(period: Period): Promise<CacheStatus> {
 }
 
 /** WHY: On Airtable iframe reload, React state is lost but Redis cache persists. This hook
- * tells Report 2 if it should show "Data ready" state instead of "Not loaded" on mount. */
+ * tells Report if it should show "Data ready" state instead of "Not loaded" on mount. */
 export function useCacheStatus(period: Period) {
   return useQuery({
     queryKey: ['cache-status', period],

@@ -128,7 +128,7 @@ export interface OrderLineItem {
 export interface OrderRow {
   date: string;           // ISO date
   orderNumber: string;
-  /** WHY: Populated only in consolidated mode (Report 2 / View Consolidated 2). Absent in single-entity mode. */
+  /** WHY: Populated only in consolidated mode (Report / View Consolidated). Absent in single-entity mode. */
   customerName?: string;
   itemCount: number;
   amount: number;
@@ -177,7 +177,7 @@ export interface Contact {
   position: string;
   phone: string;
   email: string;
-  /** WHY: Populated only in consolidated mode (Report 2 / View Consolidated 2). */
+  /** WHY: Populated only in consolidated mode (Report / View Consolidated). */
   customerName?: string;
 }
 
@@ -186,9 +186,6 @@ export type Dimension = 'customer' | 'zone' | 'vendor' | 'brand' | 'product_type
 
 /** Period selection */
 export type Period = 'ytd' | string;  // 'ytd' or a year like '2025'
-
-/** Load state for the "All {Dimension}" fetch — per dimension+period */
-export type EntityListLoadState = 'not-loaded' | 'loading' | 'loaded' | 'error';
 
 /** Filter params for the fetch-all dialog — narrows the server-side OData query */
 export interface FetchAllFilters {

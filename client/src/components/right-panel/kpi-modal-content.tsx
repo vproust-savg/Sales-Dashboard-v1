@@ -20,7 +20,7 @@ interface KPIModalContentProps {
   prevYearLabel?: string;
   prevYearFullLabel?: string;
   subItems?: KPISubItem[];
-  /** WHY: Enables per-customer toggle when in Report 2 / View Consolidated 2 mode */
+  /** WHY: Enables per-customer toggle when in Report / View Consolidated mode */
   perCustomer?: {
     entities: EntityListItem[];
     getValue: (e: EntityListItem) => number | null;

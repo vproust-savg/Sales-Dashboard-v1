@@ -30,7 +30,7 @@ export const CACHE_TTLS = {
   entities_full: 365 * 24 * 60 * 60,    // 365 days — enriched entity list with metrics
   orders_raw: 365 * 24 * 60 * 60,       // 365 days — raw order rows for incremental refresh
   orders_raw_meta: 365 * 24 * 60 * 60,  // 365 days — metadata (lastFetchDate, rowCount)
-  report2_payload: 60 * 60,             // 1 hour — pre-aggregated consolidated payload (per-dimension)
+  report_payload: 60 * 60,              // 1 hour — pre-aggregated consolidated payload (per-dimension)
 } as const;
 
 /** Priority ORDERS fields — spec Section 18.1 */
