@@ -11,7 +11,8 @@ import { formatInteger } from '@shared/utils/formatting';
 interface ReportFilterModalProps {
   isOpen: boolean;
   entities: EntityListItem[];
-  onConfirm: (filters: FetchAllFilters) => void;
+  /** WHY: forceRefresh is passed through so the caller can threadit to useReport.startReport. */
+  onConfirm: (filters: FetchAllFilters, forceRefresh: boolean) => void;
   onCancel: () => void;
 }
 
@@ -50,6 +51,10 @@ function ReportFilterModalContent({
   const [selectedReps, setSelectedReps] = useState<string[]>([]);
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  // WHY: Resets to false each time the modal opens. The outer component
+  // only mounts ReportFilterModalContent while isOpen, so useState naturally
+  // reinitializes on reopen (matches the existing pattern for filter state).
+  const [forceRefresh, setForceRefresh] = useState<boolean>(false);
 
   const reps = useMemo(() => uniqueValues(entities, e => e.rep), [entities]);
   const zones = useMemo(() => uniqueValues(entities, e => e.zone), [entities]);
@@ -69,7 +74,7 @@ function ReportFilterModalContent({
     if (selectedReps.length > 0) filters.agentName = selectedReps;
     if (selectedZones.length > 0) filters.zone = selectedZones;
     if (selectedTypes.length > 0) filters.customerType = selectedTypes;
-    onConfirm(filters);
+    onConfirm(filters, forceRefresh);
   };
 
   return (
@@ -102,6 +107,23 @@ function ReportFilterModalContent({
         <FilterField label="Sales Rep" options={reps} selected={selectedReps} onChange={setSelectedReps} />
         <FilterField label="Zone" options={zones} selected={selectedZones} onChange={setSelectedZones} />
         <FilterField label="Customer Type" options={types} selected={selectedTypes} onChange={setSelectedTypes} />
+
+        <label className="flex cursor-pointer items-start gap-[var(--spacing-sm)]">
+          <input
+            type="checkbox"
+            checked={forceRefresh}
+            onChange={(e) => setForceRefresh(e.target.checked)}
+            className="mt-[2px] h-[14px] w-[14px] accent-[var(--color-gold-primary)]"
+          />
+          <span className="text-[12px] leading-snug text-[var(--color-text-secondary)]">
+            <span className="font-medium">Force full refresh from Priority</span>
+            <span className="text-[var(--color-text-muted)]"> (slower, ~1–5 min)</span>
+            <br />
+            <span className="text-[var(--color-text-muted)]">
+              Re-fetches all orders including any retroactive edits. Use when YoY numbers look off.
+            </span>
+          </span>
+        </label>
 
         <p className="text-center text-[12px] text-[var(--color-text-muted)]">
           Fetching data for {formatInteger(estimatedCount)} customers. Estimated 4&ndash;7 minutes.

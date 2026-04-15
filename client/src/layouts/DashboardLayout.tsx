@@ -117,7 +117,9 @@ export function DashboardLayout(props: DashboardLayoutProps) {
 
   const handleReportClick = () => { report.open(); };
   const handleViewConsolidatedClick = () => { consolidated.open(selectedEntityIds); };
-  const handleReportStart = (filters: FetchAllFilters) => { report.startReport(filters); };
+  const handleReportStart = (filters: FetchAllFilters, forceRefresh: boolean) => {
+    report.startReport(filters, forceRefresh);
+  };
   // WHY: Pass report.filters so server can derive the same filterHash fetch-all used
   // when writing the raw cache. Without this, Consolidated probes 'all' and 422s on
   // any filtered Report.
