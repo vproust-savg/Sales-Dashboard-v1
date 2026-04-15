@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type {
   Dimension, Period, DashboardPayload, FetchAllFilters, SSEProgressEvent,
 } from '@shared/types/dashboard';
+import { buildReportUrl } from './build-report-url';
 
 export type ReportState = 'idle' | 'configuring' | 'fetching' | 'loaded' | 'error';
 
@@ -19,7 +20,8 @@ export interface UseReportReturn {
   filters: FetchAllFilters;
   open: () => void;
   cancel: () => void;
-  startReport: (filters: FetchAllFilters) => void;
+  /** WHY: forceRefresh is optional for backward compatibility; defaults to false. */
+  startReport: (filters: FetchAllFilters, forceRefresh?: boolean) => void;
   abort: () => void;
   reset: () => void;
 }
@@ -62,7 +64,7 @@ export function useReport(dimension: Dimension, period: Period): UseReportReturn
     setFilters(EMPTY_FILTERS);
   }, [abort]);
 
-  const startReport = useCallback((newFilters: FetchAllFilters) => {
+  const startReport = useCallback((newFilters: FetchAllFilters, forceRefresh = false) => {
     abort();
     setFilters(newFilters);
     // WHY: Without clearing payload, if the second fetch hits the same cache (e.g., user
@@ -73,12 +75,7 @@ export function useReport(dimension: Dimension, period: Period): UseReportReturn
     setError(null);
     setProgress(null);
 
-    const params = new URLSearchParams({ groupBy: dimension, period });
-    if (newFilters.agentName?.length) params.set('agentName', newFilters.agentName.join(','));
-    if (newFilters.zone?.length) params.set('zone', newFilters.zone.join(','));
-    if (newFilters.customerType?.length) params.set('customerType', newFilters.customerType.join(','));
-
-    const es = new EventSource(`/api/sales/fetch-all?${params}`);
+    const es = new EventSource(buildReportUrl(dimension, period, newFilters, forceRefresh));
     eventSourceRef.current = es;
 
     es.addEventListener('progress', (e) => {
