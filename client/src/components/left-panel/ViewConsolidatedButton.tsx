@@ -1,14 +1,14 @@
-// FILE: client/src/components/left-panel/ViewConsolidated2Button.tsx
-// PURPOSE: "View Consolidated 2" button inside SelectionBar — second row below v1 button
+// FILE: client/src/components/left-panel/ViewConsolidatedButton.tsx
+// PURPOSE: "View Consolidated" button inside SelectionBar
 // USED BY: client/src/components/left-panel/SelectionBar.tsx
-// EXPORTS: ViewConsolidated2Button
+// EXPORTS: ViewConsolidatedButton
 
-interface ViewConsolidated2ButtonProps {
+interface ViewConsolidatedButtonProps {
   onClick: () => void;
   disabled?: boolean;
 }
 
-export function ViewConsolidated2Button({ onClick, disabled = false }: ViewConsolidated2ButtonProps) {
+export function ViewConsolidatedButton({ onClick, disabled = false }: ViewConsolidatedButtonProps) {
   return (
     <button
       type="button"
@@ -21,9 +21,9 @@ export function ViewConsolidated2Button({ onClick, disabled = false }: ViewConso
         transition-colors duration-150
         ${disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-[var(--color-gold-hover)]'}
       `}
-      aria-label="View Consolidated 2"
+      aria-label="View Consolidated"
     >
-      View Consolidated 2
+      View Consolidated
     </button>
   );
 }

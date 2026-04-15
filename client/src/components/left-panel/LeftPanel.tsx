@@ -5,7 +5,7 @@
 // EXPORTS: LeftPanel
 
 import type { EntityListItem, DashboardPayload, Dimension, CacheStatus } from '@shared/types/dashboard';
-import type { Report2State } from '../../hooks/useReport2';
+import type { ReportState } from '../../hooks/useReport';
 import type { FilterCondition } from '../../hooks/useFilters';
 import type { SortField, SortDirection } from '../../hooks/sort-types';
 import { DIMENSION_CONFIG } from '../../utils/dimension-config';
@@ -31,18 +31,18 @@ interface LeftPanelProps {
   sortField: SortField;
   sortDirection: SortDirection;
   sortActive: boolean;
-  report2State: Report2State;
-  report2Payload: DashboardPayload | null;
+  reportState: ReportState;
+  reportPayload: DashboardPayload | null;
   cacheStatus: CacheStatus | undefined;
-  activeView: 'single' | 'report2' | 'consolidated2';
+  activeView: 'single' | 'report' | 'consolidated';
 
   // Actions
   onDimensionChange: (dim: Dimension) => void;
   onEntitySelect: (id: string) => void;
   onEntityCheck: (id: string) => void;
   onClearSelection: () => void;
-  onReport2Click: () => void;
-  onViewConsolidated2: () => void;
+  onReportClick: () => void;
+  onViewConsolidatedClick: () => void;
   onSearchChange: (term: string) => void;
   onFilterToggle: () => void;
   onAddCondition: () => void;
@@ -56,9 +56,9 @@ export function LeftPanel({
   entities, totalCount, activeDimension, activeEntityId, selectedEntityIds,
   searchTerm, filterOpen, filterCount, filterConditions,
   sortField, sortDirection, sortActive,
-  report2State, report2Payload, cacheStatus, activeView,
+  reportState, reportPayload, cacheStatus, activeView,
   onDimensionChange, onEntitySelect, onEntityCheck, onClearSelection,
-  onReport2Click, onViewConsolidated2, onSearchChange, onFilterToggle,
+  onReportClick, onViewConsolidatedClick, onSearchChange, onFilterToggle,
   onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters,
   onSort,
 }: LeftPanelProps) {
@@ -107,12 +107,12 @@ export function LeftPanel({
           totalCount={totalCount}
           selectedCount={selectedEntityIds.length}
           onClearSelection={onClearSelection}
-          report2State={report2State}
-          report2Payload={report2Payload}
+          reportState={reportState}
+          reportPayload={reportPayload}
           cacheStatus={cacheStatus}
           activeView={activeView}
-          onReport2Click={onReport2Click}
-          onViewConsolidated2={onViewConsolidated2}
+          onReportClick={onReportClick}
+          onViewConsolidatedClick={onViewConsolidatedClick}
         />
       </div>
     </>

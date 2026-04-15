@@ -1,5 +1,5 @@
 // FILE: client/src/components/right-panel/ConsolidatedHeader.tsx
-// PURPOSE: Header replacing DetailHeader when in Report 2 / View Consolidated 2 mode
+// PURPOSE: Header replacing DetailHeader when in Report / View Consolidated mode
 // USED BY: client/src/components/right-panel/RightPanel.tsx
 // EXPORTS: ConsolidatedHeader
 

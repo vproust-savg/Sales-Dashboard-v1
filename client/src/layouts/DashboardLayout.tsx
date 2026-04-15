@@ -9,9 +9,9 @@ import type { FetchAllFilters } from '@shared/types/dashboard';
 import { LeftPanel } from '../components/left-panel/LeftPanel';
 import { RightPanel } from '../components/right-panel/RightPanel';
 import { ConsolidatedHeader } from '../components/right-panel/ConsolidatedHeader';
-import { Report2FilterModal } from '../components/shared/Report2FilterModal';
-import { Report2ProgressModal } from '../components/shared/Report2ProgressModal';
-import { Consolidated2ConfirmModal } from '../components/shared/Consolidated2ConfirmModal';
+import { ReportFilterModal } from '../components/shared/ReportFilterModal';
+import { ReportProgressModal } from '../components/shared/ReportProgressModal';
+import { ConsolidatedConfirmModal } from '../components/shared/ConsolidatedConfirmModal';
 import { LoadingModal } from '../components/shared/LoadingModal';
 import { Skeleton } from '../components/shared/Skeleton';
 import { DIMENSION_CONFIG } from '../utils/dimension-config';
@@ -27,7 +27,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds, yearsAvailable,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection,
-    report2, consolidated2, cacheStatus,
+    report, consolidated, cacheStatus,
     switchDimension, switchPeriod, selectEntity, toggleCheckbox,
     setActiveTab,
     clearSelection, setSearchTerm,
@@ -37,34 +37,34 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     togglePanel,
   } = props;
 
-  // WHY: Report 2 and Consolidated 2 are mutually exclusive; if either is loaded we
+  // WHY: Report and Consolidated are mutually exclusive; if either is loaded we
   // render the consolidated surface, otherwise single-entity mode.
-  const activeView: 'single' | 'report2' | 'consolidated2' =
-    report2.state === 'loaded' ? 'report2'
-    : consolidated2.state === 'loaded' ? 'consolidated2'
+  const activeView: 'single' | 'report' | 'consolidated' =
+    report.state === 'loaded' ? 'report'
+    : consolidated.state === 'loaded' ? 'consolidated'
     : 'single';
 
-  const consolidatedPayload = activeView === 'report2' ? report2.payload
-    : activeView === 'consolidated2' ? consolidated2.payload
+  const consolidatedPayload = activeView === 'report' ? report.payload
+    : activeView === 'consolidated' ? consolidated.payload
     : null;
 
-  // WHY: Only ONE v2 mode can be loaded at a time. When Consolidated 2 transitions to loaded
-  // while Report 2 is still loaded, Report 2's hardcoded precedence in activeView would
-  // permanently mask Consolidated 2 (adversarial H1). Mutually exclude by resetting the
+  // WHY: Only ONE mode can be loaded at a time. When Consolidated transitions to loaded
+  // while Report is still loaded, Report's hardcoded precedence in activeView would
+  // permanently mask Consolidated (adversarial H1). Mutually exclude by resetting the
   // non-winning mode whenever the other transitions to loaded.
-  const report2Reset = report2.reset;
-  const consolidated2Reset = consolidated2.reset;
-  const report2State = report2.state;
-  const consolidated2State = consolidated2.state;
+  const reportReset = report.reset;
+  const consolidatedReset = consolidated.reset;
+  const reportState = report.state;
+  const consolidatedState = consolidated.state;
   useEffect(() => {
-    if (consolidated2State === 'loaded' && report2State === 'loaded') report2Reset();
-  }, [consolidated2State, report2State, report2Reset]);
+    if (consolidatedState === 'loaded' && reportState === 'loaded') reportReset();
+  }, [consolidatedState, reportState, reportReset]);
   useEffect(() => {
-    if (report2State === 'fetching') consolidated2Reset();
-  }, [report2State, consolidated2Reset]);
+    if (reportState === 'fetching') consolidatedReset();
+  }, [reportState, consolidatedReset]);
   useEffect(() => {
-    if (consolidated2State === 'fetching') report2Reset();
-  }, [consolidated2State, report2Reset]);
+    if (consolidatedState === 'fetching') reportReset();
+  }, [consolidatedState, reportReset]);
 
   const exportData = dashboard && activeEntityId ? {
     entityName: entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
@@ -115,36 +115,36 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   const totalCount = entities.length;
   const sortActive = sortField !== 'id' || sortDirection !== 'asc';
 
-  const handleReport2Click = () => { report2.open(); };
-  const handleViewConsolidated2Click = () => { consolidated2.open(selectedEntityIds); };
-  const handleReport2Start = (filters: FetchAllFilters) => { report2.startReport(filters); };
-  // WHY: Pass report2.filters so server can derive the same filterHash fetch-all used
-  // when writing the raw cache. Without this, Consolidated 2 probes 'all' and 422s on
-  // any filtered Report 2.
-  const handleConsolidated2Start = () => { consolidated2.start(report2.filters); };
-  const handleGoToReport2 = () => { consolidated2.reset(); report2.open(); };
+  const handleReportClick = () => { report.open(); };
+  const handleViewConsolidatedClick = () => { consolidated.open(selectedEntityIds); };
+  const handleReportStart = (filters: FetchAllFilters) => { report.startReport(filters); };
+  // WHY: Pass report.filters so server can derive the same filterHash fetch-all used
+  // when writing the raw cache. Without this, Consolidated probes 'all' and 422s on
+  // any filtered Report.
+  const handleConsolidatedStart = () => { consolidated.start(report.filters); };
+  const handleGoToReport = () => { consolidated.reset(); report.open(); };
 
   return (
     <>
       <LoadingModal stage={isDetailLoading ? loadingStage : null} />
-      <Report2FilterModal
-        isOpen={report2.state === 'configuring'}
+      <ReportFilterModal
+        isOpen={report.state === 'configuring'}
         entities={allEntities}
-        onConfirm={handleReport2Start}
-        onCancel={report2.cancel}
+        onConfirm={handleReportStart}
+        onCancel={report.cancel}
       />
-      <Report2ProgressModal
-        isOpen={report2.state === 'fetching'}
-        progress={report2.progress}
+      <ReportProgressModal
+        isOpen={report.state === 'fetching'}
+        progress={report.progress}
       />
-      <Consolidated2ConfirmModal
-        isOpen={consolidated2.state === 'configuring' || consolidated2.state === 'fetching' || consolidated2.state === 'needs-report-2' || consolidated2.state === 'error'}
-        state={consolidated2.state}
-        selectedEntities={allEntities.filter(e => consolidated2.entityIds.includes(e.id))}
-        error={consolidated2.error}
-        onConfirm={handleConsolidated2Start}
-        onCancel={consolidated2.cancel}
-        onGoToReport2={handleGoToReport2}
+      <ConsolidatedConfirmModal
+        isOpen={consolidated.state === 'configuring' || consolidated.state === 'fetching' || consolidated.state === 'needs-report' || consolidated.state === 'error'}
+        state={consolidated.state}
+        selectedEntities={allEntities.filter(e => consolidated.entityIds.includes(e.id))}
+        error={consolidated.error}
+        onConfirm={handleConsolidatedStart}
+        onCancel={consolidated.cancel}
+        onGoToReport={handleGoToReport}
       />
 
       <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto">
@@ -166,12 +166,12 @@ export function DashboardLayout(props: DashboardLayoutProps) {
               sortDirection={sortDirection} sortActive={sortActive} onSort={setSort} totalCount={totalCount}
               onDimensionChange={switchDimension} onEntitySelect={selectEntity} onEntityCheck={toggleCheckbox}
               onClearSelection={clearSelection}
-              report2State={report2.state}
-              report2Payload={report2.payload}
+              reportState={report.state}
+              reportPayload={report.payload}
               cacheStatus={cacheStatus}
               activeView={activeView}
-              onReport2Click={handleReport2Click}
-              onViewConsolidated2={handleViewConsolidated2Click}
+              onReportClick={handleReportClick}
+              onViewConsolidatedClick={handleViewConsolidatedClick}
             />
           </aside>
         )}
@@ -188,10 +188,10 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                 className="flex flex-col gap-[var(--spacing-base)]"
               >
                 <ConsolidatedHeader
-                  mode={activeView === 'report2' ? 'report' : 'consolidated'}
+                  mode={activeView === 'report' ? 'report' : 'consolidated'}
                   entityCount={consolidatedPayload.entities.length}
                   dimensionLabel={DIMENSION_CONFIG[activeDimension].pluralLabel}
-                  filters={activeView === 'report2' ? report2.filters : null}
+                  filters={activeView === 'report' ? report.filters : null}
                   yearsAvailable={consolidatedPayload.yearsAvailable}
                   activePeriod={activePeriod}
                   onPeriodChange={switchPeriod}

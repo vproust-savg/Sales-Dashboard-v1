@@ -1,18 +1,18 @@
 // FILE: client/src/components/left-panel/SelectionBar.tsx
-// PURPOSE: Slide-up bar at bottom of entity list showing selected count, Clear, and View Consolidated 2 button
+// PURPOSE: Slide-up bar at bottom of entity list showing selected count, Clear, and View Consolidated button
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: SelectionBar
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { ViewConsolidated2Button } from './ViewConsolidated2Button';
+import { ViewConsolidatedButton } from './ViewConsolidatedButton';
 
 interface SelectionBarProps {
   selectedCount: number;
-  onViewConsolidated2: () => void;
+  onViewConsolidatedClick: () => void;
   onClear: () => void;
 }
 
-export function SelectionBar({ selectedCount, onViewConsolidated2, onClear }: SelectionBarProps) {
+export function SelectionBar({ selectedCount, onViewConsolidatedClick, onClear }: SelectionBarProps) {
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
@@ -40,7 +40,7 @@ export function SelectionBar({ selectedCount, onViewConsolidated2, onClear }: Se
             </span>
           </div>
 
-          {/* Right — Clear link + v2 View Consolidated button */}
+          {/* Right — Clear link + View Consolidated button */}
           <div className="flex items-center gap-[var(--spacing-md)]">
             <button
               type="button"
@@ -49,7 +49,7 @@ export function SelectionBar({ selectedCount, onViewConsolidated2, onClear }: Se
             >
               Clear
             </button>
-            <ViewConsolidated2Button onClick={onViewConsolidated2} />
+            <ViewConsolidatedButton onClick={onViewConsolidatedClick} />
           </div>
         </motion.div>
       )}

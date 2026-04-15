@@ -8,8 +8,8 @@ import { useEntities, useDashboardDetail } from './useDashboardData';
 import { useContacts, useConsolidatedContacts } from './useContacts';
 import { useEntitySelection } from './useEntitySelection';
 import { useFilters } from './useFilters';
-import { useReport2 } from './useReport2';
-import { useConsolidated2 } from './useConsolidated2';
+import { useReport } from './useReport';
+import { useConsolidated } from './useConsolidated';
 import { useCacheStatus } from './useCacheStatus';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
@@ -48,8 +48,8 @@ export function useDashboardState() {
     addCondition, updateCondition, removeCondition,
     clearAll: clearFilters, togglePanel: toggleFilterPanel,
   } = useFilters();
-  const report2 = useReport2(activeDimension, activePeriod);
-  const consolidated2 = useConsolidated2(activeDimension, activePeriod);
+  const report = useReport(activeDimension, activePeriod);
+  const consolidated = useConsolidated(activeDimension, activePeriod);
   const cacheStatus = useCacheStatus(activePeriod);
 
   // --- Spec Section 13.1: Dimension switch resets ALL other state ---
@@ -59,9 +59,9 @@ export function useDashboardState() {
     resetSearch();
     clearFilters();
     resetSort();
-    report2.reset();
-    consolidated2.reset();
-  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, report2, consolidated2]);
+    report.reset();
+    consolidated.reset();
+  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, report, consolidated]);
 
   const prevDimensionRef = useRef(activeDimension);
   useEffect(() => {
@@ -90,15 +90,15 @@ export function useDashboardState() {
   // WHY: Contacts only load for the customer dimension when the Contacts tab is active.
   const contactsQuery = useContacts(activeEntityId, activeDimension === 'customer');
 
-  // WHY: In v2 consolidated mode, the active entity is the set of loaded entity IDs.
-  // We derive them from whichever v2 mode is loaded and fetch contacts via the multi-
+  // WHY: In consolidated mode, the active entity is the set of loaded entity IDs.
+  // We derive them from whichever mode is loaded and fetch contacts via the multi-
   // customer endpoint so ConsolidatedContactsTable has customerName-annotated rows.
   const consolidatedContactIds = useMemo(() => {
     if (activeDimension !== 'customer') return [] as string[];
-    if (report2.state === 'loaded' && report2.payload) return report2.payload.entities.map(e => e.id);
-    if (consolidated2.state === 'loaded' && consolidated2.payload) return consolidated2.payload.entities.map(e => e.id);
+    if (report.state === 'loaded' && report.payload) return report.payload.entities.map(e => e.id);
+    if (consolidated.state === 'loaded' && consolidated.payload) return consolidated.payload.entities.map(e => e.id);
     return [] as string[];
-  }, [activeDimension, report2.state, report2.payload, consolidated2.state, consolidated2.payload]);
+  }, [activeDimension, report.state, report.payload, consolidated.state, consolidated.payload]);
   const consolidatedContactsQuery = useConsolidatedContacts(
     consolidatedContactIds,
     activeDimension === 'customer' && consolidatedContactIds.length > 0,
@@ -136,7 +136,7 @@ export function useDashboardState() {
     dashboard: finalDashboard,
     entities: processedEntities,
     allEntities: entitiesData?.entities ?? [],
-    // WHY: Prefer consolidated contacts when v2 mode is loaded; otherwise single-entity contacts.
+    // WHY: Prefer consolidated contacts when consolidated mode is loaded; otherwise single-entity contacts.
     contacts: (consolidatedContactsQuery.data && consolidatedContactsQuery.data.length > 0)
       ? consolidatedContactsQuery.data
       : (contactsQuery.data ?? []),
@@ -160,8 +160,8 @@ export function useDashboardState() {
     sortField,
     sortDirection,
     panelCollapsed,
-    report2,
-    consolidated2,
+    report,
+    consolidated,
     cacheStatus: cacheStatus.data,
 
     // Actions

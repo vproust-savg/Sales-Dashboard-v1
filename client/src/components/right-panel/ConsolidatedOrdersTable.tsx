@@ -1,5 +1,5 @@
 // FILE: client/src/components/right-panel/ConsolidatedOrdersTable.tsx
-// PURPOSE: Orders table variant with Customer column — used in Report 2 / View Consolidated 2 mode
+// PURPOSE: Orders table variant with Customer column — used in Report / View Consolidated mode
 // USED BY: client/src/components/right-panel/TabsSection.tsx
 // EXPORTS: ConsolidatedOrdersTable
 

@@ -8,8 +8,8 @@ import type { FilterCondition } from '../hooks/useFilters';
 import type { SortField, SortDirection } from '../hooks/sort-types';
 import type { ApiResponse } from '@shared/types/api-responses';
 import type { DetailTab } from '../components/right-panel/detail-tab-types';
-import type { UseReport2Return } from '../hooks/useReport2';
-import type { UseConsolidated2Return } from '../hooks/useConsolidated2';
+import type { UseReportReturn } from '../hooks/useReport';
+import type { UseConsolidatedReturn } from '../hooks/useConsolidated';
 
 export interface DashboardLayoutProps {
   dashboard: DashboardPayload | null;
@@ -48,7 +48,7 @@ export interface DashboardLayoutProps {
   setSort: (field: SortField) => void;
   panelCollapsed: boolean;
   togglePanel: () => void;
-  report2: UseReport2Return;
-  consolidated2: UseConsolidated2Return;
+  report: UseReportReturn;
+  consolidated: UseConsolidatedReturn;
   cacheStatus: CacheStatus | undefined;
 }

@@ -1,6 +1,6 @@
 // FILE: server/src/routes/fetch-all.ts
 // PURPOSE: SSE endpoint for full data fetch with progress — supports incremental refresh + filters
-// USED BY: client/hooks/useReport2.ts via EventSource
+// USED BY: client/hooks/useReport.ts via EventSource
 // EXPORTS: fetchAllRouter
 
 import { Router } from 'express';
@@ -94,7 +94,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
     // Aggregate
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
-    // WHY: Include filterHash in prev-year key. Without it, the first filtered Report 2
+    // WHY: Include filterHash in prev-year key. Without it, the first filtered Report
     // poisons the prev-year cache for every subsequent filter (e.g., running Alexandra's
     // report caches her prev-year orders under a global key; the next rep reads her data).
     const prevOrders = await cachedFetch(
@@ -124,15 +124,15 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
       yearsAvailable: [...years].sort().reverse(),
     };
 
-    // WHY: Cache aggregated results — legacy entities_full (backwards compat with v1)
-    // + new report2_payload (per-dimension payload for instant dimension switches in v2).
+    // WHY: Cache aggregated results — entities_full for the entity list
+    // + report_payload (per-dimension payload for instant dimension switches).
     const fullKey = cacheKey('entities_full', period, buildFilterQualifier(groupBy, filterHash));
     const fullEnvelope = { data: { entities, yearsAvailable: payload.yearsAvailable }, cachedAt: new Date().toISOString() };
     await redis.set(fullKey, JSON.stringify(fullEnvelope), { ex: getTTL('entities_full') });
 
-    const payloadKey = cacheKey('report2_payload', period, `${filterHash}:${groupBy}`);
+    const payloadKey = cacheKey('report_payload', period, `${filterHash}:${groupBy}`);
     const payloadEnvelope = { data: payload, cachedAt: new Date().toISOString() };
-    await redis.set(payloadKey, JSON.stringify(payloadEnvelope), { ex: getTTL('report2_payload') });
+    await redis.set(payloadKey, JSON.stringify(payloadEnvelope), { ex: getTTL('report_payload') });
 
     const detailKey = cacheKey('entity_detail', period, `${groupBy}:ALL:${filterHash}`);
     const detailEnvelope = { data: payload, cachedAt: new Date().toISOString() };

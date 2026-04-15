@@ -1,15 +1,15 @@
-// FILE: client/src/components/left-panel/Report2Button.tsx
-// PURPOSE: "Report 2" entry pinned above the entity list — opens the report filter/fetch flow
+// FILE: client/src/components/left-panel/ReportButton.tsx
+// PURPOSE: "Report" entry pinned above the entity list — opens the report filter/fetch flow
 // USED BY: client/src/components/left-panel/EntityList.tsx
-// EXPORTS: Report2Button
+// EXPORTS: ReportButton
 
 import { motion } from 'framer-motion';
-import type { Report2State } from '../../hooks/useReport2';
+import type { ReportState } from '../../hooks/useReport';
 import type { CacheStatus, DashboardPayload } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
 
-interface Report2ButtonProps {
-  state: Report2State;
+interface ReportButtonProps {
+  state: ReportState;
   payload: DashboardPayload | null;
   cacheStatus: CacheStatus | undefined;
   isActive: boolean;
@@ -22,7 +22,7 @@ function formatLargeNumber(value: number): string {
   return `$${formatInteger(value)}`;
 }
 
-export function Report2Button({ state, payload, cacheStatus, isActive, onClick }: Report2ButtonProps) {
+export function ReportButton({ state, payload, cacheStatus, isActive, onClick }: ReportButtonProps) {
   const isLoading = state === 'fetching';
   const isLoaded = state === 'loaded' && payload !== null;
   const serverCached = cacheStatus?.raw === true;
@@ -44,7 +44,7 @@ export function Report2Button({ state, payload, cacheStatus, isActive, onClick }
       `}
       role="button"
       tabIndex={0}
-      aria-label="Report 2"
+      aria-label="Report"
       onKeyDown={(e) => {
         if ((e.key === 'Enter' || e.key === ' ') && !isLoading) {
           e.preventDefault();
@@ -56,7 +56,7 @@ export function Report2Button({ state, payload, cacheStatus, isActive, onClick }
         <div className="absolute left-0 top-0 h-full w-[3px] rounded-r-[2px] bg-[var(--color-gold-primary)]" />
       )}
 
-      {/* Gold clipboard-with-arrow icon distinguishes v2 from v1 bar chart */}
+      {/* Gold clipboard-with-arrow icon */}
       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBg} ${isLoading ? 'animate-pulse' : ''}`}>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M5 2h6v2H5V2zm-1 3h8v9H4V5zm2 2v2h4V7H6zm0 3v2h4v-2H6z" fill="currentColor" />
@@ -64,7 +64,7 @@ export function Report2Button({ state, payload, cacheStatus, isActive, onClick }
       </div>
 
       <div className="flex-1">
-        <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">Report 2</div>
+        <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">Report</div>
         <div className="text-[11px] text-[var(--color-text-muted)]">
           {isLoaded
             ? 'Loaded this session'

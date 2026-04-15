@@ -4,10 +4,10 @@
 // EXPORTS: EntityList
 
 import type { EntityListItem as EntityListItemType, DashboardPayload, CacheStatus } from '@shared/types/dashboard';
-import type { Report2State } from '../../hooks/useReport2';
+import type { ReportState } from '../../hooks/useReport';
 import { EntityListItem } from './EntityListItem';
 import { SelectionBar } from './SelectionBar';
-import { Report2Button } from './Report2Button';
+import { ReportButton } from './ReportButton';
 
 interface EntityListProps {
   entities: EntityListItemType[];
@@ -19,12 +19,12 @@ interface EntityListProps {
   totalCount: number;
   selectedCount: number;
   onClearSelection: () => void;
-  report2State: Report2State;
-  report2Payload: DashboardPayload | null;
+  reportState: ReportState;
+  reportPayload: DashboardPayload | null;
   cacheStatus: CacheStatus | undefined;
-  activeView: 'single' | 'report2' | 'consolidated2';
-  onReport2Click: () => void;
-  onViewConsolidated2: () => void;
+  activeView: 'single' | 'report' | 'consolidated';
+  onReportClick: () => void;
+  onViewConsolidatedClick: () => void;
 }
 
 export function EntityList({
@@ -37,12 +37,12 @@ export function EntityList({
   totalCount,
   selectedCount,
   onClearSelection,
-  report2State,
-  report2Payload,
+  reportState,
+  reportPayload,
   cacheStatus,
   activeView,
-  onReport2Click,
-  onViewConsolidated2,
+  onReportClick,
+  onViewConsolidatedClick,
 }: EntityListProps) {
   return (
     <div
@@ -55,12 +55,12 @@ export function EntityList({
         </span>
       </div>
 
-      <Report2Button
-        state={report2State}
-        payload={report2Payload}
+      <ReportButton
+        state={reportState}
+        payload={reportPayload}
         cacheStatus={cacheStatus}
-        isActive={activeView === 'report2'}
-        onClick={onReport2Click}
+        isActive={activeView === 'report'}
+        onClick={onReportClick}
       />
 
       {/* WHY: live region announces list count changes to screen readers */}
@@ -97,7 +97,7 @@ export function EntityList({
 
       <SelectionBar
         selectedCount={selectedCount}
-        onViewConsolidated2={onViewConsolidated2}
+        onViewConsolidatedClick={onViewConsolidatedClick}
         onClear={onClearSelection}
       />
     </div>

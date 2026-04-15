@@ -1,28 +1,28 @@
-// FILE: client/src/components/shared/Consolidated2ConfirmModal.tsx
-// PURPOSE: Confirmation modal + inline progress for View Consolidated 2
+// FILE: client/src/components/shared/ConsolidatedConfirmModal.tsx
+// PURPOSE: Confirmation modal + inline progress for View Consolidated
 // USED BY: client/src/layouts/DashboardLayout.tsx
-// EXPORTS: Consolidated2ConfirmModal
+// EXPORTS: ConsolidatedConfirmModal
 
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Consolidated2State } from '../../hooks/useConsolidated2';
+import type { ConsolidatedState } from '../../hooks/useConsolidated';
 import type { EntityListItem } from '@shared/types/dashboard';
 
-interface Consolidated2ConfirmModalProps {
+interface ConsolidatedConfirmModalProps {
   isOpen: boolean;
-  state: Consolidated2State;
+  state: ConsolidatedState;
   selectedEntities: EntityListItem[];
   error: string | null;
   onConfirm: () => void;
   onCancel: () => void;
-  onGoToReport2: () => void;
+  onGoToReport: () => void;
 }
 
-export function Consolidated2ConfirmModal({
-  isOpen, state, selectedEntities, error, onConfirm, onCancel, onGoToReport2,
-}: Consolidated2ConfirmModalProps) {
+export function ConsolidatedConfirmModal({
+  isOpen, state, selectedEntities, error, onConfirm, onCancel, onGoToReport,
+}: ConsolidatedConfirmModalProps) {
   const count = selectedEntities.length;
   const isFetching = state === 'fetching';
-  const needsReport2 = state === 'needs-report-2';
+  const needsReport = state === 'needs-report';
   const hasError = state === 'error';
 
   return (
@@ -43,7 +43,7 @@ export function Consolidated2ConfirmModal({
             onClick={(e) => e.stopPropagation()}
             className="flex w-[420px] max-w-[90vw] flex-col gap-[var(--spacing-2xl)] rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] p-[var(--spacing-3xl)] shadow-[var(--shadow-card)]"
             role="dialog"
-            aria-label="Confirm View Consolidated 2"
+            aria-label="Confirm View Consolidated"
           >
             <div className="flex flex-col items-center gap-[var(--spacing-md)]">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-gold-subtle)]">
@@ -53,11 +53,11 @@ export function Consolidated2ConfirmModal({
                 </svg>
               </div>
               <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">
-                {needsReport2 ? 'Data not available' : hasError ? 'Something went wrong' : 'Confirm View Consolidated'}
+                {needsReport ? 'Data not available' : hasError ? 'Something went wrong' : 'Confirm View Consolidated'}
               </h2>
             </div>
 
-            {!needsReport2 && !hasError && (
+            {!needsReport && !hasError && (
               <>
                 <p className="text-center text-[13px] text-[var(--color-text-secondary)]">
                   Fetching data for <strong>{count}</strong> selected {count === 1 ? 'entity' : 'entities'}
@@ -101,10 +101,10 @@ export function Consolidated2ConfirmModal({
               </>
             )}
 
-            {needsReport2 && (
+            {needsReport && (
               <>
                 <p className="text-center text-[13px] text-[var(--color-text-secondary)]">
-                  This requires running Report 2 first to load data from Priority ERP.
+                  This requires running Report first to load data from Priority ERP.
                 </p>
                 <div className="flex gap-[var(--spacing-md)]">
                   <button
@@ -116,10 +116,10 @@ export function Consolidated2ConfirmModal({
                   </button>
                   <button
                     type="button"
-                    onClick={onGoToReport2}
+                    onClick={onGoToReport}
                     className="flex-1 rounded-[var(--radius-base)] bg-[var(--color-gold-primary)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)] text-[13px] font-medium text-white hover:bg-[var(--color-gold-hover)]"
                   >
-                    Go to Report 2
+                    Go to Report
                   </button>
                 </div>
               </>

@@ -1,32 +1,32 @@
-// FILE: client/src/hooks/useConsolidated2.ts
-// PURPOSE: View Consolidated 2 state machine — manages confirmation modal and fetch lifecycle
+// FILE: client/src/hooks/useConsolidated.ts
+// PURPOSE: View Consolidated state machine — manages confirmation modal and fetch lifecycle
 // USED BY: client/src/hooks/useDashboardState.ts
-// EXPORTS: useConsolidated2, Consolidated2State, UseConsolidated2Return
+// EXPORTS: useConsolidated, ConsolidatedState, UseConsolidatedReturn
 
 import { useCallback, useRef, useState } from 'react';
 import type { Dimension, Period, DashboardPayload, FetchAllFilters } from '@shared/types/dashboard';
 import type { ApiResponse } from '@shared/types/api-responses';
 
-export type Consolidated2State = 'idle' | 'configuring' | 'fetching' | 'loaded' | 'needs-report-2' | 'error';
+export type ConsolidatedState = 'idle' | 'configuring' | 'fetching' | 'loaded' | 'needs-report' | 'error';
 
-export interface UseConsolidated2Return {
-  state: Consolidated2State;
+export interface UseConsolidatedReturn {
+  state: ConsolidatedState;
   entityIds: string[];
   payload: DashboardPayload | null;
   error: string | null;
   open: (entityIds: string[]) => void;
   cancel: () => void;
   /** WHY: Optional filters are passed through so the server can compute the same filterHash
-   * that fetch-all used when writing the raw cache. Without this, Consolidated 2 probed
+   * that fetch-all used when writing the raw cache. Without this, Consolidated probed
    * 'all' and returned 422 whenever any filter was applied. */
   start: (filters?: FetchAllFilters) => void;
   abort: () => void;
   reset: () => void;
 }
 
-export function useConsolidated2(dimension: Dimension, period: Period): UseConsolidated2Return {
+export function useConsolidated(dimension: Dimension, period: Period): UseConsolidatedReturn {
   const abortRef = useRef<AbortController | null>(null);
-  const [state, setState] = useState<Consolidated2State>('idle');
+  const [state, setState] = useState<ConsolidatedState>('idle');
   const [entityIds, setEntityIds] = useState<string[]>([]);
   const [payload, setPayload] = useState<DashboardPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +75,7 @@ export function useConsolidated2(dimension: Dimension, period: Period): UseConso
     try {
       const response = await fetch(`/api/sales/dashboard?${params}`, { signal: controller.signal });
       if (response.status === 422) {
-        setState('needs-report-2');
+        setState('needs-report');
         return;
       }
       if (!response.ok) {
