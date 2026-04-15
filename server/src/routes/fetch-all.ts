@@ -39,6 +39,11 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 
   const sse = createSseWriter(req, res);
   const { sendEvent } = sse;
+  // WHY: D1 — propagate client disconnect down to the Priority pagination loop so we don't burn
+  // API budget on work the user no longer wants. Works alongside createSseWriter's own close guard
+  // (Node EventEmitter supports multiple listeners — both fire on close).
+  const abortController = new AbortController();
+  req.on('close', () => abortController.abort(new Error('Client cancelled Report')));
   try {
     const filterHash = buildFilterHash(agentName, zone, customerType);
     // WHY: Raw cache key is dimension-agnostic — the same 22K orders serve all 6 dimensions.
@@ -58,11 +63,11 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // Check for cached raw orders (incremental refresh)
     let orders: RawOrder[];
     if (!forceRefresh) {
-      const cached = await tryIncrementalRefresh(rawKey, metaKey, startDate, endDate, extraFilter, sendEvent);
+      const cached = await tryIncrementalRefresh(rawKey, metaKey, startDate, endDate, extraFilter, sendEvent, abortController.signal);
       if (cached) {
         orders = cached;
       } else {
-        orders = await fullFetch(startDate, endDate, extraFilter, sendEvent);
+        orders = await fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
       }
     } else {
       // WHY: Force refresh clears both current-period raw + prev-year raw caches
@@ -73,7 +78,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       await redis.del(rawKey);
       await redis.del(metaKey);
       await redis.del(cacheKey('orders_year', String(year - 1), filterHash));
-      orders = await fullFetch(startDate, endDate, extraFilter, sendEvent);
+      orders = await fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
     }
 
     // Cache raw orders + metadata
@@ -94,11 +99,11 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // report caches her prev-year orders under a global key; the next rep reads her data).
     const prevOrders = await cachedFetch(
       cacheKey('orders_year', String(year - 1), filterHash), getTTL('orders_year'),
-      () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter),
+      () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter, undefined, abortController.signal),
     );
     const customers = await cachedFetch(
       cacheKey('customers', 'all'), getTTL('customers'),
-      () => fetchCustomers(priorityClient),
+      () => fetchCustomers(priorityClient, abortController.signal),
     );
 
     // WHY: Zone/customerType are CUSTOMERS-level. Post-fetch filter after join.
@@ -153,14 +158,22 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 
     sendEvent('complete', payload);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    const stack = err instanceof Error ? err.stack : undefined;
-    console.error('[fetch-all] Report failed:', {
-      groupBy, period, agentName, zone, customerType,
-      message,
-      stack,
-    });
-    sendEvent('error', { message });
+    // WHY: DOMException{name:'AbortError'} means the user cancelled the Report — not a server
+    // fault. Logging it as a failure would pollute Railway logs and mask real errors. The SSE
+    // connection is already closed (sse.isClosed() will short-circuit any sendEvent attempt)
+    // so we intentionally don't emit an error event either.
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      console.log('[fetch-all] Report cancelled by client');
+    } else {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      const stack = err instanceof Error ? err.stack : undefined;
+      console.error('[fetch-all] Report failed:', {
+        groupBy, period, agentName, zone, customerType,
+        message,
+        stack,
+      });
+      sendEvent('error', { message });
+    }
   } finally {
     sse.dispose();
     if (!res.writableEnded) res.end();
@@ -168,7 +181,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 });
 
 async function fullFetch(startDate: string, endDate: string, extraFilter: string | undefined,
-  sendEvent: (event: string, data: unknown) => void): Promise<RawOrder[]> {
+  sendEvent: (event: string, data: unknown) => void, signal?: AbortSignal): Promise<RawOrder[]> {
   sendEvent('progress', { phase: 'fetching', rowsFetched: 0, estimatedTotal: 0 });
   // WHY: onProgress sends SSE events as each page arrives, preventing Railway proxy timeout
   // during the 1–5 min it takes to paginate 50,000 orders from Priority API.
@@ -176,6 +189,7 @@ async function fullFetch(startDate: string, endDate: string, extraFilter: string
     (rowsFetched, estimatedTotal) => {
       sendEvent('progress', { phase: 'fetching', rowsFetched, estimatedTotal });
     },
+    signal,
   );
 }
 
@@ -183,6 +197,7 @@ async function tryIncrementalRefresh(
   rawKey: string, metaKey: string,
   startDate: string, endDate: string, extraFilter: string | undefined,
   sendEvent: (event: string, data: unknown) => void,
+  signal?: AbortSignal,
 ): Promise<RawOrder[] | null> {
   const rawCached = await redis.get(rawKey);
   const metaCached = await redis.get(metaKey);
@@ -210,6 +225,7 @@ async function tryIncrementalRefresh(
     (rowsFetched, estimatedTotal) => {
       sendEvent('progress', { phase: 'incremental', rowsFetched, estimatedTotal });
     },
+    signal,
   );
   sendEvent('progress', { phase: 'merging', message: `Merging ${newOrders.length} new orders with ${cachedOrders.length} cached...` });
 

@@ -285,6 +285,100 @@ describe('PriorityClient', () => {
     });
   });
 
+  describe('AbortSignal threading (D1)', () => {
+    it('aborts during retry backoff without waiting it out (D1-T2)', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+
+      const fetchSpy = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({ 'odata.error': { message: { value: 'Server Error' } } }),
+          { status: 500, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+      vi.stubGlobal('fetch', fetchSpy);
+
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      const controller = new AbortController();
+
+      const promise = client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc', signal: controller.signal,
+      });
+      // WHY: Attach rejection handler immediately so no unhandled-rejection warning fires
+      // before the await expect below can catch it.
+      const assertion = expect(promise).rejects.toThrow(/abort/i);
+
+      // Allow the first fetch (500) to land and enter the backoff wait
+      await vi.advanceTimersByTimeAsync(10);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // Abort during the backoff window — backoff Promise rejects immediately
+      controller.abort(new Error('Client cancelled Report'));
+      await vi.advanceTimersByTimeAsync(1);
+
+      await assertion;
+      // Still only 1 fetch — backoff was cut short, no retry happened
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    });
+
+    it('AbortSignal.any preserves user-cancellation reason over timeout (D1-T4)', async () => {
+      const fetchSpy = vi.fn<typeof fetch>().mockImplementation((_url, init) => {
+        return new Promise<Response>((_resolve, reject) => {
+          const sig = init?.signal as AbortSignal | undefined;
+          if (!sig) { reject(new Error('test setup: no signal')); return; }
+          if (sig.aborted) { reject(sig.reason ?? new DOMException('Aborted', 'AbortError')); return; }
+          sig.addEventListener('abort', () => {
+            reject(sig.reason ?? new DOMException('Aborted', 'AbortError'));
+          });
+        });
+      });
+      vi.stubGlobal('fetch', fetchSpy);
+
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      const controller = new AbortController();
+      const userReason = new Error('Client cancelled Report');
+
+      const promise = client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc', signal: controller.signal,
+      });
+
+      await new Promise(r => setImmediate(r));
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      controller.abort(userReason);
+
+      await expect(promise).rejects.toThrow('Client cancelled Report');
+
+      vi.unstubAllGlobals();
+    });
+
+    it('aborts pagination loop between pages on signal abort (D1-T1)', async () => {
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      // WHY: Each mock call waits a macrotask so controller.abort() fired via setImmediate
+      // can be seen by the per-page abort check before the next fetchEntity call starts.
+      const fetchSpy = vi.spyOn(client, 'fetchEntity')
+        .mockImplementation(() => new Promise(r => setImmediate(() => r(Array(2500).fill({ ORDNAME: 'O' })))));
+
+      const controller = new AbortController();
+      const promise = client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc',
+        pageSize: 2500,
+        signal: controller.signal,
+      });
+
+      // Let the first page complete then abort
+      await new Promise(r => setImmediate(r));
+      await new Promise(r => setImmediate(r));
+      controller.abort(new Error('Client cancelled Report'));
+
+      await expect(promise).rejects.toThrow(/abort/i);
+      // Stop within a few iterations — not all MAXAPILINES passes
+      expect(fetchSpy.mock.calls.length).toBeLessThan(5);
+    });
+  });
+
   describe('per-page timing log (C2)', () => {
     it('emits a structured log line per fetched page (C2-T2)', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
