@@ -176,6 +176,7 @@ function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setIsOpen(false);
+      (document.activeElement as HTMLElement)?.blur();
     };
 
     document.addEventListener('mousedown', handleMouseDown);
