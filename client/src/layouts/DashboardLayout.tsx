@@ -11,6 +11,7 @@ import { RightPanel } from '../components/right-panel/RightPanel';
 import { ConsolidatedHeader } from '../components/right-panel/ConsolidatedHeader';
 import { ReportFilterModal } from '../components/shared/ReportFilterModal';
 import { ReportProgressModal } from '../components/shared/ReportProgressModal';
+import { computeReportModalState } from '../hooks/report-modal-state';
 import { ConsolidatedConfirmModal } from '../components/shared/ConsolidatedConfirmModal';
 import { LoadingModal } from '../components/shared/LoadingModal';
 import { Skeleton } from '../components/shared/Skeleton';
@@ -111,6 +112,8 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     );
   }
 
+  const modalState = computeReportModalState(report);
+
   const activeEntity = entities.find(e => e.id === activeEntityId) ?? null;
   const totalCount = entities.length;
   const sortActive = sortField !== 'id' || sortDirection !== 'asc';
@@ -136,8 +139,12 @@ export function DashboardLayout(props: DashboardLayoutProps) {
         onCancel={report.cancel}
       />
       <ReportProgressModal
-        isOpen={report.state === 'fetching'}
-        progress={report.progress}
+        isOpen={modalState.isOpen}
+        progress={modalState.mode === 'fetching' ? report.progress : null}
+        errorMessage={modalState.errorMessage}
+        onCancel={report.cancelFetch}
+        onClose={report.cancelFetch}
+        onRetry={report.retry}
       />
       <ConsolidatedConfirmModal
         isOpen={consolidated.state === 'configuring' || consolidated.state === 'fetching' || consolidated.state === 'needs-report' || consolidated.state === 'error'}

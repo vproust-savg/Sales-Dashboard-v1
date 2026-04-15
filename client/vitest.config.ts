@@ -4,9 +4,13 @@
 // EXPORTS: Vitest config
 
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  // WHY: React plugin enables JSX transform for test files that use JSX (e.g. useReport.test.ts
+  // with @vitest-environment happy-dom). Pure node tests are unaffected.
+  plugins: [react()],
   test: {
     globals: true,
     environment: 'node',
