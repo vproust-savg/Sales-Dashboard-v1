@@ -12,6 +12,7 @@ import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
 import { filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
+import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL, buildFilterQualifier, buildFilterHash } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
@@ -25,13 +26,14 @@ const querySchema = z.object({
   agentName: z.string().optional(),   // comma-separated agent names
   zone: z.string().optional(),         // comma-separated zone names
   customerType: z.string().optional(), // comma-separated customer types
+  entityIds: z.string().optional(),    // WHY: comma-separated entity IDs for View Consolidated subset (D3)
   refresh: z.enum(['true', 'false']).optional(),
 });
 
 export const fetchAllRouter = Router();
 
 fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) => {
-  const { groupBy, period, agentName, zone, customerType, refresh }
+  const { groupBy, period, agentName, zone, customerType, entityIds, refresh }
     = res.locals.query as z.infer<typeof querySchema>;
   const forceRefresh = refresh === 'true';
 
@@ -104,10 +106,23 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // WHY: Same zone/customerType filter must be applied to prev-year data so YoY compares
     // the same entity population. Agent filtering already happened in OData.
     const filteredPrev = filterOrdersByCustomerCriteria(prevOrders.data, customers.data, { zone, customerType });
-    const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
-    const entities = groupByDimension(groupBy as Dimension, filteredOrders, customers.data, periodMonths, filteredPrev, period);
-    const aggregate = aggregateOrders(filteredOrders, filteredPrev, period);
 
+    // WHY: entityIds narrows filteredOrders to the pre-selected entity subset (View Consolidated D3).
+    // Applied AFTER customer-criteria so both filters compose correctly (AND semantics).
+    const entityIdList = entityIds ? entityIds.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+    const subsetOrders = entityIdList && entityIdList.length > 0
+      ? filterOrdersByEntityIds(filteredOrders, new Set(entityIdList), groupBy as Dimension, customers.data)
+      : filteredOrders;
+    const subsetPrev = entityIdList && entityIdList.length > 0
+      ? filterOrdersByEntityIds(filteredPrev, new Set(entityIdList), groupBy as Dimension, customers.data)
+      : filteredPrev;
+
+    const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
+    const entities = groupByDimension(groupBy as Dimension, subsetOrders, customers.data, periodMonths, subsetPrev, period);
+    const aggregate = aggregateOrders(subsetOrders, subsetPrev, period);
+
+    // WHY: yearsAvailable is derived from filteredOrders (not subsetOrders) so the year picker
+    // reflects all years the raw cache covers — not just the subset's years.
     const years = new Set(filteredOrders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
     prevOrders.data.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
 
@@ -117,19 +132,24 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       yearsAvailable: [...years].sort().reverse(),
     };
 
-    // WHY: Cache aggregated results — entities_full for the entity list
-    // + report_payload (per-dimension payload for instant dimension switches).
-    const fullKey = cacheKey('entities_full', period, buildFilterQualifier(groupBy, filterHash));
-    const fullEnvelope = { data: { entities, yearsAvailable: payload.yearsAvailable }, cachedAt: new Date().toISOString() };
-    await redis.set(fullKey, JSON.stringify(fullEnvelope), { ex: getTTL('entities_full') });
+    // WHY: Skip aggregated cache writes when entityIds is present — each unique subset would
+    // produce a distinct cache entry (combinatorial blowup). Raw cache writes stay in place above;
+    // they are entity-agnostic and benefit all subsets equally.
+    if (!entityIdList || entityIdList.length === 0) {
+      // WHY: Cache aggregated results — entities_full for the entity list
+      // + report_payload (per-dimension payload for instant dimension switches).
+      const fullKey = cacheKey('entities_full', period, buildFilterQualifier(groupBy, filterHash));
+      const fullEnvelope = { data: { entities, yearsAvailable: payload.yearsAvailable }, cachedAt: new Date().toISOString() };
+      await redis.set(fullKey, JSON.stringify(fullEnvelope), { ex: getTTL('entities_full') });
 
-    const payloadKey = cacheKey('report_payload', period, `${filterHash}:${groupBy}`);
-    const payloadEnvelope = { data: payload, cachedAt: new Date().toISOString() };
-    await redis.set(payloadKey, JSON.stringify(payloadEnvelope), { ex: getTTL('report_payload') });
+      const payloadKey = cacheKey('report_payload', period, `${filterHash}:${groupBy}`);
+      const payloadEnvelope = { data: payload, cachedAt: new Date().toISOString() };
+      await redis.set(payloadKey, JSON.stringify(payloadEnvelope), { ex: getTTL('report_payload') });
 
-    const detailKey = cacheKey('entity_detail', period, `${groupBy}:ALL:${filterHash}`);
-    const detailEnvelope = { data: payload, cachedAt: new Date().toISOString() };
-    await redis.set(detailKey, JSON.stringify(detailEnvelope), { ex: getTTL('entities_full') });
+      const detailKey = cacheKey('entity_detail', period, `${groupBy}:ALL:${filterHash}`);
+      const detailEnvelope = { data: payload, cachedAt: new Date().toISOString() };
+      await redis.set(detailKey, JSON.stringify(detailEnvelope), { ex: getTTL('entities_full') });
+    }
 
     sendEvent('complete', payload);
   } catch (err) {

@@ -11,10 +11,11 @@ import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
 import { filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
+import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL, buildFilterHash } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
-import type { RawOrder, RawCustomer } from '../services/priority-queries.js';
+import type { RawOrder } from '../services/priority-queries.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 import type { ApiResponse } from '@shared/types/api-responses';
 
@@ -77,9 +78,9 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
         // TODO(D3): This consolidated branch is scheduled for deletion per
         // docs/superpowers/plans/2026-04-15-report-abort-signal-and-wall-clock-plan.md Commit 2b.
         // Until then, per-entity prevYearRevenue/prevYearRevenueFull remain null on THIS path
-        // (not passed to groupByDimension). Single-entity-detail path at line 137 already passes them.
+        // (not passed to groupByDimension). Single-entity-detail path at line 144 already passes them.
         // If D3 is delayed beyond the main spec's deploy window, pass `prevOrders` and `period` here
-        // to match line 137's behavior — the variables are already in scope above.
+        // to match line 144's behavior — the variables are already in scope above.
         const entities = groupByDimension(groupBy as Dimension, filteredOrders, customersResult.data, periodMonths);
         // WHY: Pass opts to populate customerName on order rows + per-entity breakdowns for consolidated view.
         const aggregate = aggregateOrders(filteredOrders, prevOrders, period, {
@@ -139,7 +140,7 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
     // WHY: Pass prevOrdersResult.data + period so EntityListItem carries prevYearRevenue fields
     // for the Per-Customer table in the Revenue hero card modal (Feature B).
-    // dashboard.ts:77 (consolidated branch) intentionally omitted — D3 will delete that branch.
+    // dashboard.ts:84 (consolidated branch) intentionally omitted — D3 will delete that branch.
     const entities = groupByDimension(groupBy as Dimension, ordersResult.data, customersResult.data, periodMonths, prevOrdersResult.data, period);
 
     // Derive years available from order dates
@@ -191,47 +192,4 @@ async function readFirstMatchingRaw(period: string, filterHash: string): Promise
     }
   }
   return null;
-}
-
-/**
- * Filter orders by entity IDs for any dimension.
- * WHY: The consolidated view needs to filter cached raw orders to the selected
- * entity subset. Each dimension uses different fields for entity identity.
- */
-export function filterOrdersByEntityIds(
-  orders: RawOrder[],
-  entityIds: Set<string>,
-  dimension: Dimension,
-  customers: RawCustomer[],
-): RawOrder[] {
-  switch (dimension) {
-    case 'customer':
-      return orders.filter(o => entityIds.has(o.CUSTNAME));
-    case 'zone': {
-      const custInZones = new Set(
-        customers.filter(c => entityIds.has(c.ZONECODE)).map(c => c.CUSTNAME),
-      );
-      return orders.filter(o => custInZones.has(o.CUSTNAME));
-    }
-    case 'vendor':
-      return orders.filter(o =>
-        (o.ORDERITEMS_SUBFORM ?? []).some(i => entityIds.has(i.Y_1159_5_ESH ?? '')),
-      );
-    case 'brand':
-      return orders.filter(o =>
-        (o.ORDERITEMS_SUBFORM ?? []).some(i => entityIds.has(i.Y_9952_5_ESH ?? '')),
-      );
-    case 'product_type':
-      return orders.filter(o =>
-        (o.ORDERITEMS_SUBFORM ?? []).some(i =>
-          entityIds.has(i.Y_3020_5_ESH ?? i.Y_3021_5_ESH ?? ''),
-        ),
-      );
-    case 'product':
-      return orders.filter(o =>
-        (o.ORDERITEMS_SUBFORM ?? []).some(i => entityIds.has(i.PARTNAME)),
-      );
-    default:
-      return orders;
-  }
 }

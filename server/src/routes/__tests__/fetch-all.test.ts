@@ -40,7 +40,7 @@ vi.mock('../../services/priority-queries.js', () => ({
 // Import AFTER mocks are set up so the route picks up the mocked modules.
 import { fetchAllRouter } from '../fetch-all.js';
 import { redis } from '../../cache/redis-client.js';
-import { fetchOrders } from '../../services/priority-queries.js';
+import { fetchOrders, fetchCustomers } from '../../services/priority-queries.js';
 
 function makeApp() {
   const app = express();
@@ -114,6 +114,92 @@ describe('prev-year cross-route consistency (B-T9)', () => {
   //   4. Assert equal for every customer present in BOTH responses
   // Skipped until the dashboard route has a supertest harness alongside fetch-all's.
   it.skip('cross-route prev-year consistency (B-T9, Codex Finding #5)', () => {});
+});
+
+// WHY: Fixture orders span 3 customers across 2 zones. The ORDSTATUSDES / AGENTCODE fields
+// are required by aggregateOrders but not exercised by D3 tests — minimal safe values used.
+const sampleOrders = [
+  { ORDNAME: '1', CUSTNAME: 'C001', CURDATE: '2026-01-01T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 100, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+  { ORDNAME: '2', CUSTNAME: 'C002', CURDATE: '2026-02-01T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 200, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+  { ORDNAME: '3', CUSTNAME: 'C003', CURDATE: '2026-03-01T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 300, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+];
+const sampleCustomers = [
+  { CUSTNAME: 'C001', CUSTDES: 'Alpha', ZONECODE: 'ZN', ZONEDES: 'Northeast', AGENTCODE: 'A', AGENTNAME: 'Agent', CREATEDDATE: '2025-01-01', CTYPECODE: 'X', CTYPENAME: 'X' },
+  { CUSTNAME: 'C002', CUSTDES: 'Beta',  ZONECODE: 'ZN', ZONEDES: 'Northeast', AGENTCODE: 'A', AGENTNAME: 'Agent', CREATEDDATE: '2025-01-01', CTYPECODE: 'X', CTYPENAME: 'X' },
+  { CUSTNAME: 'C003', CUSTDES: 'Gamma', ZONECODE: 'ZS', ZONEDES: 'Southeast', AGENTCODE: 'A', AGENTNAME: 'Agent', CREATEDDATE: '2025-01-01', CTYPECODE: 'X', CTYPENAME: 'X' },
+];
+
+describe('D3 — entityIds filter on /fetch-all', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (redis.set as ReturnType<typeof vi.fn>).mockResolvedValue('OK');
+    (redis.del as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    vi.mocked(fetchOrders).mockResolvedValue(sampleOrders as never);
+    vi.mocked(fetchCustomers).mockResolvedValue(sampleCustomers as never);
+  });
+
+  it('returns entities matching the entityIds subset (D3-T1)', async () => {
+    const response = await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=customer&period=ytd&entityIds=C001,C002')
+      .expect(200);
+    const completeLine = response.text.split('\n\n').find(block => block.startsWith('event: complete'));
+    expect(completeLine).toBeTruthy();
+    const data = JSON.parse(completeLine!.split('\ndata: ')[1]) as { entities: { id: string }[] };
+    const ids = data.entities.map((e) => e.id).sort();
+    expect(ids).toEqual(['C001', 'C002']);
+  });
+
+  it('graceful empty result when entityIds match nothing (D3-T2)', async () => {
+    const response = await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=customer&period=ytd&entityIds=INVALID')
+      .expect(200);
+    const completeLine = response.text.split('\n\n').find(block => block.startsWith('event: complete'));
+    const data = JSON.parse(completeLine!.split('\ndata: ')[1]) as { entities: { id: string }[]; kpis: { totalRevenue: number } };
+    expect(data.entities).toEqual([]);
+    expect(data.kpis.totalRevenue).toBe(0);
+  });
+
+  // WHY: D3-T3 requires the raw cache to be pre-populated then re-hit on a second call.
+  // The current cachedFetch mock bypasses Redis entirely, so the raw-cache re-use path
+  // cannot be exercised here. Validate manually against a deployed environment.
+  it.skip('reuses raw cache across different entityIds subsets (D3-T3)', () => {
+    // Needs a real cachedFetch wrapper that actually caches (current mock bypasses Redis).
+    // Validate manually against a deployed environment.
+  });
+
+  it('does not write report_payload/entities_full/entity_detail cache when entityIds present (D3-T4)', async () => {
+    const setSpy = redis.set as ReturnType<typeof vi.fn>;
+    setSpy.mockClear();
+    await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=customer&period=ytd&entityIds=C001,C002')
+      .expect(200);
+    const aggregateWrites = setSpy.mock.calls.filter(c =>
+      typeof c[0] === 'string' && (
+        c[0].includes('report_payload') || c[0].includes('entities_full') || c[0].includes('entity_detail')
+      )
+    );
+    expect(aggregateWrites).toHaveLength(0);
+  });
+
+  it('composes entityIds with zone filter (D3-T5)', async () => {
+    const response = await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=customer&period=ytd&entityIds=C001,C002,C003&zone=Northeast')
+      .expect(200);
+    const completeLine = response.text.split('\n\n').find(block => block.startsWith('event: complete'));
+    const data = JSON.parse(completeLine!.split('\ndata: ')[1]) as { entities: { id: string }[] };
+    const ids = data.entities.map((e) => e.id).sort();
+    // C001, C002 are in Northeast; C003 is in Southeast. Filter = AND → only C001, C002.
+    expect(ids).toEqual(['C001', 'C002']);
+  });
+
+  // WHY: D3-T1..T5 all use groupBy=customer. D3-T5b would sweep the other 5 dimensions to
+  // prove the subset filter is not customer-specific. Skipped until vendor/brand/product_type/
+  // product/zone fixture coverage exists (requires ORDERITEMS_SUBFORM fields in sample data).
+  it.skip('entityIds filter works for all 6 dimensions (D3-T5b)', () => {
+    // Would need vendor/brand/product_type/product/zone fixture coverage.
+    // Move to a fuller integration test when that fixture exists.
+  });
 });
 
 describe('Server-side error logging (C2)', () => {

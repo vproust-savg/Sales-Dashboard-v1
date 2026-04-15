@@ -198,6 +198,8 @@ export interface FetchAllFilters {
   agentName?: string[];
   zone?: string[];
   customerType?: string[];
+  /** WHY: Pre-selected entity subset from View Consolidated (D3). Applied after the other filters. */
+  entityIds?: string[];
 }
 
 /** SSE progress events from GET /api/sales/fetch-all */
