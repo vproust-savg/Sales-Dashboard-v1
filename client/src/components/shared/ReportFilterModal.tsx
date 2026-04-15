@@ -160,6 +160,7 @@ interface FilterFieldProps {
 function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // WHY: Listeners are only attached while the dropdown is open — no overhead when closed.
   // mousedown fires before blur/click, so the dropdown closes before any other element
@@ -176,7 +177,7 @@ function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setIsOpen(false);
-      (document.activeElement as HTMLElement)?.blur();
+      triggerRef.current?.focus();
     };
 
     document.addEventListener('mousedown', handleMouseDown);
@@ -203,6 +204,7 @@ function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
       <label className="text-[13px] font-medium text-[var(--color-text-secondary)]">{label}</label>
       <div ref={containerRef} className="relative flex-1 max-w-[240px]">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsOpen(v => !v)}
           className="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-page)] px-[var(--spacing-lg)] py-[var(--spacing-md)] text-[13px] text-[var(--color-text-secondary)]"
