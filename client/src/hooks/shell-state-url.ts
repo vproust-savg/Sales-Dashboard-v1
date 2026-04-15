@@ -22,7 +22,7 @@ export const DEFAULT_STATE: DashboardShellState = {
   activeDimension: 'customer',
   activePeriod: 'ytd',
   activeEntityId: null,
-  activeTab: 'orders',
+  activeTab: 'items',
   searchTerm: '',
   sortField: 'id',
   sortDirection: 'asc',

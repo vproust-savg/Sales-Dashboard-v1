@@ -22,10 +22,10 @@ export function ItemsCompareRow({ item, paddingLeft }: Props) {
     >
       <div className="flex-1" />
       <DeltaCell value={d.valueDelta} suffix="%" width="w-24" />
-      <div className="w-24" />
-      <DeltaCell value={d.marginDelta} suffix="pp" width="w-28" />
-      <DeltaCell value={d.marginAmountDelta} suffix="%" width="w-24" />
       <DeltaCell value={d.unitsDelta} suffix=" units" isAbsolute width="w-24" />
+      <div className="w-24" />
+      <DeltaCell value={d.marginAmountDelta} suffix="%" width="w-24" />
+      <DeltaCell value={d.marginDelta} suffix="pp" width="w-28" />
       <div className="w-20" />
       <div className="w-24" />
     </div>

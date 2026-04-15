@@ -41,7 +41,7 @@ describe('parseSearchParams', () => {
     expect(parseSearchParams(new URLSearchParams('tab=items')).activeTab).toBe('items');
   });
   it('falls back to default for invalid tab', () => {
-    expect(parseSearchParams(new URLSearchParams('tab=bogus')).activeTab).toBe('orders');
+    expect(parseSearchParams(new URLSearchParams('tab=bogus')).activeTab).toBe('items');
   });
   it('parses search term', () => {
     expect(parseSearchParams(new URLSearchParams('q=acme')).searchTerm).toBe('acme');
@@ -92,14 +92,14 @@ describe('buildSearch', () => {
   it('builds full query string', () => {
     const result = buildSearch({
       activeDimension: 'brand' as const, activePeriod: '2025', activeEntityId: 'B42',
-      activeTab: 'items' as const, searchTerm: 'cheese',
+      activeTab: 'orders' as const, searchTerm: 'cheese',
       sortField: 'marginPercent' as const, sortDirection: 'desc' as const,
       panelCollapsed: false,
     });
     expect(result).toContain('dim=brand');
     expect(result).toContain('period=2025');
     expect(result).toContain('entity=B42');
-    expect(result).toContain('tab=items');
+    expect(result).toContain('tab=orders');
     expect(result).toContain('q=cheese');
     expect(result).toContain('sort=marginPercent');
     expect(result).toContain('dir=desc');

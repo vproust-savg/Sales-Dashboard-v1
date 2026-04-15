@@ -49,13 +49,13 @@ export function ItemsGroupRow({ group, depth, isExpanded, onToggle }: ItemsGroup
         {formatCurrency(group.totals.value)}
       </span>
       <span role="gridcell" className="w-24 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
-      <span role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
-        {formatPercent(group.totals.marginPercent)}
-      </span>
+      <span role="gridcell" className="w-24 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
       <span role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
         {formatCurrency(group.totals.marginAmount)}
       </span>
-      <span role="gridcell" className="w-24 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
+      <span role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-secondary)]">
+        {formatPercent(group.totals.marginPercent)}
+      </span>
       <span role="gridcell" className="w-20 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
       <span role="gridcell" className="w-24 text-right text-[14px] text-[var(--color-text-faint)]">{'\u2014'}</span>
     </button>
