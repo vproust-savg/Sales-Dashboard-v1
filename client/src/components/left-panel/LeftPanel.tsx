@@ -4,7 +4,7 @@
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: LeftPanel
 
-import type { EntityListItem, Dimension, EntityListLoadState, DashboardPayload, CacheStatus } from '@shared/types/dashboard';
+import type { EntityListItem, DashboardPayload, Dimension, CacheStatus } from '@shared/types/dashboard';
 import type { Report2State } from '../../hooks/useReport2';
 import type { FilterCondition } from '../../hooks/useFilters';
 import type { SortField, SortDirection } from '../../hooks/sort-types';
@@ -31,12 +31,6 @@ interface LeftPanelProps {
   sortField: SortField;
   sortDirection: SortDirection;
   sortActive: boolean;
-  dataLoaded: boolean;
-  fetchAllLoadState: EntityListLoadState;
-  allDashboard: DashboardPayload | null;
-  entitiesWithOrders: number;
-  onAllClick: () => void;
-  onRefresh: () => void;
   report2State: Report2State;
   report2Payload: DashboardPayload | null;
   cacheStatus: CacheStatus | undefined;
@@ -47,7 +41,6 @@ interface LeftPanelProps {
   onEntitySelect: (id: string) => void;
   onEntityCheck: (id: string) => void;
   onClearSelection: () => void;
-  onViewConsolidated: () => void;
   onReport2Click: () => void;
   onViewConsolidated2: () => void;
   onSearchChange: (term: string) => void;
@@ -62,11 +55,10 @@ interface LeftPanelProps {
 export function LeftPanel({
   entities, totalCount, activeDimension, activeEntityId, selectedEntityIds,
   searchTerm, filterOpen, filterCount, filterConditions,
-  sortField, sortDirection, sortActive, dataLoaded,
-  fetchAllLoadState, allDashboard, entitiesWithOrders, onAllClick, onRefresh,
+  sortField, sortDirection, sortActive,
   report2State, report2Payload, cacheStatus, activeView,
   onDimensionChange, onEntitySelect, onEntityCheck, onClearSelection,
-  onViewConsolidated, onReport2Click, onViewConsolidated2, onSearchChange, onFilterToggle,
+  onReport2Click, onViewConsolidated2, onSearchChange, onFilterToggle,
   onAddCondition, onUpdateCondition, onRemoveCondition, onClearFilters,
   onSort,
 }: LeftPanelProps) {
@@ -113,15 +105,7 @@ export function LeftPanel({
           onCheck={onEntityCheck}
           dimensionLabel={config.label}
           totalCount={totalCount}
-          dataLoaded={dataLoaded}
-          allLabel={config.allLabel}
-          fetchAllLoadState={fetchAllLoadState}
-          allDashboard={allDashboard}
-          entitiesWithOrders={entitiesWithOrders}
-          onAllClick={onAllClick}
-          onRefresh={onRefresh}
           selectedCount={selectedEntityIds.length}
-          onViewConsolidated={onViewConsolidated}
           onClearSelection={onClearSelection}
           report2State={report2State}
           report2Payload={report2Payload}

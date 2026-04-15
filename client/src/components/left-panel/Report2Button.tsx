@@ -1,5 +1,5 @@
 // FILE: client/src/components/left-panel/Report2Button.tsx
-// PURPOSE: "Report 2" entry rendered below AllEntityEntry — new clean implementation
+// PURPOSE: "Report 2" entry pinned above the entity list — opens the report filter/fetch flow
 // USED BY: client/src/components/left-panel/EntityList.tsx
 // EXPORTS: Report2Button
 

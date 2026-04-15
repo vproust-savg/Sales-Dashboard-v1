@@ -4,11 +4,10 @@
 // EXPORTS: useDashboardState
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useEntities, useDashboardDetail, useConsolidatedDashboard } from './useDashboardData';
+import { useEntities, useDashboardDetail } from './useDashboardData';
 import { useContacts, useConsolidatedContacts } from './useContacts';
 import { useEntitySelection } from './useEntitySelection';
 import { useFilters } from './useFilters';
-import { useFetchAll } from './useFetchAll';
 import { useReport2 } from './useReport2';
 import { useConsolidated2 } from './useConsolidated2';
 import { useCacheStatus } from './useCacheStatus';
@@ -41,21 +40,14 @@ export function useDashboardState() {
     togglePanel,
   } = useDashboardShellState();
   const {
-    activeEntityId, selectedIds, isConsolidated,
-    selectEntity, toggleCheckbox, viewConsolidated, clearSelection,
+    activeEntityId, selectedIds,
+    selectEntity, toggleCheckbox, clearSelection,
   } = useEntitySelection({ activeEntityId: shellActiveEntityId, onActiveEntityChange: setActiveEntityId });
   const {
     conditions, isOpen: filterOpen, activeCount: filterCount,
     addCondition, updateCondition, removeCondition,
     clearAll: clearFilters, togglePanel: toggleFilterPanel,
   } = useFilters();
-  const {
-    loadState: fetchAllLoadState, progress: fetchAllProgress,
-    allDashboard, error: fetchAllError,
-    startFetchAll, abortFetch,
-  } = useFetchAll(activeDimension, activePeriod);
-  const dataLoaded = fetchAllLoadState === 'loaded';
-
   const report2 = useReport2(activeDimension, activePeriod);
   const consolidated2 = useConsolidated2(activeDimension, activePeriod);
   const cacheStatus = useCacheStatus(activePeriod);
@@ -67,10 +59,9 @@ export function useDashboardState() {
     resetSearch();
     clearFilters();
     resetSort();
-    abortFetch();
     report2.reset();
     consolidated2.reset();
-  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, abortFetch, report2, consolidated2]);
+  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, report2, consolidated2]);
 
   const prevDimensionRef = useRef(activeDimension);
   useEffect(() => {
@@ -78,8 +69,7 @@ export function useDashboardState() {
     prevDimensionRef.current = activeDimension;
     clearSelection();
     clearFilters();
-    abortFetch();
-  }, [activeDimension, clearSelection, clearFilters, abortFetch]);
+  }, [activeDimension, clearSelection, clearFilters]);
 
   // --- Stage 1: Lightweight entity list (fast — no orders needed) ---
   const entitiesQuery = useEntities({
@@ -96,15 +86,6 @@ export function useDashboardState() {
   });
   const dashboard = detailQuery.data?.data ?? null;
   const meta = detailQuery.data?.meta ?? entitiesQuery.data?.meta ?? null;
-
-  // --- Stage 3: Consolidated data for multi-select (on-demand) ---
-  const consolidatedQuery = useConsolidatedDashboard({
-    entityIds: selectedIds,
-    groupBy: activeDimension,
-    period: activePeriod,
-    enabled: isConsolidated && selectedIds.length > 0,
-  });
-  const consolidatedDashboard = consolidatedQuery.data?.data ?? null;
 
   // WHY: Contacts only load for the customer dimension when the Contacts tab is active.
   const contactsQuery = useContacts(activeEntityId, activeDimension === 'customer');
@@ -137,14 +118,10 @@ export function useDashboardState() {
     return entities;
   }, [entitiesData, searchTerm, conditions, sortField, sortDirection]);
 
-  // --- Consolidated view uses server-aggregated multi-entity data ---
   const finalDashboard = useMemo(() => {
-    if (isConsolidated && consolidatedDashboard) {
-      return { ...consolidatedDashboard, entities: processedEntities };
-    }
     if (!dashboard) return null;
     return { ...dashboard, entities: processedEntities };
-  }, [dashboard, consolidatedDashboard, isConsolidated, processedEntities]);
+  }, [dashboard, processedEntities]);
 
   // --- Loading stage for progress modal ---
   const loadingStage = entitiesQuery.isLoading
@@ -152,7 +129,6 @@ export function useDashboardState() {
     : detailQuery.isLoading
       ? 'Loading dashboard data...'
       : null;
-  const isConsolidatedLoading = consolidatedQuery.isLoading && isConsolidated;
 
   // --- Return flat props object for DashboardLayout ---
   return {
@@ -166,9 +142,8 @@ export function useDashboardState() {
       : (contactsQuery.data ?? []),
     isLoading: entitiesQuery.isLoading,
     isDetailLoading: detailQuery.isLoading,
-    isConsolidatedLoading,
     loadingStage,
-    error: entitiesQuery.error?.message ?? detailQuery.error?.message ?? fetchAllError ?? null,
+    error: entitiesQuery.error?.message ?? detailQuery.error?.message ?? null,
     meta,
     yearsAvailable: entitiesData?.yearsAvailable ?? dashboard?.yearsAvailable ?? [],
 
@@ -178,17 +153,12 @@ export function useDashboardState() {
     activeEntityId,
     activeTab,
     selectedEntityIds: selectedIds,
-    isConsolidated,
     searchTerm,
     filterConditions: conditions,
     filterOpen,
     filterCount,
     sortField,
     sortDirection,
-    dataLoaded,
-    fetchAllLoadState,
-    fetchAllProgress,
-    allDashboard,
     panelCollapsed,
     report2,
     consolidated2,
@@ -200,7 +170,6 @@ export function useDashboardState() {
     selectEntity,
     setActiveTab,
     toggleCheckbox,
-    viewConsolidated,
     clearSelection,
     setSearchTerm,
     addCondition,
@@ -209,8 +178,6 @@ export function useDashboardState() {
     clearFilters,
     toggleFilterPanel,
     setSort,
-    startFetchAll,
-    abortFetch,
     togglePanel,
   };
 }

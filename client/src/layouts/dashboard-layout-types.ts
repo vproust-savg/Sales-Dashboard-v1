@@ -3,7 +3,7 @@
 // USED BY: DashboardLayout.tsx, App.tsx (via DashboardLayout)
 // EXPORTS: DashboardLayoutProps
 
-import type { DashboardPayload, EntityListItem, Contact, Dimension, Period, EntityListLoadState, SSEProgressEvent, FetchAllFilters, CacheStatus } from '@shared/types/dashboard';
+import type { DashboardPayload, EntityListItem, Contact, Dimension, Period, CacheStatus } from '@shared/types/dashboard';
 import type { FilterCondition } from '../hooks/useFilters';
 import type { SortField, SortDirection } from '../hooks/sort-types';
 import type { ApiResponse } from '@shared/types/api-responses';
@@ -33,20 +33,11 @@ export interface DashboardLayoutProps {
   filterCount: number;
   sortField: SortField;
   sortDirection: SortDirection;
-  dataLoaded: boolean;
-  isConsolidated: boolean;
-  isConsolidatedLoading: boolean;
-  fetchAllLoadState: EntityListLoadState;
-  fetchAllProgress: SSEProgressEvent | null;
-  allDashboard: DashboardPayload | null;
-  startFetchAll: (filters: FetchAllFilters, forceRefresh?: boolean) => void;
-  abortFetch: () => void;
   switchDimension: (dim: Dimension) => void;
   switchPeriod: (period: Period) => void;
   selectEntity: (id: string) => void;
   setActiveTab: (tab: DetailTab) => void;
   toggleCheckbox: (id: string) => void;
-  viewConsolidated: () => void;
   clearSelection: () => void;
   setSearchTerm: (term: string) => void;
   addCondition: () => void;

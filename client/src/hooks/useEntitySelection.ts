@@ -3,7 +3,7 @@
 // USED BY: client/src/hooks/useDashboardState.ts
 // EXPORTS: useEntitySelection
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 interface UseEntitySelectionOptions {
   activeEntityId: string | null;
@@ -12,19 +12,10 @@ interface UseEntitySelectionOptions {
 
 export function useEntitySelection({ activeEntityId, onActiveEntityChange }: UseEntitySelectionOptions) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isConsolidated, setIsConsolidated] = useState(false);
-  const prevActiveEntityIdRef = useRef(activeEntityId);
-
-  useEffect(() => {
-    if (prevActiveEntityIdRef.current === activeEntityId) return;
-    prevActiveEntityIdRef.current = activeEntityId;
-    setIsConsolidated(false);
-  }, [activeEntityId]);
 
   /** Click an entity row to view its details */
   const selectEntity = useCallback((id: string) => {
     onActiveEntityChange(id);
-    setIsConsolidated(false);
   }, [onActiveEntityChange]);
 
   /** Toggle the circular checkbox for multi-select */
@@ -40,22 +31,15 @@ export function useEntitySelection({ activeEntityId, onActiveEntityChange }: Use
     });
   }, []);
 
-  /** Show consolidated view for all checked entities */
-  const viewConsolidated = useCallback(() => {
-    setIsConsolidated(true);
-  }, []);
-
-  /** Uncheck all entities and exit consolidated view */
+  /** Uncheck all entities */
   const clearSelection = useCallback(() => {
     setSelectedIds(new Set());
-    setIsConsolidated(false);
   }, []);
 
-  /** Full reset: clears active entity, unchecks all, exits consolidated */
+  /** Full reset: clears active entity and unchecks all */
   const resetSelection = useCallback(() => {
     onActiveEntityChange(null);
     setSelectedIds(new Set());
-    setIsConsolidated(false);
   }, [onActiveEntityChange]);
 
   // WHY: Without useMemo, [...selectedIds] creates a new array on every render,
@@ -65,10 +49,8 @@ export function useEntitySelection({ activeEntityId, onActiveEntityChange }: Use
   return {
     activeEntityId,
     selectedIds: selectedIdsArray,
-    isConsolidated,
     selectEntity,
     toggleCheckbox,
-    viewConsolidated,
     clearSelection,
     resetSelection,
   };

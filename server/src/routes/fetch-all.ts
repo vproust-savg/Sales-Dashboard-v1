@@ -1,6 +1,6 @@
 // FILE: server/src/routes/fetch-all.ts
 // PURPOSE: SSE endpoint for full data fetch with progress — supports incremental refresh + filters
-// USED BY: client/hooks/useFetchAll.ts via EventSource
+// USED BY: client/hooks/useReport2.ts via EventSource
 // EXPORTS: fetchAllRouter
 
 import { Router } from 'express';

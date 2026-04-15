@@ -187,9 +187,6 @@ export type Dimension = 'customer' | 'zone' | 'vendor' | 'brand' | 'product_type
 /** Period selection */
 export type Period = 'ytd' | string;  // 'ytd' or a year like '2025'
 
-/** Load state for the "All {Dimension}" fetch — per dimension+period */
-export type EntityListLoadState = 'not-loaded' | 'loading' | 'loaded' | 'error';
-
 /** Filter params for the fetch-all dialog — narrows the server-side OData query */
 export interface FetchAllFilters {
   agentName?: string[];

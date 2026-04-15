@@ -3,10 +3,9 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: EntityList
 
-import type { EntityListItem as EntityListItemType, EntityListLoadState, DashboardPayload, CacheStatus } from '@shared/types/dashboard';
+import type { EntityListItem as EntityListItemType, DashboardPayload, CacheStatus } from '@shared/types/dashboard';
 import type { Report2State } from '../../hooks/useReport2';
 import { EntityListItem } from './EntityListItem';
-import { AllEntityEntry } from './AllEntityEntry';
 import { SelectionBar } from './SelectionBar';
 import { Report2Button } from './Report2Button';
 
@@ -18,15 +17,7 @@ interface EntityListProps {
   onCheck: (id: string) => void;
   dimensionLabel: string;
   totalCount: number;
-  dataLoaded: boolean;
-  allLabel: string;
-  fetchAllLoadState: EntityListLoadState;
-  allDashboard: DashboardPayload | null;
-  entitiesWithOrders: number;
-  onAllClick: () => void;
-  onRefresh: () => void;
   selectedCount: number;
-  onViewConsolidated: () => void;
   onClearSelection: () => void;
   report2State: Report2State;
   report2Payload: DashboardPayload | null;
@@ -44,15 +35,7 @@ export function EntityList({
   onCheck,
   dimensionLabel,
   totalCount,
-  dataLoaded,
-  allLabel,
-  fetchAllLoadState,
-  allDashboard,
-  entitiesWithOrders,
-  onAllClick,
-  onRefresh,
   selectedCount,
-  onViewConsolidated,
   onClearSelection,
   report2State,
   report2Payload,
@@ -68,22 +51,9 @@ export function EntityList({
       {/* WHY: sticky header stays visible while scrolling the entity list */}
       <div className="sticky top-0 z-10 border-b border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-2xl)] py-[var(--spacing-lg)]">
         <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
-          {dataLoaded
-            ? `${dimensionLabel} (${entities.length} of ${totalCount})`
-            : dimensionLabel}
+          {dimensionLabel} ({entities.length} of {totalCount})
         </span>
       </div>
-
-      {/* WHY: AllEntityEntry pinned above scrollable list — not inside listbox (separate control) */}
-      <AllEntityEntry
-        label={allLabel}
-        loadState={fetchAllLoadState}
-        isActive={activeId === '__ALL__'}
-        aggregateData={allDashboard}
-        entitiesWithOrders={entitiesWithOrders}
-        onClick={onAllClick}
-        onRefresh={onRefresh}
-      />
 
       <Report2Button
         state={report2State}
@@ -127,8 +97,6 @@ export function EntityList({
 
       <SelectionBar
         selectedCount={selectedCount}
-        dataLoaded={dataLoaded}
-        onViewConsolidated={onViewConsolidated}
         onViewConsolidated2={onViewConsolidated2}
         onClear={onClearSelection}
       />
