@@ -3,7 +3,7 @@
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: ReportFilterModal
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { EntityListItem, FetchAllFilters } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
@@ -136,6 +136,35 @@ interface FilterFieldProps {
 }
 
 function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // WHY: Listeners are only attached while the dropdown is open — no overhead when closed.
+  // mousedown fires before blur/click, so the dropdown closes before any other element
+  // receives focus. Same pattern as PeriodSelector.tsx:31–53.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setIsOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
   const displayValue = selected.length === 0
     ? 'All'
     : selected.length <= 2
@@ -149,14 +178,18 @@ function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
   return (
     <div className="flex items-center justify-between gap-[var(--spacing-lg)]">
       <label className="text-[13px] font-medium text-[var(--color-text-secondary)]">{label}</label>
-      <div className="relative flex-1 max-w-[240px]">
-        <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-page)] px-[var(--spacing-lg)] py-[var(--spacing-md)] text-[13px] text-[var(--color-text-secondary)]">
-            <span>{displayValue}</span>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="transition-transform group-open:rotate-180" aria-hidden="true">
-              <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </summary>
+      <div ref={containerRef} className="relative flex-1 max-w-[240px]">
+        <button
+          type="button"
+          onClick={() => setIsOpen(v => !v)}
+          className="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-page)] px-[var(--spacing-lg)] py-[var(--spacing-md)] text-[13px] text-[var(--color-text-secondary)]"
+        >
+          <span>{displayValue}</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">
+            <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {isOpen && (
           <div className="absolute left-0 right-0 z-20 mt-1 max-h-[200px] overflow-y-auto rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] shadow-[var(--shadow-card)]">
             {options.map(opt => (
               <label key={opt} className="flex cursor-pointer items-center gap-[var(--spacing-sm)] px-[var(--spacing-lg)] py-[var(--spacing-md)] text-[13px] hover:bg-[var(--color-gold-subtle)]">
@@ -173,7 +206,7 @@ function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
               <div className="px-[var(--spacing-lg)] py-[var(--spacing-md)] text-[12px] text-[var(--color-text-muted)]">No options</div>
             )}
           </div>
-        </details>
+        )}
       </div>
     </div>
   );
