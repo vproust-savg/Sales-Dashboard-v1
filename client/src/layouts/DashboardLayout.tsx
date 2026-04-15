@@ -12,7 +12,6 @@ import { ConsolidatedHeader } from '../components/right-panel/ConsolidatedHeader
 import { ReportFilterModal } from '../components/shared/ReportFilterModal';
 import { ReportProgressModal } from '../components/shared/ReportProgressModal';
 import { computeReportModalState } from '../hooks/report-modal-state';
-import { ConsolidatedConfirmModal } from '../components/shared/ConsolidatedConfirmModal';
 import { LoadingModal } from '../components/shared/LoadingModal';
 import { Skeleton } from '../components/shared/Skeleton';
 import { DIMENSION_CONFIG } from '../utils/dimension-config';
@@ -28,7 +27,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds, yearsAvailable,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection,
-    report, consolidated,
+    report,
     switchDimension, switchPeriod, selectEntity, toggleCheckbox,
     setActiveTab,
     clearSelection, setSearchTerm,
@@ -38,34 +37,13 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     togglePanel,
   } = props;
 
-  // WHY: Report and Consolidated are mutually exclusive; if either is loaded we
-  // render the consolidated surface, otherwise single-entity mode.
-  const activeView: 'single' | 'report' | 'consolidated' =
-    report.state === 'loaded' ? 'report'
-    : consolidated.state === 'loaded' ? 'consolidated'
-    : 'single';
+  // WHY: report.state === 'loaded' means we render the consolidated surface; otherwise single-entity mode.
+  // View Consolidated now routes through useReport (D3), so both Report and View Consolidated
+  // use the same state machine — no mutual-exclusion effects needed.
+  const activeView: 'single' | 'report' =
+    report.state === 'loaded' ? 'report' : 'single';
 
-  const consolidatedPayload = activeView === 'report' ? report.payload
-    : activeView === 'consolidated' ? consolidated.payload
-    : null;
-
-  // WHY: Only ONE mode can be loaded at a time. When Consolidated transitions to loaded
-  // while Report is still loaded, Report's hardcoded precedence in activeView would
-  // permanently mask Consolidated (adversarial H1). Mutually exclude by resetting the
-  // non-winning mode whenever the other transitions to loaded.
-  const reportReset = report.reset;
-  const consolidatedReset = consolidated.reset;
-  const reportState = report.state;
-  const consolidatedState = consolidated.state;
-  useEffect(() => {
-    if (consolidatedState === 'loaded' && reportState === 'loaded') reportReset();
-  }, [consolidatedState, reportState, reportReset]);
-  useEffect(() => {
-    if (reportState === 'fetching') consolidatedReset();
-  }, [reportState, consolidatedReset]);
-  useEffect(() => {
-    if (consolidatedState === 'fetching') reportReset();
-  }, [consolidatedState, reportReset]);
+  const consolidatedPayload = activeView === 'report' ? report.payload : null;
 
   const exportData = dashboard && activeEntityId ? {
     entityName: entities.find(e => e.id === activeEntityId)?.name ?? 'Dashboard',
@@ -119,15 +97,13 @@ export function DashboardLayout(props: DashboardLayoutProps) {
   const sortActive = sortField !== 'id' || sortDirection !== 'asc';
 
   const handleReportClick = () => { report.open(); };
-  const handleViewConsolidatedClick = () => { consolidated.open(selectedEntityIds); };
+  // WHY: View Consolidated now routes through useReport so the same ReportProgressModal
+  // handles loading, cancel, and retry. entityIds are passed as a filter so the server
+  // scopes the fetch-all result to the selection.
+  const handleViewConsolidatedClick = () => { report.startReport({ entityIds: selectedEntityIds }); };
   const handleReportStart = (filters: FetchAllFilters, forceRefresh: boolean) => {
     report.startReport(filters, forceRefresh);
   };
-  // WHY: Pass report.filters so server can derive the same filterHash fetch-all used
-  // when writing the raw cache. Without this, Consolidated probes 'all' and 422s on
-  // any filtered Report.
-  const handleConsolidatedStart = () => { consolidated.start(report.filters); };
-  const handleGoToReport = () => { consolidated.reset(); report.open(); };
 
   return (
     <>
@@ -146,16 +122,6 @@ export function DashboardLayout(props: DashboardLayoutProps) {
         onClose={report.cancelFetch}
         onRetry={report.retry}
       />
-      <ConsolidatedConfirmModal
-        isOpen={consolidated.state === 'configuring' || consolidated.state === 'fetching' || consolidated.state === 'needs-report' || consolidated.state === 'error'}
-        state={consolidated.state}
-        selectedEntities={allEntities.filter(e => consolidated.entityIds.includes(e.id))}
-        error={consolidated.error}
-        onConfirm={handleConsolidatedStart}
-        onCancel={consolidated.cancel}
-        onGoToReport={handleGoToReport}
-      />
-
       <div className="mx-auto flex h-[calc(100vh-32px)] gap-[var(--spacing-2xl)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] max-lg:h-auto max-lg:flex-col max-lg:overflow-y-auto">
         {panelCollapsed ? (
           <aside className="w-auto shrink-0" aria-label="Entity list and filters">
@@ -195,10 +161,10 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                 className="flex flex-col gap-[var(--spacing-base)]"
               >
                 <ConsolidatedHeader
-                  mode={activeView === 'report' ? 'report' : 'consolidated'}
+                  mode="report"
                   entityCount={consolidatedPayload.entities.length}
                   dimensionLabel={DIMENSION_CONFIG[activeDimension].pluralLabel}
-                  filters={activeView === 'report' ? report.filters : null}
+                  filters={report.filters}
                   yearsAvailable={consolidatedPayload.yearsAvailable}
                   activePeriod={activePeriod}
                   onPeriodChange={switchPeriod}

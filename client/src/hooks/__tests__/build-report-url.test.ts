@@ -64,6 +64,11 @@ describe('buildReportUrl', () => {
     expect(url).not.toContain('agentName');
   });
 
+  it('includes entityIds when present (D3)', () => {
+    const url = buildReportUrl('customer', 'ytd', { entityIds: ['C001', 'C002'] }, false);
+    expect(url).toContain('entityIds=C001%2CC002');
+  });
+
   it('URL is parseable back to same params', () => {
     const url = buildReportUrl('vendor', '2024', { customerType: ['Retail'] }, true);
     const search = new URL(url, 'http://localhost').searchParams;

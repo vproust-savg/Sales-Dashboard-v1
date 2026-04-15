@@ -32,7 +32,7 @@ interface LeftPanelProps {
   sortDirection: SortDirection;
   sortActive: boolean;
   reportState: ReportState;
-  activeView: 'single' | 'report' | 'consolidated';
+  activeView: 'single' | 'report';
 
   // Actions
   onDimensionChange: (dim: Dimension) => void;

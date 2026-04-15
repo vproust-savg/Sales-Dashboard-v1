@@ -235,3 +235,60 @@ describe('DashboardLayout wiring integration (C1-T7)', () => {
     act(() => { root.unmount(); });
   });
 });
+
+describe('useReport — D3 entityIds support', () => {
+  it('startReport with entityIds passes them in URL (D3-T6)', () => {
+    const { result } = renderHookNode(() => useReport('customer', 'ytd'));
+    act(() => { result.current.startReport({ entityIds: ['C001', 'C002'] }); });
+    const url = MockEventSource.instances[0].url;
+    expect(url).toContain('entityIds=C001%2CC002');
+  });
+
+  it('composes entityIds with other filters (D3-T7)', () => {
+    const { result } = renderHookNode(() => useReport('customer', 'ytd'));
+    act(() => { result.current.startReport({ entityIds: ['C001'], agentName: ['Alexandra'] }); });
+    const url = MockEventSource.instances[0].url;
+    expect(url).toContain('entityIds=C001');
+    expect(url).toContain('agentName=Alexandra');
+  });
+
+  it('payload entities length matches selection on complete (D3-T8)', () => {
+    const { result } = renderHookNode(() => useReport('customer', 'ytd'));
+    act(() => { result.current.startReport({ entityIds: ['C001', 'C002'] }); });
+    const sampleEntity = (id: string, revenue: number) => ({
+      id, name: id, meta1: '', meta2: null, revenue, orderCount: 1, avgOrder: revenue,
+      marginPercent: 10, marginAmount: revenue * 0.1, frequency: null, lastOrderDate: null,
+      rep: null, zone: null, customerType: null,
+      prevYearRevenue: null, prevYearRevenueFull: null,
+    });
+    act(() => {
+      MockEventSource.instances[0].dispatch('complete', {
+        entities: [sampleEntity('C001', 100), sampleEntity('C002', 200)],
+        kpis: { totalRevenue: 300, prevYearRevenue: 0, prevYearRevenueFull: 0, orderCount: 3, avgOrderValue: 100, marginPercent: 10, marginAmount: 30, periodMonths: 12 },
+        monthlyRevenue: [],
+        productMixes: { category: [], vendor: [], brand: [] },
+        topSellers: [],
+        sparklines: { dailyRevenue: [], dailyOrders: [] },
+        orders: [],
+        items: [],
+        yearsAvailable: ['2026'],
+      });
+    });
+    expect(result.current.payload?.entities.length).toBe(2);
+  });
+
+  // WHY (spec D3.6 bullet 3): retry() captures lastRequestRef at startReport time, which includes
+  // entityIds. After an error, retry must resubmit with the SAME subset — otherwise View Consolidated
+  // retries would silently broaden to the full population and fetch more data than the user asked for.
+  it('retry preserves entityIds from the failed request (D3-T9)', () => {
+    const { result } = renderHookNode(() => useReport('customer', 'ytd'));
+    act(() => { result.current.startReport({ entityIds: ['C001', 'C002'] }, true); });
+    const firstUrl = MockEventSource.instances[0].url;
+    act(() => { MockEventSource.instances[0].dispatch('error', { message: 'boom' }); });
+    act(() => { result.current.retry(); });
+    const secondUrl = MockEventSource.instances[1].url;
+    expect(secondUrl).toContain('entityIds=C001%2CC002');
+    expect(secondUrl).toContain('refresh=true');
+    expect(secondUrl).toBe(firstUrl);  // Identical replay
+  });
+});
