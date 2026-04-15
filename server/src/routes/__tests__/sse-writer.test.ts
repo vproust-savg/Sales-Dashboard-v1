@@ -41,15 +41,17 @@ function makeFakeRes(writeImpl?: (chunk: string) => boolean): { res: FakeRes; wr
 }
 
 describe('createSseWriter (C4)', () => {
-  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let errorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // WHY: sse-writer logs write failures at error level (not warn) so Railway's
+    // severity-filtered alerts surface a broken SSE socket mid-Report.
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    warnSpy.mockRestore();
+    errorSpy.mockRestore();
     vi.useRealTimers();
   });
 
@@ -67,7 +69,7 @@ describe('createSseWriter (C4)', () => {
     expect(writeCallCount).toBe(1);
 
     sse.sendEvent('progress', { rowsFetched: 2000 });
-    expect(warnSpy).toHaveBeenCalledWith(
+    expect(errorSpy).toHaveBeenCalledWith(
       expect.stringContaining('[sse-writer] write failed'),
       expect.any(Error),
     );

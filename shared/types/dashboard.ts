@@ -22,7 +22,7 @@ export interface EntityListItem {
   zone: string | null;             // zone name (customer dimension only, null otherwise)
   customerType: string | null;     // customer type (customer dimension only, null otherwise)
   /** WHY: Per-entity prev-year revenue for the consolidated Per-Customer table (Feature B).
-   *  Same-period semantics match kpi-aggregator.ts:23-31 (day-precise YTD cutoff).
+   *  Same-period semantics match computeKPIs() in kpi-aggregator.ts (day-precise YTD cutoff).
    *  Null when prev data not loaded (e.g., entity-stub-builder lightweight path). */
   prevYearRevenue: number | null;
   /** Full previous-year revenue (all 12 months). Null when prev data not loaded. */

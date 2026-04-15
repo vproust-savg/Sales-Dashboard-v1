@@ -46,7 +46,9 @@ export function createSseWriter(req: Request, res: Response): SseWriter {
     try {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
     } catch (err) {
-      console.warn('[sse-writer] write failed, marking connection closed:', err);
+      // WHY: console.error (not warn) so Railway's severity-filtered alerts surface a broken
+      // SSE socket mid-Report. A dropped connection is actionable signal for ops, not noise.
+      console.error('[sse-writer] write failed, marking connection closed:', err);
       connectionClosed = true;
       clearHeartbeat();
     }
@@ -58,7 +60,7 @@ export function createSseWriter(req: Request, res: Response): SseWriter {
     if (isClosed()) { clearHeartbeat(); return; }
     try { res.write(': heartbeat\n\n'); }
     catch (err) {
-      console.warn('[sse-writer] heartbeat write failed, marking connection closed:', err);
+      console.error('[sse-writer] heartbeat write failed, marking connection closed:', err);
       connectionClosed = true;
       clearHeartbeat();
     }

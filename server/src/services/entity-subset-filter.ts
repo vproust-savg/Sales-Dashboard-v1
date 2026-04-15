@@ -1,7 +1,7 @@
 // FILE: server/src/services/entity-subset-filter.ts
 // PURPOSE: Filter raw orders to a specific subset of entity IDs across all dimensions.
 //   Used by the SSE fetch-all route when View Consolidated narrows the result to selected customers.
-// USED BY: server/src/routes/fetch-all.ts, server/src/routes/dashboard.ts (until D3 cleanup commit)
+// USED BY: server/src/routes/fetch-all.ts
 // EXPORTS: filterOrdersByEntityIds
 
 import type { RawOrder, RawCustomer } from './priority-queries.js';

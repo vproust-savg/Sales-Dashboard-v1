@@ -12,7 +12,7 @@ import { groupByVendor, groupByBrand, groupByProductType, groupByProduct } from 
 export interface PrevYearTotals { samePeriod: number; full: number; }
 
 /** Sum prev-year revenue per entity, splitting by same-period (day-precise YTD cutoff) vs full year.
- *  Cutoff semantics MUST match kpi-aggregator.ts:23-31 exactly (UTC, inclusive date). */
+ *  Cutoff semantics MUST match computeKPIs() in kpi-aggregator.ts exactly (UTC, inclusive date). */
 function computePrevYearByEntity(
   prevOrders: RawOrder[],
   dimension: Dimension,
@@ -22,7 +22,7 @@ function computePrevYearByEntity(
   const now = new Date();
   const isYtd = period === 'ytd';
 
-  // WHY: Matches kpi-aggregator.ts:23-31 exactly — UTC month comparison, inclusive date.
+  // WHY: Matches computeKPIs() in kpi-aggregator.ts exactly — UTC month comparison, inclusive date.
   function isSamePeriod(orderDate: Date): boolean {
     if (!isYtd) return true;
     return orderDate.getUTCMonth() < now.getUTCMonth()

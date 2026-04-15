@@ -93,13 +93,13 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // The laptop benchmark does NOT survive the ±30% laptop-vs-Railway variance. A production
     // measurement (see spec "Runtime — D2" verification) is required before closing the
     // wall-clock risk; the architectural-redesign path stays open in the backlog.
-    const [orders, prevOrders] = await Promise.all([
-      (async () => {
+    const [ordersWrapped, prevOrders] = await Promise.all([
+      (async (): Promise<FetchedOrders> => {
         if (forceRefresh) {
           return fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
         }
         const cached = await tryIncrementalRefresh(rawKey, metaKey, startDate, endDate, extraFilter, sendEvent, abortController.signal);
-        return cached ?? await fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
+        return cached ?? fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
       })(),
       // WHY: Include filterHash in prev-year key. Without it, the first filtered Report
       // poisons the prev-year cache for every subsequent filter (e.g., running Alexandra's
@@ -109,16 +109,22 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
         () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter, undefined, abortController.signal),
       ),
     ]);
+    const orders = ordersWrapped.orders;
 
     // Cache raw orders + metadata (sequential after Promise.all — depends on orders result)
     sendEvent('progress', { phase: 'processing', message: 'Computing metrics...' });
-    const rawEnvelope = { data: orders, cachedAt: new Date().toISOString() };
-    await redis.set(rawKey, JSON.stringify(rawEnvelope), { ex: getTTL('orders_raw') });
-    const metaEnvelope = {
-      data: { lastFetchDate: new Date().toISOString(), rowCount: orders.length, filterHash },
-      cachedAt: new Date().toISOString(),
-    };
-    await redis.set(metaKey, JSON.stringify(metaEnvelope), { ex: getTTL('orders_raw_meta') });
+    if (ordersWrapped.didFetch) {
+      // WHY: Same-day cache hit returns orders unchanged — rewriting would waste two Redis
+      // round-trips per Report click and reset lastFetchDate pointlessly. The next day's
+      // incremental path still works because lastFetchDate persists from the last actual fetch.
+      const rawEnvelope = { data: orders, cachedAt: new Date().toISOString() };
+      await redis.set(rawKey, JSON.stringify(rawEnvelope), { ex: getTTL('orders_raw') });
+      const metaEnvelope = {
+        data: { lastFetchDate: new Date().toISOString(), rowCount: orders.length, filterHash },
+        cachedAt: new Date().toISOString(),
+      };
+      await redis.set(metaKey, JSON.stringify(metaEnvelope), { ex: getTTL('orders_raw_meta') });
+    }
     const customers = await cachedFetch(
       cacheKey('customers', 'all'), getTTL('customers'),
       () => fetchCustomers(priorityClient, abortController.signal),
@@ -176,11 +182,15 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 
     sendEvent('complete', payload);
   } catch (err) {
-    // WHY: DOMException{name:'AbortError'} means the user cancelled the Report — not a server
-    // fault. Logging it as a failure would pollute Railway logs and mask real errors. The SSE
-    // connection is already closed (sse.isClosed() will short-circuit any sendEvent attempt)
-    // so we intentionally don't emit an error event either.
-    if (err instanceof DOMException && err.name === 'AbortError') {
+    // WHY: AbortError means the user cancelled the Report — not a server fault. Logging it
+    // as a failure would pollute Railway logs and mask real errors. The SSE connection is
+    // already closed (sse.isClosed() will short-circuit any sendEvent attempt) so we
+    // intentionally don't emit an error event either.
+    // WHY use `Error && name === 'AbortError'` (not `DOMException`): Node native fetch throws
+    // a DOMException for aborts, but Node's AbortSignal.timeout() composition and some fetch
+    // polyfills surface the abort as a plain Error with name='AbortError'. The permissive check
+    // catches both without losing specificity — only abort errors have that exact name.
+    if (err instanceof Error && err.name === 'AbortError') {
       console.log('[fetch-all] Report cancelled by client');
     } else {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -198,17 +208,22 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
   }
 });
 
+// WHY: Signals whether we fetched from Priority (didFetch=true → raw cache must be rewritten) or
+// reused same-day raw cache (didFetch=false → skip the two redis.set calls). Local to this route.
+interface FetchedOrders { orders: RawOrder[]; didFetch: boolean; }
+
 async function fullFetch(startDate: string, endDate: string, extraFilter: string | undefined,
-  sendEvent: (event: string, data: unknown) => void, signal?: AbortSignal): Promise<RawOrder[]> {
+  sendEvent: (event: string, data: unknown) => void, signal?: AbortSignal): Promise<FetchedOrders> {
   sendEvent('progress', { phase: 'fetching', rowsFetched: 0, estimatedTotal: 0 });
   // WHY: onProgress sends SSE events as each page arrives, preventing Railway proxy timeout
   // during the 1–5 min it takes to paginate 50,000 orders from Priority API.
-  return fetchOrders(priorityClient, startDate, endDate, true, extraFilter,
+  const orders = await fetchOrders(priorityClient, startDate, endDate, true, extraFilter,
     (rowsFetched, estimatedTotal) => {
       sendEvent('progress', { phase: 'fetching', rowsFetched, estimatedTotal });
     },
     signal,
   );
+  return { orders, didFetch: true };
 }
 
 async function tryIncrementalRefresh(
@@ -216,7 +231,7 @@ async function tryIncrementalRefresh(
   startDate: string, endDate: string, extraFilter: string | undefined,
   sendEvent: (event: string, data: unknown) => void,
   signal?: AbortSignal,
-): Promise<RawOrder[] | null> {
+): Promise<FetchedOrders | null> {
   const rawCached = await redis.get(rawKey);
   const metaCached = await redis.get(metaKey);
   if (!rawCached || !metaCached) return null;
@@ -226,11 +241,11 @@ async function tryIncrementalRefresh(
   const lastFetchDate = new Date((metaEnvelope as { data: { lastFetchDate: string } }).data.lastFetchDate);
   const cachedOrders: RawOrder[] = (rawEnvelope as { data: RawOrder[] }).data;
 
-  // If fetched today, use as-is
+  // If fetched today, use as-is (didFetch=false → caller skips raw-cache rewrite)
   const today = new Date();
   if (lastFetchDate.toDateString() === today.toDateString()) {
     sendEvent('progress', { phase: 'processing', message: 'Using cached data from today...' });
-    return cachedOrders;
+    return { orders: cachedOrders, didFetch: false };
   }
 
   // Incremental: fetch since lastFetchDate - 1 day
@@ -255,7 +270,7 @@ async function tryIncrementalRefresh(
   // Filter to date range (remove orders from before startDate in case of overlap)
   const startTime = new Date(startDate).getTime();
   const merged = [...orderMap.values()].filter(o => new Date(o.CURDATE).getTime() >= startTime);
-  return merged;
+  return { orders: merged, didFetch: true };
 }
 
 // WHY: agentName is OData-filterable on ORDERS. Zone/customerType handled by filterOrdersByCustomerCriteria().
