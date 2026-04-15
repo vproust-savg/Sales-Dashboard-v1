@@ -189,4 +189,26 @@ describe('PriorityClient', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('per-page timing log (C2)', () => {
+    it('emits a structured log line per fetched page (C2-T2)', async () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+
+      // WHY: pageSize=2500 so the first page (2500 records) fills the page exactly,
+      // triggering a second inner-loop page fetch — giving us 2 log lines to assert against.
+      vi.spyOn(client, 'fetchEntity')
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O1' }))
+        .mockResolvedValueOnce([{ ORDNAME: 'O2' }]);
+
+      await client.fetchAllPages('ORDERS', { select: 'ORDNAME', orderby: 'ORDNAME asc', pageSize: 2500 });
+
+      const matchingLogs = logSpy.mock.calls
+        .map(c => c[0] as string)
+        .filter(line => /^\[priority\] ORDERS page skip=\d+ got=\d+ in \d+ms/.test(line));
+      expect(matchingLogs.length).toBeGreaterThanOrEqual(2);
+
+      logSpy.mockRestore();
+    });
+  });
 });

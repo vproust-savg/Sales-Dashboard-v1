@@ -105,6 +105,7 @@ export class PriorityClient {
       // Inner loop: $top/$skip pages within each context
       while (true) {
         const filter = this.buildCursorFilter(opts.filter, cursorField, cursorValue);
+        const pageStart = Date.now();
         const records = await this.fetchEntity<T>(entity, {
           select: opts.select,
           filter,
@@ -113,6 +114,8 @@ export class PriorityClient {
           orderby: opts.orderby,
           expand: opts.expand,
         });
+        const elapsedMs = Date.now() - pageStart;
+        console.log(`[priority] ${entity} page skip=${skip} got=${records.length} in ${elapsedMs}ms (total=${allRecords.length + batch.length + records.length})`);
 
         if (records.length === 0) break;
         batch.push(...records);

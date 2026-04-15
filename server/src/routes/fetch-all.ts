@@ -16,6 +16,7 @@ import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL, buildFilterQualifier, buildFilterHash } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
+import { createSseWriter } from './sse-writer.js';
 
 // WHY: Filter params arrive as comma-separated strings (multi-select UI)
 const querySchema = z.object({
@@ -29,26 +30,13 @@ const querySchema = z.object({
 
 export const fetchAllRouter = Router();
 
-fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) => {
+fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) => {
   const { groupBy, period, agentName, zone, customerType, refresh }
     = res.locals.query as z.infer<typeof querySchema>;
   const forceRefresh = refresh === 'true';
 
-  // SSE headers
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Connection': 'keep-alive',
-    'Cache-Control': 'no-cache',
-    'X-Accel-Buffering': 'no',
-  });
-
-  const sendEvent = (event: string, data: unknown) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  };
-
-  // WHY: Railway nginx has ~60s idle timeout. Heartbeat keeps SSE alive during long
-  // async operations (Redis writes, aggregation) that don't send their own events.
-  const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 25_000);
+  const sse = createSseWriter(req, res);
+  const { sendEvent } = sse;
   try {
     const filterHash = buildFilterHash(agentName, zone, customerType);
     // WHY: Raw cache key is dimension-agnostic — the same 22K orders serve all 6 dimensions.
@@ -144,13 +132,18 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
     await redis.set(detailKey, JSON.stringify(detailEnvelope), { ex: getTTL('entities_full') });
 
     sendEvent('complete', payload);
-    res.end();
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('[fetch-all] Report failed:', {
+      groupBy, period, agentName, zone, customerType,
+      message,
+      stack,
+    });
     sendEvent('error', { message });
-    res.end();
   } finally {
-    clearInterval(heartbeat);
+    sse.dispose();
+    if (!res.writableEnded) res.end();
   }
 });
 
