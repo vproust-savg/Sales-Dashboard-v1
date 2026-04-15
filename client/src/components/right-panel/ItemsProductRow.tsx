@@ -55,6 +55,9 @@ export function ItemsProductRow({ item, depth, showCompare }: ItemsProductRowPro
           {formatCurrency(item.value)}
           <TrendArrow current={item.value} previous={item.prevYearValue} />
         </div>
+        <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
+          {formatCurrency(item.lastPrice)}
+        </div>
         <div role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {formatPercent(item.marginPercent)}
           <TrendArrow current={item.marginPercent} previous={item.prevYearMarginPercent} />
@@ -69,9 +72,6 @@ export function ItemsProductRow({ item, depth, showCompare }: ItemsProductRowPro
         </div>
         <div role="gridcell" className="w-20 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {item.purchaseFrequency.toFixed(1)}/mo
-        </div>
-        <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
-          {formatCurrency(item.lastPrice)}
         </div>
         <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums flex items-center justify-end gap-1.5">
           <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: lastOrder.color }} />
