@@ -1,13 +1,14 @@
 // FILE: client/src/components/right-panel/ProductMixCarousel.tsx
 // PURPOSE: Left/right carousel wrapping ProductMixDonut — cycles through 5 mix types
 // USED BY: client/src/components/right-panel/ChartsRow.tsx
-// EXPORTS: ProductMixCarousel
+// EXPORTS: ProductMixCarousel, ProductMixExpanded
 
 import { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ProductMixSegment, ProductMixType } from '@shared/types/dashboard';
 import { PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER } from '@shared/types/dashboard';
-import { ProductMixDonut } from './ProductMixDonut';
+import { formatCurrencyCompact } from '@shared/utils/formatting';
+import { ProductMixDonut, SEGMENT_COLORS } from './ProductMixDonut';
 
 interface ProductMixCarouselProps {
   mixes: Record<ProductMixType, ProductMixSegment[]>;
@@ -30,15 +31,21 @@ function ChevronRight() {
   );
 }
 
-/** WHY: Separate export for modal — shows larger donut with full legend, no carousel needed */
+/** WHY: Separate export for modal — donut left + 2-column legend right, up to 15 categories */
 export function ProductMixExpanded({ mixes }: ProductMixCarouselProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const types = PRODUCT_MIX_ORDER;
   const activeType = types[activeIdx];
   const segments = mixes[activeType] ?? [];
 
+  /** WHY ceil: left column gets the extra item when count is odd */
+  const half = Math.ceil(segments.length / 2);
+  const col1 = segments.slice(0, half);
+  const col2 = segments.slice(half);
+
   return (
     <div className="flex flex-col gap-[var(--spacing-2xl)]">
+      {/* Tab bar */}
       <div className="flex gap-[var(--spacing-md)]">
         {types.map((type, i) => (
           <button
@@ -53,8 +60,42 @@ export function ProductMixExpanded({ mixes }: ProductMixCarouselProps) {
           </button>
         ))}
       </div>
-      <div className="flex justify-center">
-        <ProductMixDonut data={segments} />
+
+      {/* Side-by-side: donut left, 2-column legend right */}
+      <div className="flex items-start gap-[var(--spacing-3xl)]">
+        {/* Donut without legend — legend rendered below in 2 columns */}
+        <ProductMixDonut data={segments} showLegend={false} maxSegments={15} />
+
+        {/* 2-column legend grid */}
+        <div className="flex flex-1 gap-[var(--spacing-xl)]">
+          {[col1, col2].map((col, colIdx) => (
+            <div key={colIdx} className="flex flex-1 flex-col gap-[var(--spacing-sm)]">
+              {col.map((seg, rowIdx) => {
+                const globalIdx = colIdx === 0 ? rowIdx : half + rowIdx;
+                return (
+                  <div
+                    key={seg.category}
+                    className="flex items-center gap-[var(--spacing-sm)] text-[12px]"
+                  >
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: SEGMENT_COLORS[globalIdx] }}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-[var(--color-text-secondary)]">
+                      {seg.category}
+                    </span>
+                    <span className="ml-1 font-semibold text-[var(--color-text-primary)]">
+                      {seg.percentage}%
+                    </span>
+                    <span className="ml-1 whitespace-nowrap text-[var(--color-text-muted)]">
+                      {formatCurrencyCompact(seg.value)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -121,7 +162,7 @@ export function ProductMixCarousel({ mixes }: ProductMixCarouselProps) {
         </button>
       </div>
 
-      {/* Donut with slide animation */}
+      {/* Donut with slide animation — compact view keeps default maxSegments=7 */}
       <div className="flex flex-1 items-center justify-center overflow-hidden">
         <AnimatePresence mode="wait" initial={false} custom={direction}>
           <motion.div
