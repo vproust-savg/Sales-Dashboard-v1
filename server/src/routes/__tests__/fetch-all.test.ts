@@ -325,6 +325,36 @@ describe('parallel current + prev-year fetch (D2)', () => {
     // sendEvent('progress', ...); prev-year is silent. Requires asserting on the SSE event
     // sequence which the current fetch-all.test.ts infrastructure doesn't inspect deeply.
   });
+
+  // WHY: commit 820cd74 hoisted redis.del OUT of the Promise.all parallel block specifically
+  // to prevent the race where prev-year reads the stale current-year cache before del completed.
+  // Existing D2-T1/T4 only assert that dels fire; they don't pin the ORDER. A refactor that
+  // moved redis.del back inside Promise.all would silently reintroduce the stale-prev-year
+  // race without tripping any test — that's the regression this test catches.
+  it('redis.del completes BEFORE Promise.all starts (D2-T6 stale-prev-year race prevention)', async () => {
+    const callOrder: string[] = [];
+    vi.mocked(redis.del).mockImplementation(async (key: string) => {
+      await new Promise(r => setTimeout(r, 20));
+      callOrder.push(`del:${key}`);
+      return 1;
+    });
+    vi.mocked(fetchOrders).mockImplementation(async (_c, startDate) => {
+      callOrder.push(`fetch:${startDate as string}`);
+      return [];
+    });
+    vi.mocked(fetchCustomers).mockResolvedValue([]);
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd&refresh=true')
+      .expect(200);
+
+    const delIndices = callOrder.map((s, i) => s.startsWith('del:') ? i : -1).filter(i => i >= 0);
+    const fetchIndices = callOrder.map((s, i) => s.startsWith('fetch:') ? i : -1).filter(i => i >= 0);
+    expect(delIndices).toHaveLength(3);  // orders_raw, orders_raw_meta, prev-year
+    expect(fetchIndices.length).toBeGreaterThanOrEqual(2);  // current + prev
+    // Every del index must be LESS than every fetch index — strictly before, not interleaved.
+    expect(Math.max(...delIndices)).toBeLessThan(Math.min(...fetchIndices));
+  }, 5_000);
 });
 
 describe('Server-side error logging (C2)', () => {
@@ -365,5 +395,107 @@ describe('Server-side error logging (C2)', () => {
     });
 
     errorSpy.mockRestore();
+  });
+
+  // WHY: AbortError means user cancellation, not a server fault. The catch branch at
+  // fetch-all.ts uses console.log for AbortError and console.error for everything else.
+  // A regression that mis-routed AbortError to the error branch would pollute Railway error
+  // logs and trip ops alerts on benign user cancellations — exactly the noise the discriminator
+  // was designed to prevent.
+  it('AbortError on user cancel does NOT call console.error (C2-T2)', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    vi.mocked(fetchOrders).mockImplementation((_c, _s, _e, _f, _x, _p, signal) =>
+      new Promise((_res, rej) => {
+        if ((signal as AbortSignal | undefined)?.aborted) {
+          rej(new DOMException('Aborted', 'AbortError'));
+          return;
+        }
+        (signal as AbortSignal | undefined)?.addEventListener('abort', () =>
+          rej(new DOMException('Aborted', 'AbortError'))
+        );
+      })
+    );
+    vi.mocked(fetchCustomers).mockResolvedValue([]);
+
+    // Supertest client aborts via short deadline; server sees req close.
+    await expect(
+      request(makeApp())
+        .get('/api/sales/fetch-all?period=ytd&refresh=true')
+        .timeout({ deadline: 200 })
+    ).rejects.toThrow();
+
+    // Allow the abort to propagate through Promise.all rejection + outer catch.
+    await new Promise(r => setTimeout(r, 100));
+
+    const reportFailedCalls = errorSpy.mock.calls.filter(c =>
+      typeof c[0] === 'string' && c[0].startsWith('[fetch-all] Report failed:')
+    );
+    expect(reportFailedCalls).toHaveLength(0);
+
+    // Positive assertion: the cancel branch WAS taken.
+    const cancelledLogCalls = logSpy.mock.calls.filter(c =>
+      typeof c[0] === 'string' && c[0].includes('[fetch-all] Report cancelled by client')
+    );
+    expect(cancelledLogCalls.length).toBeGreaterThanOrEqual(1);
+
+    errorSpy.mockRestore();
+    logSpy.mockRestore();
+  }, 5_000);
+});
+
+// WHY: commit 55ffa59 (review fix I5) guards the raw/meta redis.set calls behind
+// `ordersWrapped.didFetch`. On the same-day cache hit path, orders are unchanged, so
+// rewriting wastes two Redis round-trips per Report click and pointlessly resets
+// lastFetchDate. A regression that removed the guard would reintroduce that waste.
+describe('Same-day cache hit skips raw-cache rewrites (I5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (redis.set as ReturnType<typeof vi.fn>).mockResolvedValue('OK');
+    (redis.del as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    vi.mocked(fetchOrders).mockResolvedValue([]);
+    vi.mocked(fetchCustomers).mockResolvedValue([]);
+  });
+
+  it('skips orders_raw + orders_raw_meta redis.set when metaCached.lastFetchDate is today', async () => {
+    const today = new Date().toISOString();
+    (redis.get as ReturnType<typeof vi.fn>).mockImplementation(async (key: string) => {
+      if (key.includes('orders_raw_meta')) {
+        return JSON.stringify({
+          data: { lastFetchDate: today, rowCount: 0, filterHash: 'all' },
+          cachedAt: today,
+        });
+      }
+      if (key.includes('orders_raw')) {
+        return JSON.stringify({ data: [], cachedAt: today });
+      }
+      return null;
+    });
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd')
+      .expect(200);
+
+    const rawCacheWrites = vi.mocked(redis.set).mock.calls.filter(c => {
+      const key = c[0] as string;
+      return key.startsWith('dashboard:orders_raw:') || key.startsWith('dashboard:orders_raw_meta:');
+    });
+    expect(rawCacheWrites).toHaveLength(0);
+  });
+
+  it('still writes orders_raw + orders_raw_meta on full fetch (refresh=true)', async () => {
+    // WHY: Negative control — the guard must only skip on same-day cache, NOT on full refetch.
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd&refresh=true')
+      .expect(200);
+
+    const rawCacheWrites = vi.mocked(redis.set).mock.calls.filter(c => {
+      const key = c[0] as string;
+      return key.startsWith('dashboard:orders_raw:') || key.startsWith('dashboard:orders_raw_meta:');
+    });
+    expect(rawCacheWrites.length).toBeGreaterThanOrEqual(2);  // raw + meta
   });
 });

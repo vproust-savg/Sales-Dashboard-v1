@@ -181,6 +181,31 @@ describe('useReport — A3 / C1', () => {
     // es2 must still be the active source; it wasn't closed by the stale listener
     expect(es2.closed).toBe(false);
   });
+
+  // WHY: cancelFetch bumps requestIdRef the same way startReport and retry do. Without that
+  // bump, a stale error/progress event arriving AFTER the user cancels would slip past the
+  // fence and flip state back to 'error' — visually indistinguishable from a real server
+  // failure. C1-T6 tests the retry path; this test covers the cancel path (the more common
+  // user action in practice).
+  it('stale error from cancelled EventSource is ignored after cancelFetch (C1-T8)', () => {
+    const { result } = renderHookNode(() => useReport('customer', 'ytd'));
+    act(() => { result.current.startReport({}); });
+    const es1 = MockEventSource.instances[0];
+    expect(result.current.state).toBe('fetching');
+
+    // User cancels before any server event arrives
+    act(() => { result.current.cancelFetch(); });
+    expect(result.current.state).toBe('idle');
+
+    // A stale error arrives on the cancelled es1 (browsers can emit 'error' when close()
+    // races an in-flight event). Without the requestIdRef bump inside cancelFetch, this
+    // would flip state to 'error'.
+    act(() => { es1.dispatch('error', { message: 'ghost from cancelled stream' }); });
+
+    // State must remain idle — the fence rejected the stale event.
+    expect(result.current.state).toBe('idle');
+    expect(result.current.error).toBeNull();
+  });
 });
 
 import { ReportProgressModal } from '../../components/shared/ReportProgressModal';
