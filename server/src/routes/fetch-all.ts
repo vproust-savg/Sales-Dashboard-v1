@@ -60,28 +60,57 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // Build OData filter from dialog dropdowns
     const extraFilter = buildODataFilter(agentName);
 
-    // Check for cached raw orders (incremental refresh)
-    let orders: RawOrder[];
-    if (!forceRefresh) {
-      const cached = await tryIncrementalRefresh(rawKey, metaKey, startDate, endDate, extraFilter, sendEvent, abortController.signal);
-      if (cached) {
-        orders = cached;
-      } else {
-        orders = await fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
-      }
-    } else {
+    // WHY: D2 — hoist redis.del calls BEFORE Promise.all when forceRefresh is true.
+    // If these ran inside the current-year IIFE, the prev-year branch (running concurrently)
+    // could read the stale prev-year cache key before the del completed — a race condition.
+    // Hoisting them sequentially here guarantees both branches start with a clean slate.
+    if (forceRefresh) {
       // WHY: Force refresh clears both current-period raw + prev-year raw caches
       // under the same filterHash. Without clearing prev-year, retroactive edits
       // to closed-period orders would still be served from the stale prev-year
-      // cache, breaking YoY accuracy. The subsequent cachedFetch call for
-      // orders_year below will miss and re-fetch from Priority.
-      await redis.del(rawKey);
-      await redis.del(metaKey);
-      await redis.del(cacheKey('orders_year', String(year - 1), filterHash));
-      orders = await fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
+      // cache, breaking YoY accuracy.
+      await Promise.all([
+        redis.del(rawKey),
+        redis.del(metaKey),
+        redis.del(cacheKey('orders_year', String(year - 1), filterHash)),
+      ]);
     }
 
-    // Cache raw orders + metadata
+    const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
+    const prevEndDate = `${year}-01-01T00:00:00Z`;
+
+    // WHY: D2 — parallelise current + prev fetch. Benchmark measured 23.5% wall-clock speedup
+    // (18m02s sequential → 13m48s parallel) for a ~46K-order uncached Report. Both branches
+    // share abortController.signal so user cancel cascades to both streams.
+    //
+    // STARVATION RISK (spec D2.2): both streams share PriorityClient.requestTimestamps (one
+    // rate-limit budget, 100 calls/min). At 10K-order scale, the benchmark observed 0 throttle
+    // delays. At larger scale one stream could consistently back off while the other sprints.
+    // Trigger condition: if a Railway log ever shows one stream with >30s cumulative throttle
+    // wait while the other has <5s, queue a round-robin-throttle refactor spec.
+    //
+    // HEADROOM CAVEAT: 13m48s on laptop leaves ~1m12s (8.7%) under the 15-min Railway cap.
+    // The laptop benchmark does NOT survive the ±30% laptop-vs-Railway variance. A production
+    // measurement (see spec "Runtime — D2" verification) is required before closing the
+    // wall-clock risk; the architectural-redesign path stays open in the backlog.
+    const [orders, prevOrders] = await Promise.all([
+      (async () => {
+        if (forceRefresh) {
+          return fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
+        }
+        const cached = await tryIncrementalRefresh(rawKey, metaKey, startDate, endDate, extraFilter, sendEvent, abortController.signal);
+        return cached ?? await fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
+      })(),
+      // WHY: Include filterHash in prev-year key. Without it, the first filtered Report
+      // poisons the prev-year cache for every subsequent filter (e.g., running Alexandra's
+      // report caches her prev-year orders under a global key; the next rep reads her data).
+      cachedFetch(
+        cacheKey('orders_year', String(year - 1), filterHash), getTTL('orders_year'),
+        () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter, undefined, abortController.signal),
+      ),
+    ]);
+
+    // Cache raw orders + metadata (sequential after Promise.all — depends on orders result)
     sendEvent('progress', { phase: 'processing', message: 'Computing metrics...' });
     const rawEnvelope = { data: orders, cachedAt: new Date().toISOString() };
     await redis.set(rawKey, JSON.stringify(rawEnvelope), { ex: getTTL('orders_raw') });
@@ -90,17 +119,6 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       cachedAt: new Date().toISOString(),
     };
     await redis.set(metaKey, JSON.stringify(metaEnvelope), { ex: getTTL('orders_raw_meta') });
-
-    // Aggregate
-    const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
-    const prevEndDate = `${year}-01-01T00:00:00Z`;
-    // WHY: Include filterHash in prev-year key. Without it, the first filtered Report
-    // poisons the prev-year cache for every subsequent filter (e.g., running Alexandra's
-    // report caches her prev-year orders under a global key; the next rep reads her data).
-    const prevOrders = await cachedFetch(
-      cacheKey('orders_year', String(year - 1), filterHash), getTTL('orders_year'),
-      () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter, undefined, abortController.signal),
-    );
     const customers = await cachedFetch(
       cacheKey('customers', 'all'), getTTL('customers'),
       () => fetchCustomers(priorityClient, abortController.signal),
