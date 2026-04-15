@@ -31,8 +31,8 @@ export function TabsSection({ activeTab, onTabChange, orders, items, contacts, c
   const tabListRef = useRef<HTMLDivElement>(null);
 
   const tabs: TabDef[] = [
-    { key: 'orders', label: 'Orders', count: orders.length },
     { key: 'items', label: 'Items', count: items.length },
+    { key: 'orders', label: 'Orders', count: orders.length },
     { key: 'contacts', label: 'Contacts', count: contacts.length },
   ];
 
