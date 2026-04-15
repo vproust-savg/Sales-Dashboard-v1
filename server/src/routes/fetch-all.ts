@@ -75,9 +75,14 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (_req, res) =
         orders = await fullFetch(startDate, endDate, extraFilter, sendEvent);
       }
     } else {
-      // Force refresh: delete cache, do full fetch
+      // WHY: Force refresh clears both current-period raw + prev-year raw caches
+      // under the same filterHash. Without clearing prev-year, retroactive edits
+      // to closed-period orders would still be served from the stale prev-year
+      // cache, breaking YoY accuracy. The subsequent cachedFetch call for
+      // orders_year below will miss and re-fetch from Priority.
       await redis.del(rawKey);
       await redis.del(metaKey);
+      await redis.del(cacheKey('orders_year', String(year - 1), filterHash));
       orders = await fullFetch(startDate, endDate, extraFilter, sendEvent);
     }
 
