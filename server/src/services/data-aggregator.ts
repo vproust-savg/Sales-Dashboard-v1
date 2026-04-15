@@ -64,7 +64,7 @@ export function aggregateOrders(
   return result;
 }
 
-/** Spec Section 20.2 — Group items by a category field, max 7 segments */
+/** Spec Section 20.2 — Group items by a category field, max 15 segments in expanded view */
 function computeProductMix(
   items: RawOrderItem[],
   getCategory: (item: RawOrderItem) => string,
@@ -85,12 +85,12 @@ function computeProductMix(
       percentage: total > 0 ? Math.round((value / total) * 100) : 0,
     }));
 
-  if (sorted.length > 7) {
-    const top6 = sorted.slice(0, 6);
-    const rest = sorted.slice(6);
+  if (sorted.length > 15) {
+    const top14 = sorted.slice(0, 14);
+    const rest = sorted.slice(14);
     const otherValue = rest.reduce((sum, s) => sum + s.value, 0);
-    top6.push({ category: 'Other', value: otherValue, percentage: total > 0 ? Math.round((otherValue / total) * 100) : 0 });
-    return top6;
+    top14.push({ category: 'Other', value: otherValue, percentage: total > 0 ? Math.round((otherValue / total) * 100) : 0 });
+    return top14;
   }
 
   return sorted;
