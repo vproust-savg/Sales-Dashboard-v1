@@ -1,7 +1,7 @@
 // FILE: client/src/components/right-panel/ProductMixDonut.tsx
-// PURPOSE: SVG donut chart with center text and color legend for product mix
-// USED BY: client/src/components/right-panel/ChartsRow.tsx
-// EXPORTS: ProductMixDonut
+// PURPOSE: SVG donut chart with center text and optional color legend for product mix
+// USED BY: client/src/components/right-panel/ChartsRow.tsx, ProductMixCarousel.tsx
+// EXPORTS: ProductMixDonut, SEGMENT_COLORS
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -10,10 +10,15 @@ import { formatCurrencyCompact } from '@shared/utils/formatting';
 
 interface ProductMixDonutProps {
   data: ProductMixSegment[];
+  /** When false, renders the SVG donut only — no legend below. Default: true */
+  showLegend?: boolean;
+  /** How many segments to display from data. Default: 7 (compact card). Use 15 for expanded view. */
+  maxSegments?: number;
 }
 
-/** WHY these specific colors: spec Section 20.2 defines 7 warm-palette donut colors */
-const SEGMENT_COLORS = [
+/** WHY exported: ProductMixCarousel's 2-column legend must use the same colors by index */
+/** WHY these specific colors: spec Section 20.2 warm-palette, extended to 15 for expanded view */
+export const SEGMENT_COLORS = [
   '#b8a88a', // gold-primary
   '#d4c5a9', // gold-light
   '#8B7355', // darker warm brown
@@ -21,6 +26,15 @@ const SEGMENT_COLORS = [
   '#e8e0d0', // gold-muted
   '#A09070', // medium brown
   '#f0ece5', // gold-subtle
+  // Extended palette for expanded view (categories 8–15)
+  '#7A6248', // deep warm brown
+  '#E2D4BC', // pale wheat
+  '#5E4E38', // espresso
+  '#BFAA8E', // warm khaki
+  '#917B5E', // warm taupe
+  '#D8CAAF', // sand
+  '#4A3C2A', // very dark brown
+  '#F0EBE0', // pale cream
 ];
 
 const CENTER_X = 60;
@@ -34,9 +48,9 @@ const CIRCUMFERENCE = 2 * Math.PI * MID_R;
 /** WHY 2px gap: spec requires visible gap between segments */
 const GAP_PX = 2;
 
-export function ProductMixDonut({ data }: ProductMixDonutProps) {
+export function ProductMixDonut({ data, showLegend = true, maxSegments = 7 }: ProductMixDonutProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const segments = data.slice(0, 7);
+  const segments = data.slice(0, maxSegments);
   const total = segments.reduce((sum, s) => sum + s.value, 0);
   const totalCount = segments.length;
 
@@ -115,24 +129,26 @@ export function ProductMixDonut({ data }: ProductMixDonutProps) {
         </text>
       </svg>
 
-      {/* Legend — spec: vertical list, 13px, dot + percentage + label */}
-      <div className="flex flex-col gap-[var(--spacing-xs)]">
-        {segments.map((seg, i) => (
-          <div
-            key={seg.category}
-            className="flex items-center gap-[var(--spacing-md)] text-[13px] text-[var(--color-text-secondary)]"
-            onMouseEnter={() => setHoveredIdx(i)}
-            onMouseLeave={() => setHoveredIdx(null)}
-          >
-            <span
-              className="inline-block h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: SEGMENT_COLORS[i] }}
-            />
-            <span className="font-medium">{seg.percentage}%</span>
-            <span>{seg.category}</span>
-          </div>
-        ))}
-      </div>
+      {/* Legend — hidden in expanded modal (2-column legend rendered by parent instead) */}
+      {showLegend && (
+        <div className="flex flex-col gap-[var(--spacing-xs)]">
+          {segments.map((seg, i) => (
+            <div
+              key={seg.category}
+              className="flex items-center gap-[var(--spacing-md)] text-[13px] text-[var(--color-text-secondary)]"
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(null)}
+            >
+              <span
+                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: SEGMENT_COLORS[i] }}
+              />
+              <span className="font-medium">{seg.percentage}%</span>
+              <span>{seg.category}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
