@@ -74,6 +74,12 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
           prevOrders = filterOrdersByEntityIds(zoneTypeFilteredPrev, entitySet, groupBy as Dimension, customersResult.data);
         }
         const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
+        // TODO(D3): This consolidated branch is scheduled for deletion per
+        // docs/superpowers/plans/2026-04-15-report-abort-signal-and-wall-clock-plan.md Commit 2b.
+        // Until then, per-entity prevYearRevenue/prevYearRevenueFull remain null on THIS path
+        // (not passed to groupByDimension). Single-entity-detail path at line 137 already passes them.
+        // If D3 is delayed beyond the main spec's deploy window, pass `prevOrders` and `period` here
+        // to match line 137's behavior — the variables are already in scope above.
         const entities = groupByDimension(groupBy as Dimension, filteredOrders, customersResult.data, periodMonths);
         // WHY: Pass opts to populate customerName on order rows + per-entity breakdowns for consolidated view.
         const aggregate = aggregateOrders(filteredOrders, prevOrders, period, {
@@ -131,7 +137,10 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const aggregate = aggregateOrders(ordersResult.data, prevOrdersResult.data, period);
     // WHY: periodMonths is used by dimension-grouper for frequency calculation
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
-    const entities = groupByDimension(groupBy as Dimension, ordersResult.data, customersResult.data, periodMonths);
+    // WHY: Pass prevOrdersResult.data + period so EntityListItem carries prevYearRevenue fields
+    // for the Per-Customer table in the Revenue hero card modal (Feature B).
+    // dashboard.ts:77 (consolidated branch) intentionally omitted — D3 will delete that branch.
+    const entities = groupByDimension(groupBy as Dimension, ordersResult.data, customersResult.data, periodMonths, prevOrdersResult.data, period);
 
     // Derive years available from order dates
     const years = new Set(ordersResult.data.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));

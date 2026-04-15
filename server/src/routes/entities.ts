@@ -105,5 +105,7 @@ function buildCustomerStubs(customers: RawCustomer[]): EntityListItem[] {
     rep: c.AGENTNAME || null,
     zone: c.ZONEDES || null,
     customerType: c.CTYPENAME || null,
+    prevYearRevenue: null,
+    prevYearRevenueFull: null,
   }));
 }

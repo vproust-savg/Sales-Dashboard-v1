@@ -105,7 +105,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // the same entity population. Agent filtering already happened in OData.
     const filteredPrev = filterOrdersByCustomerCriteria(prevOrders.data, customers.data, { zone, customerType });
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
-    const entities = groupByDimension(groupBy as Dimension, filteredOrders, customers.data, periodMonths);
+    const entities = groupByDimension(groupBy as Dimension, filteredOrders, customers.data, periodMonths, filteredPrev, period);
     const aggregate = aggregateOrders(filteredOrders, filteredPrev, period);
 
     const years = new Set(filteredOrders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));

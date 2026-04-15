@@ -102,6 +102,20 @@ describe('fetch-all route uses the extracted SSE writer (C4-T4)', () => {
   });
 });
 
+describe('prev-year cross-route consistency (B-T9)', () => {
+  // TODO: See docs/superpowers/specs/2026-04-15-building-report-modal-and-entity-prev-year-design.md (Feature B / Finding #5)
+  //   and docs/superpowers/plans/2026-04-15-building-report-modal-and-entity-prev-year-plan.md Task 4.6.
+  // Requires supertest setup for BOTH /fetch-all and /dashboard routes with shared fixtures.
+  // Both routes pass filteredPrev + period to groupByDimension (fetch-all.ts + dashboard.ts:137),
+  // so per-entity prev-year fields should match. A full integration test would:
+  //   1. Mock fetchOrders to return deterministic (current, prev) fixtures
+  //   2. Call /fetch-all → collect entities[].prevYearRevenue
+  //   3. Call /dashboard (single-entity path) → collect entities[].prevYearRevenue
+  //   4. Assert equal for every customer present in BOTH responses
+  // Skipped until the dashboard route has a supertest harness alongside fetch-all's.
+  it.skip('cross-route prev-year consistency (B-T9, Codex Finding #5)', () => {});
+});
+
 describe('Server-side error logging (C2)', () => {
   it('console.error fires before sendEvent error on caught exception (C2-T1)', async () => {
     // WHY: Strict temporal ordering between console.error and the SSE error write cannot be

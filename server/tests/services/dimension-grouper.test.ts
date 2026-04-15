@@ -1,5 +1,5 @@
 // FILE: server/tests/services/dimension-grouper.test.ts
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { groupByDimension } from '../../src/services/dimension-grouper';
 import type { RawOrder, RawCustomer } from '../../src/services/priority-queries';
 
@@ -40,6 +40,121 @@ const customers: RawCustomer[] = [
     AGENTCODE: 'A01', AGENTDES: 'Sarah M.', CREATEDDATE: '2022-06-01T00:00:00Z',
     CTYPECODE: 'WH', CTYPEDES: 'Wholesale' },
 ];
+
+/** Prev-year orders covering 2 customers across 3 months each. */
+function buildPrevYearFixture(): RawOrder[] {
+  return [
+    { ORDNAME: 'P1', CUSTNAME: 'C001', CURDATE: '2025-01-15T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 100, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+    { ORDNAME: 'P2', CUSTNAME: 'C001', CURDATE: '2025-05-10T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 200, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+    { ORDNAME: 'P3', CUSTNAME: 'C001', CURDATE: '2025-09-05T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 300, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+    { ORDNAME: 'P4', CUSTNAME: 'C002', CURDATE: '2025-02-20T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 50, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+    { ORDNAME: 'P5', CUSTNAME: 'C002', CURDATE: '2025-04-10T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 75, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+    { ORDNAME: 'P6', CUSTNAME: 'C002', CURDATE: '2025-11-15T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 100, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+  ];
+}
+
+describe('groupByDimension prev-year fields (B)', () => {
+  it('returns null prev-year fields when prevOrders not provided (B-T1)', () => {
+    const entities = groupByDimension('customer', orders, customers, 6);
+    entities.forEach(e => {
+      expect(e.prevYearRevenue).toBeNull();
+      expect(e.prevYearRevenueFull).toBeNull();
+    });
+  });
+
+  it('prevYearRevenueFull = sum of all prev-year orders for that entity (B-T2)', () => {
+    const prevOrders = buildPrevYearFixture();
+    const entities = groupByDimension('customer', orders, customers, 6, prevOrders, 'ytd');
+    const c001 = entities.find(e => e.id === 'C001');
+    expect(c001?.prevYearRevenueFull).toBeCloseTo(600, 2);
+  });
+
+  it('day-precise YTD cutoff for prevYearRevenue (B-T3)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T00:00:00Z'));
+    const prevOrders = buildPrevYearFixture();
+    // periodMonths=4 matches April (month 3, index 0..3 = 4 months)
+    const entities = groupByDimension('customer', orders, customers, 4, prevOrders, 'ytd');
+    const c001 = entities.find(e => e.id === 'C001');
+    // C001: Jan15 (month 0 < 3 ✓ +100), May10 (month 4 > 3 ✗), Sep05 (month 8 > 3 ✗) → 100
+    expect(c001?.prevYearRevenue).toBeCloseTo(100, 2);
+    const c002 = entities.find(e => e.id === 'C002');
+    // C002: Feb20 (month 1 < 3 ✓ +50), Apr10 (month 3, date 10 ≤ 15 ✓ +75), Nov15 (month 10 > 3 ✗) → 125
+    expect(c002?.prevYearRevenue).toBeCloseTo(125, 2);
+    vi.useRealTimers();
+  });
+
+  it('non-YTD: prevYearRevenue equals prevYearRevenueFull (B-T4)', () => {
+    const prevOrders = buildPrevYearFixture();
+    const entities = groupByDimension('customer', orders, customers, 12, prevOrders, '2024');
+    entities.forEach(e => {
+      expect(e.prevYearRevenue).toBe(e.prevYearRevenueFull);
+    });
+  });
+
+  it('current-period entity with no prev-year sales returns 0, not null (B-T5)', () => {
+    const prevOrders = buildPrevYearFixture();
+    const ordersWithNew: RawOrder[] = [
+      ...orders,
+      { ORDNAME: 'NEW1', CUSTNAME: 'C999', CURDATE: '2026-03-01T00:00:00Z', ORDSTATUSDES: 'Closed', TOTPRICE: 500, AGENTCODE: 'A', AGENTNAME: 'Agent', ORDERITEMS_SUBFORM: [] },
+    ];
+    const customersWithNew: RawCustomer[] = [
+      ...customers,
+      { CUSTNAME: 'C999', CUSTDES: 'New Co', ZONECODE: 'Z1', ZONEDES: 'North', AGENTCODE: 'A', AGENTNAME: 'Agent', CREATEDDATE: '2026-01-01', CTYPECODE: 'X', CTYPENAME: 'X' },
+    ];
+    const entities = groupByDimension('customer', ordersWithNew, customersWithNew, 6, prevOrders, 'ytd');
+    const c999 = entities.find(e => e.id === 'C999');
+    expect(c999?.prevYearRevenue).toBe(0);
+    expect(c999?.prevYearRevenueFull).toBe(0);
+  });
+
+  it('aggregate reconciliation: sum of prevYearRevenueFull = sum of prev TOTPRICE (B-T6)', () => {
+    const prevOrders = buildPrevYearFixture();
+    const entities = groupByDimension('customer', orders, customers, 6, prevOrders, 'ytd');
+    const totalEntities = entities.reduce((s, e) => s + (e.prevYearRevenueFull ?? 0), 0);
+    const totalPrev = prevOrders.reduce((s, o) => s + o.TOTPRICE, 0);
+    expect(totalEntities).toBeCloseTo(totalPrev, 2);
+  });
+
+  it('vendor dimension uses item.QPRICE not order.TOTPRICE (B-T7)', () => {
+    const prevWithItems: RawOrder[] = [
+      {
+        ORDNAME: 'PV1', CUSTNAME: 'C001', CURDATE: '2025-06-01T00:00:00Z',
+        ORDSTATUSDES: 'Closed', TOTPRICE: 999,
+        AGENTCODE: 'A', AGENTNAME: 'Agent',
+        ORDERITEMS_SUBFORM: [
+          {
+            PDES: 'P', PARTNAME: 'X', TQUANT: 1, TUNITNAME: 'ea',
+            QPRICE: 50, PRICE: 50, PURCHASEPRICE: 30, QPROFIT: 20, PERCENT: 40,
+            Y_1159_5_ESH: 'V01', Y_1530_5_ESH: 'Vendor One', Y_9952_5_ESH: 'B',
+            Y_3020_5_ESH: '', Y_3021_5_ESH: '', Y_17936_5_ESH: '', Y_2075_5_ESH: '', Y_5380_5_ESH: '', Y_9967_5_ESH: '',
+          },
+        ],
+      },
+    ];
+    const entities = groupByDimension('vendor', orders, customers, 6, prevWithItems, '2024');
+    const v01 = entities.find(e => e.id === 'V01');
+    expect(v01?.prevYearRevenueFull).toBeCloseTo(50, 2);
+  });
+
+  // B-T8: Structural guard on the entity-stub-builder caller contract — the lightweight path
+  // MUST NOT pass prevOrders/period to groupByDimension (that would defeat the "no prev fetch"
+  // promise). Regression risk: a future developer "helpfully" adds the args, making the cold
+  // entity list path require a prev-year fetch. This test fails if that happens.
+  it('entity-stub-builder invokes groupByDimension without prev-year args (B-T8)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const src = readFileSync(resolve(__dirname, '../../src/services/entity-stub-builder.ts'), 'utf8');
+    // Match any groupByDimension(...) call; then ensure it has ≤4 positional args (no prev data).
+    const calls = src.matchAll(/groupByDimension\s*\(([^)]*)\)/g);
+    const found = [...calls];
+    expect(found.length).toBeGreaterThan(0);
+    found.forEach(m => {
+      const argCount = m[1].split(',').filter(s => s.trim().length > 0).length;
+      expect(argCount).toBeLessThanOrEqual(4);
+    });
+  });
+});
 
 describe('groupByDimension', () => {
   it('groups by customer — one entity per CUSTNAME', () => {
