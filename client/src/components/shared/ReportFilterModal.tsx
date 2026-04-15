@@ -11,7 +11,7 @@ import { formatInteger } from '@shared/utils/formatting';
 interface ReportFilterModalProps {
   isOpen: boolean;
   entities: EntityListItem[];
-  /** WHY: forceRefresh is passed through so the caller can threadit to useReport.startReport. */
+  /** WHY: forceRefresh is passed through so the caller can thread it to useReport.startReport. */
   onConfirm: (filters: FetchAllFilters, forceRefresh: boolean) => void;
   onCancel: () => void;
 }
