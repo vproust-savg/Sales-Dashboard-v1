@@ -190,6 +190,101 @@ describe('PriorityClient', () => {
     });
   });
 
+  describe('per-page onProgress (A2)', () => {
+    it('fires onProgress at least once per inner-loop page (A2-T1)', async () => {
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      // Mock 4 pages: 3 full + 1 partial (single batch, no MAXAPILINES cursor)
+      vi.spyOn(client, 'fetchEntity')
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O1' }))
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O2' }))
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O3' }))
+        .mockResolvedValueOnce(Array(1).fill({ ORDNAME: 'O4' }));
+
+      const calls: Array<{ rowsFetched: number; estimatedTotal: number }> = [];
+      await client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc',
+        pageSize: 2500,  // WHY: match mock page size so first 3 pages are "full" and trigger next iteration
+        onProgress: (rowsFetched, estimatedTotal) => calls.push({ rowsFetched, estimatedTotal }),
+      });
+
+      expect(calls.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('rowsFetched is monotonically increasing (A2-T2)', async () => {
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      vi.spyOn(client, 'fetchEntity')
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O1' }))
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O2' }))
+        .mockResolvedValueOnce(Array(1).fill({ ORDNAME: 'O3' }));
+      const calls: number[] = [];
+      await client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc',
+        pageSize: 2500,
+        onProgress: (rowsFetched) => calls.push(rowsFetched),
+      });
+      // WHY: Assert multiple calls BEFORE checking monotonicity. A single-call regression
+      // (pre-A2 behavior — one onProgress per outer batch) trivially satisfies an empty
+      // monotonicity loop; requiring ≥3 calls ensures the test actually exercises the
+      // per-page firing path.
+      expect(calls.length).toBeGreaterThanOrEqual(3);
+      for (let i = 1; i < calls.length; i++) {
+        expect(calls[i]).toBeGreaterThanOrEqual(calls[i - 1]);
+      }
+    });
+
+    it('final partial page has estimatedTotal === rowsFetched (A2-T3)', async () => {
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      vi.spyOn(client, 'fetchEntity')
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O1' }))
+        .mockResolvedValueOnce(Array(123).fill({ ORDNAME: 'O2' }));
+      const calls: Array<{ rowsFetched: number; estimatedTotal: number }> = [];
+      await client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc',
+        pageSize: 2500,
+        onProgress: (rowsFetched, estimatedTotal) => calls.push({ rowsFetched, estimatedTotal }),
+      });
+      // WHY: Require ≥2 calls so the test fails if onProgress fires only once (the pre-A2
+      // per-batch regression would pass otherwise — a single call always equals itself on
+      // the final-page assertion).
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+      const last = calls[calls.length - 1];
+      expect(last.estimatedTotal).toBe(last.rowsFetched);
+      expect(last.rowsFetched).toBe(2623);
+    });
+
+    it('intermediate calls have estimatedTotal === rowsFetched + pageSize (A2-T4)', async () => {
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      vi.spyOn(client, 'fetchEntity')
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O1' }))
+        .mockResolvedValueOnce(Array(2500).fill({ ORDNAME: 'O2' }))
+        .mockResolvedValueOnce(Array(50).fill({ ORDNAME: 'O3' }));
+      const calls: Array<{ rowsFetched: number; estimatedTotal: number }> = [];
+      await client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc',
+        pageSize: 2500,
+        onProgress: (rowsFetched, estimatedTotal) => calls.push({ rowsFetched, estimatedTotal }),
+      });
+      // WHY: Pin the fixture's expected page count — 3 pages in, 3 progress events out.
+      // Without this, a regression that fires only 2 events still passes the calls[0]/[1]
+      // checks (both indices exist) but silently loses the final-page event.
+      expect(calls.length).toBe(3);
+      expect(calls[0].estimatedTotal).toBe(calls[0].rowsFetched + 2500);
+      expect(calls[1].estimatedTotal).toBe(calls[1].rowsFetched + 2500);
+    });
+
+    it('does not invoke onProgress for empty fetchEntity result (A2-T5)', async () => {
+      const client = new PriorityClient({ baseUrl: 'http://test', username: 'x', password: 'y' });
+      vi.spyOn(client, 'fetchEntity').mockResolvedValueOnce([]);
+      const calls: number[] = [];
+      await client.fetchAllPages('ORDERS', {
+        select: 'ORDNAME', orderby: 'ORDNAME asc',
+        pageSize: 2500,
+        onProgress: (rowsFetched) => calls.push(rowsFetched),
+      });
+      expect(calls.length).toBe(0);
+    });
+  });
+
   describe('per-page timing log (C2)', () => {
     it('emits a structured log line per fetched page (C2-T2)', async () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});

@@ -119,18 +119,21 @@ export class PriorityClient {
 
         if (records.length === 0) break;
         batch.push(...records);
+
+        // WHY: Per-page progress instead of per-MAXAPILINES-batch. For 60K orders at
+        // PAGE_SIZE=5000 this yields ~12 progress events instead of 2, so the client
+        // modal's Phase 1 bar fills smoothly instead of jumping 0% -> 100%.
+        if (opts.onProgress) {
+          const fetched = allRecords.length + batch.length;
+          const hasMore = records.length === pageSize;
+          opts.onProgress(fetched, hasMore ? fetched + pageSize : fetched);
+        }
+
         if (records.length < pageSize) break;
         skip += pageSize;
       }
 
       allRecords.push(...batch);
-
-      // WHY: Report progress after each batch for SSE streaming
-      if (opts.onProgress) {
-        const hasMore = batch.length > 0 && batch.length % pageSize === 0 && batch.length >= pageSize;
-        const estimated = hasMore ? allRecords.length + pageSize : allRecords.length;
-        opts.onProgress(allRecords.length, estimated);
-      }
 
       // If batch hit MAXAPILINES, continue with cursor from last record
       if (batch.length > 0 && batch.length % pageSize === 0 && batch.length >= pageSize) {
