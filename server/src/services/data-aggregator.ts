@@ -64,7 +64,7 @@ export function aggregateOrders(
   return result;
 }
 
-/** Spec Section 20.2 — Group items by a category field, max 15 segments in expanded view */
+/** Spec Section 20.2 — Group items by a category field, max 15 segments (top 14 named + Other) */
 function computeProductMix(
   items: RawOrderItem[],
   getCategory: (item: RawOrderItem) => string,
