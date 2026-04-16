@@ -1,5 +1,5 @@
 // FILE: client/src/components/right-panel/ConsolidatedHeader.tsx
-// PURPOSE: Header replacing DetailHeader when in Report / View Consolidated mode
+// PURPOSE: Header replacing DetailHeader when in Report mode
 // USED BY: client/src/components/right-panel/RightPanel.tsx
 // EXPORTS: ConsolidatedHeader
 
@@ -8,10 +8,9 @@ import { PeriodSelector } from './PeriodSelector';
 import { formatInteger } from '@shared/utils/formatting';
 
 interface ConsolidatedHeaderProps {
-  mode: 'report' | 'consolidated';
   entityCount: number;
   dimensionLabel: string;          // Singular or plural; caller chooses
-  filters: FetchAllFilters | null; // null for consolidated mode
+  filters: FetchAllFilters | null;
   yearsAvailable: string[];
   activePeriod: Period;
   onPeriodChange: (p: Period) => void;
@@ -28,10 +27,9 @@ function formatFilters(filters: FetchAllFilters | null): string | null {
 }
 
 export function ConsolidatedHeader({
-  mode, entityCount, dimensionLabel, filters, yearsAvailable, activePeriod, onPeriodChange, onExport,
+  entityCount, dimensionLabel, filters, yearsAvailable, activePeriod, onPeriodChange, onExport,
 }: ConsolidatedHeaderProps) {
-  const prefix = mode === 'report' ? 'Report' : 'Consolidated';
-  const title = `${prefix}: ${formatInteger(entityCount)} ${dimensionLabel}`;
+  const title = `Report: ${formatInteger(entityCount)} ${dimensionLabel}`;
   const filterLine = formatFilters(filters);
 
   return (

@@ -161,7 +161,6 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                 className="flex flex-col gap-[var(--spacing-base)]"
               >
                 <ConsolidatedHeader
-                  mode="report"
                   entityCount={consolidatedPayload.entities.length}
                   dimensionLabel={DIMENSION_CONFIG[activeDimension].pluralLabel}
                   filters={report.filters}
