@@ -24,10 +24,11 @@ describe('buildFilterHash extended', () => {
   it('returns "all" when no fields set', () => {
     expect(buildFilterHash({})).toBe('all');
   });
-  it('is order-deterministic across argument orderings', () => {
+  it('produces identical output regardless of object literal key order', () => {
     const a = buildFilterHash({ agentName: 'X', brand: 'Y' });
     const b = buildFilterHash({ brand: 'Y', agentName: 'X' });
     expect(a).toBe(b);
+    expect(a).toBe('agent=X&brand=Y');
   });
 });
 

@@ -49,7 +49,9 @@ export function buildFilterHash(input: FilterHashInput): string {
 }
 
 /** Canonical hash for an entity-id set. Sort-invariant. WHY: same (dimension, entityIds)
- *  set must always produce the same cache key regardless of input ordering. */
+ *  set must always produce the same cache key regardless of input ordering.
+ *  WHY exported now: consumed by Task 1.3's scopeOrders and Task 4.2's entity-list-builder
+ *  caching layer. Foundation export — no production callers in this commit. */
 export function buildEntitySetHash(ids: string[]): string {
   if (ids.length === 0) return 'empty';
   return [...ids].sort().join(',');
