@@ -46,11 +46,14 @@ export function useEntities({ groupBy, period }: { groupBy: Dimension; period: P
 // --- Stage 2: Full detail for a selected entity ---
 
 async function fetchDashboard(
-  entityId: string,
+  entityIds: string[],
   groupBy: Dimension,
   period: Period,
 ): Promise<ApiResponse<DashboardPayload>> {
-  const params = new URLSearchParams({ groupBy, period, entityId });
+  const params = new URLSearchParams({ groupBy, period });
+  if (entityIds.length === 1) params.set('entityId', entityIds[0]);
+  else if (entityIds.length > 1) params.set('entityIds', entityIds.join(','));
+
   const response = await fetch(`/api/sales/dashboard?${params}`);
 
   if (!response.ok) {
@@ -77,10 +80,12 @@ export function useDashboardDetail({
   groupBy: Dimension;
   period: Period;
 }) {
+  // WHY: entityId is a single-select in the left panel today. Multi-select consolidated
+  // flows through useReport (SSE), not here. Keep the single-entity prop shape for now.
+  const entityIds = entityId ? [entityId] : [];
   return useQuery({
     queryKey: ['dashboard', entityId, groupBy, period],
-    queryFn: () => fetchDashboard(entityId!, groupBy, period),
-    // WHY: Only fetch when an entity is selected
+    queryFn: () => fetchDashboard(entityIds, groupBy, period),
     enabled: entityId !== null,
     staleTime: period === 'ytd' ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000,
   });
