@@ -1,6 +1,7 @@
 // FILE: server/src/services/customer-filter.ts
 // PURPOSE: Post-fetch filtering of orders by agent name, customer-level criteria (zone, customerType), and item-level criteria (brand, productFamily, countryOfOrigin, foodServiceRetail)
-// USED BY: server/src/routes/fetch-all.ts
+// USED BY: server/src/routes/fetch-all.ts.
+//   filterOrdersByItemCriteria: foundation export — wired into fetch-all.ts in Task 4.5.
 // EXPORTS: filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItemCriteria, ItemFilterCriteria
 
 import type { RawOrder, RawCustomer } from './priority-queries.js';
@@ -76,6 +77,10 @@ export function filterOrdersByItemCriteria(
   orders: RawOrder[],
   criteria: ItemFilterCriteria,
 ): RawOrder[] {
+  // WHY case-exact (no .toLowerCase()): item custom fields (Y_9952_5_ESH brand, Y_2075_5_ESH
+  // family, Y_5380_5_ESH country, Y_9967_5_ESH fsr) contain exact Priority codes — not
+  // free-text names. Contrast with filterOrdersByCustomerCriteria above, which lowercases
+  // for user-visible zone/type names. Do NOT add .toLowerCase() here.
   const brands    = criteria.brand?.length             ? new Set(criteria.brand)             : null;
   const families  = criteria.productFamily?.length     ? new Set(criteria.productFamily)     : null;
   const countries = criteria.countryOfOrigin?.length   ? new Set(criteria.countryOfOrigin)   : null;
