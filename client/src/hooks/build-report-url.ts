@@ -20,6 +20,11 @@ export function buildReportUrl(
   if (filters.agentName?.length) params.set('agentName', filters.agentName.join(','));
   if (filters.zone?.length) params.set('zone', filters.zone.join(','));
   if (filters.customerType?.length) params.set('customerType', filters.customerType.join(','));
+  // Item-level filters (Task 4.5 server support)
+  if (filters.brand?.length) params.set('brand', filters.brand.join(','));
+  if (filters.productFamily?.length) params.set('productFamily', filters.productFamily.join(','));
+  if (filters.countryOfOrigin?.length) params.set('countryOfOrigin', filters.countryOfOrigin.join(','));
+  if (filters.foodServiceRetail?.length) params.set('foodServiceRetail', filters.foodServiceRetail.join(','));
   if (filters.entityIds?.length) params.set('entityIds', filters.entityIds.join(','));
   if (forceRefresh) params.set('refresh', 'true');
   return `/api/sales/fetch-all?${params}`;

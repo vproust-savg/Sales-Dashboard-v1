@@ -69,6 +69,32 @@ describe('buildReportUrl', () => {
     expect(url).toContain('entityIds=C001%2CC002');
   });
 
+  it('includes brand filter', () => {
+    const url = buildReportUrl('vendor', 'ytd', { brand: ['Acme'] });
+    expect(url).toContain('brand=Acme');
+  });
+
+  it('includes productFamily filter', () => {
+    const url = buildReportUrl('product', 'ytd', { productFamily: ['Snacks'] });
+    expect(url).toContain('productFamily=Snacks');
+  });
+
+  it('includes countryOfOrigin filter', () => {
+    const url = buildReportUrl('product', 'ytd', { countryOfOrigin: ['US'] });
+    expect(url).toContain('countryOfOrigin=US');
+  });
+
+  it('includes foodServiceRetail filter', () => {
+    const url = buildReportUrl('product', 'ytd', { foodServiceRetail: ['Y'] });
+    expect(url).toContain('foodServiceRetail=Y');
+  });
+
+  it('omits empty item-level filters', () => {
+    const url = buildReportUrl('vendor', 'ytd', { brand: [], productFamily: [] });
+    expect(url).not.toContain('brand');
+    expect(url).not.toContain('productFamily');
+  });
+
   it('URL is parseable back to same params', () => {
     const url = buildReportUrl('vendor', '2024', { customerType: ['Retail'] }, true);
     const search = new URL(url, 'http://localhost').searchParams;
