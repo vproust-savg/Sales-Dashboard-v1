@@ -1,7 +1,12 @@
 // FILE: server/src/services/priority-queries.ts
 // PURPOSE: Build OData query parameters for each Priority entity the dashboard needs
-// USED BY: server/src/routes/dashboard.ts, server/src/routes/contacts.ts
+// USED BY: server/src/routes/dashboard.ts, server/src/routes/contacts.ts, server/src/services/warm-cache.ts
 // EXPORTS: fetchOrders, fetchCustomers, fetchZones, fetchAgents, fetchVendors, fetchContacts, fetchProductTypes, fetchProducts
+//
+// SIGNAL CONVENTION: fetchers called from fetch-all.ts (where AbortController cascades client
+//   cancel) accept `signal?: AbortSignal` — currently fetchOrders, fetchCustomers,
+//   fetchProductTypes, fetchProducts. fetchZones/fetchAgents/fetchVendors are warm-cache-only
+//   and intentionally omit it. If a fetcher starts being used from fetch-all, add the param.
 
 import { PriorityClient } from './priority-client.js';
 import type { RawProductType, RawProduct } from '@shared/types/dashboard';
@@ -176,6 +181,10 @@ export async function fetchProductTypes(client: PriorityClient, signal?: AbortSi
     signal,
   });
   const seen = new Map<string, RawProductType>();
+  // WHY drop rows with empty FTNAME: Priority returns '' for unconfigured product types.
+  // The dashboard uses FTNAME as the display name; a product type with no name would show as
+  // blank in the UI and would not help users identify it. FTCODE-only fallback was considered
+  // and rejected (codes like "01"/"02" are not human-meaningful).
   for (const r of rows) {
     if (r.FTCODE && r.FTNAME && !seen.has(r.FTCODE)) {
       seen.set(r.FTCODE, { FTCODE: r.FTCODE, FTNAME: r.FTNAME });
