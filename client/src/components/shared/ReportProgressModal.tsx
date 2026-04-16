@@ -3,6 +3,7 @@
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: ReportProgressModal
 
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { SSEProgressEvent } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
@@ -21,11 +22,9 @@ export function ReportProgressModal({
 }: ReportProgressModalProps) {
   const isError = errorMessage !== null;
   const phase = progress?.phase ?? 'fetching';
-  // WHY: SSEProgressEvent is a union — 'rowsFetched'/'estimatedTotal' only exist on fetching/incremental
+  // WHY: SSEProgressEvent is a union — 'rowsFetched' only exists on fetching/incremental
   const rows = progress && 'rowsFetched' in progress ? progress.rowsFetched : 0;
-  const total = progress && 'estimatedTotal' in progress ? progress.estimatedTotal : 0;
   const message = progress && 'message' in progress ? progress.message : undefined;
-  const percent = total > 0 ? Math.min(100, Math.round((rows / total) * 100)) : 0;
 
   const inPhase1 = phase === 'fetching' || phase === 'incremental';
   const inPhase2 = phase === 'processing' || phase === 'merging';
@@ -55,7 +54,6 @@ export function ReportProgressModal({
               <ProgressContent
                 inPhase1={inPhase1}
                 inPhase2={inPhase2}
-                percent={percent}
                 rows={rows}
                 message={message}
                 onCancel={onCancel}
@@ -71,13 +69,31 @@ export function ReportProgressModal({
 interface ProgressContentProps {
   inPhase1: boolean;
   inPhase2: boolean;
-  percent: number;
   rows: number;
   message: string | undefined;
   onCancel: () => void;
 }
 
-function ProgressContent({ inPhase1, inPhase2, percent, rows, message, onCancel }: ProgressContentProps) {
+function ProgressContent({ inPhase1, inPhase2, rows, message, onCancel }: ProgressContentProps) {
+  // WHY: Elapsed timer ticks every second — visual "alive" signal during long Priority fetches.
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  const elapsedText = mins > 0
+    ? `${mins}m ${secs.toString().padStart(2, '0')}s`
+    : `${secs}s`;
+
+  // WHY: "Connecting to Priority ERP…" before first page arrives (30-90s) tells user the app
+  // is working, not frozen. Switches to "X rows received" once data starts flowing.
+  const phase1Detail = inPhase1
+    ? (rows > 0 ? `${formatInteger(rows)} rows received` : 'Connecting to Priority ERP\u2026')
+    : `${formatInteger(rows)} rows fetched`;
+
   return (
     <>
       <div>
@@ -91,19 +107,25 @@ function ProgressContent({ inPhase1, inPhase2, percent, rows, message, onCancel 
         title="Phase 1 of 2 — Fetching orders"
         active={inPhase1}
         done={inPhase2}
-        percent={inPhase1 ? percent : 100}
-        detail={inPhase1 ? `${formatInteger(rows)} rows` : 'Complete'}
-        detailRight={inPhase1 ? `${percent}%` : '100%'}
+        indeterminate={inPhase1}
+        percent={inPhase2 ? 100 : 0}
+        detail={phase1Detail}
+        detailRight={inPhase1 ? elapsedText : ''}
       />
 
       <PhaseBlock
         title="Phase 2 — Computing metrics"
         active={inPhase2}
         done={false}
-        percent={inPhase2 ? 50 : 0}
-        detail={inPhase2 ? (message ?? 'Processing...') : 'Waiting...'}
-        detailRight=""
+        indeterminate={inPhase2}
+        percent={0}
+        detail={inPhase2 ? (message ?? 'Processing\u2026') : 'Waiting\u2026'}
+        detailRight={inPhase2 ? elapsedText : ''}
       />
+
+      <p className="text-center text-[11px] text-[var(--color-text-faint)]">
+        This usually takes 5&ndash;10 minutes
+      </p>
 
       {inPhase1 && (
         <div className="flex justify-end">
@@ -161,12 +183,13 @@ interface PhaseBlockProps {
   title: string;
   active: boolean;
   done: boolean;
+  indeterminate?: boolean;
   percent: number;
   detail: string;
   detailRight: string;
 }
 
-function PhaseBlock({ title, active, done, percent, detail, detailRight }: PhaseBlockProps) {
+function PhaseBlock({ title, active, done, indeterminate, percent, detail, detailRight }: PhaseBlockProps) {
   const color = active
     ? 'var(--color-gold-primary)'
     : done
@@ -177,12 +200,24 @@ function PhaseBlock({ title, active, done, percent, detail, detailRight }: Phase
     <div className="flex flex-col gap-[var(--spacing-sm)] border-t border-[var(--color-gold-subtle)] pt-[var(--spacing-lg)] first:border-t-0 first:pt-0">
       <h3 className="text-[13px] font-semibold" style={{ color }}>{title}</h3>
       <div className="h-[4px] overflow-hidden rounded-full bg-[var(--color-gold-subtle)]">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: color }}
-          animate={{ width: `${percent}%` }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        />
+        {/* WHY: Indeterminate shimmer (gold bar sliding L→R in 1.5s loop) provides constant
+         * visual motion so the user knows the app is alive during long Priority API waits.
+         * Determinate bar used only for completed phases (100% green). */}
+        {indeterminate ? (
+          <motion.div
+            className="h-full w-[40%] rounded-full"
+            style={{ background: color }}
+            animate={{ x: ['-100%', '250%'] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ) : (
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: color }}
+            animate={{ width: `${percent}%` }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+          />
+        )}
       </div>
       <div className="flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
         <span>{detail}</span>
