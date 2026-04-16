@@ -5,7 +5,7 @@
 
 import type {
   EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType,
-  TopSellerItem, SparklineData, OrderRow, FlatItem, Contact, Period,
+  TopSellerItem, SparklineData, OrderRow, FlatItem, Contact, Period, Dimension,
 } from '@shared/types/dashboard';
 import type { DetailTab } from './detail-tab-types';
 import { DetailHeader } from './DetailHeader';
@@ -15,6 +15,7 @@ import { TabsSection } from './TabsSection';
 
 interface RightPanelProps {
   entity: EntityListItem | null;
+  activeDimension?: Dimension;
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
   productMixes: Record<ProductMixType, ProductMixSegment[]>;
@@ -37,7 +38,7 @@ interface RightPanelProps {
 }
 
 export function RightPanel({
-  entity, kpis, monthlyRevenue, productMixes, topSellers,
+  entity, activeDimension = 'customer', kpis, monthlyRevenue, productMixes, topSellers,
   sparklines, orders, items, contacts, yearsAvailable, activePeriod, activeTab,
   onPeriodChange, onTabChange, onExport,
   consolidatedMode, consolidatedEntities, perEntityProductMixes, perEntityTopSellers, hideDetailHeader,
@@ -46,7 +47,7 @@ export function RightPanel({
     <>
       {!hideDetailHeader && (
         <DetailHeader
-          entity={entity} activePeriod={activePeriod} yearsAvailable={yearsAvailable}
+          entity={entity} activeDimension={activeDimension} activePeriod={activePeriod} yearsAvailable={yearsAvailable}
           onPeriodChange={onPeriodChange} onExport={onExport}
         />
       )}

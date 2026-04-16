@@ -172,6 +172,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                 />
                 <RightPanel
                   entity={null}
+                  activeDimension={activeDimension}
                   kpis={consolidatedPayload.kpis}
                   monthlyRevenue={consolidatedPayload.monthlyRevenue}
                   productMixes={consolidatedPayload.productMixes}
@@ -199,7 +200,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
               {dashboard ? (
                 <motion.div key={activeEntityId ?? 'none'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex flex-col gap-[var(--spacing-base)]">
                   <RightPanel
-                    entity={activeEntity} kpis={dashboard.kpis}
+                    entity={activeEntity} activeDimension={activeDimension} kpis={dashboard.kpis}
                     monthlyRevenue={dashboard.monthlyRevenue} productMixes={dashboard.productMixes}
                     topSellers={dashboard.topSellers} sparklines={dashboard.sparklines}
                     orders={dashboard.orders} items={dashboard.items} contacts={contacts}

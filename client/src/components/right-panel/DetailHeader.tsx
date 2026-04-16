@@ -3,12 +3,14 @@
 // USED BY: client/src/components/right-panel/RightPanel.tsx
 // EXPORTS: DetailHeader
 
-import type { EntityListItem, Period } from '@shared/types/dashboard';
+import type { EntityListItem, Period, Dimension } from '@shared/types/dashboard';
+import { DIMENSION_PLURAL_LABELS } from '@shared/types/dashboard';
 import { CopyableId } from '../shared/CopyableId';
 import { PeriodSelector } from './PeriodSelector';
 
 interface DetailHeaderProps {
   entity: EntityListItem | null;
+  activeDimension: Dimension;
   activePeriod: Period;
   yearsAvailable: string[];
   onPeriodChange: (period: Period) => void;
@@ -16,9 +18,9 @@ interface DetailHeaderProps {
 }
 
 export function DetailHeader({
-  entity, activePeriod, yearsAvailable, onPeriodChange, onExport,
+  entity, activeDimension, activePeriod, yearsAvailable, onPeriodChange, onExport,
 }: DetailHeaderProps) {
-  const name = entity?.name ?? 'All Customers';
+  const name = entity?.name ?? `All ${DIMENSION_PLURAL_LABELS[activeDimension]}`;
   const subtitle = entity?.meta1 ?? '';
 
   return (
