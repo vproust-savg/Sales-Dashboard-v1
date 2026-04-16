@@ -20,6 +20,7 @@ interface KPIModalContentProps {
   prevYearLabel?: string;
   prevYearFullLabel?: string;
   subItems?: KPISubItem[];
+  entityLabel?: string;
   /** WHY: Enables per-customer toggle when in Report / View Consolidated mode */
   perCustomer?: {
     entities: EntityListItem[];
@@ -31,7 +32,7 @@ interface KPIModalContentProps {
 }
 
 export function KPIModalContent({
-  value, changePercent, prevYearValue, prevYearFullValue, prevYearLabel, prevYearFullLabel, subItems, perCustomer,
+  value, changePercent, prevYearValue, prevYearFullValue, prevYearLabel, prevYearFullLabel, subItems, entityLabel, perCustomer,
 }: KPIModalContentProps) {
   const [mode, setMode] = useState<PerCustomerMode>('aggregated');
   const showToggle = !!perCustomer;
@@ -40,7 +41,7 @@ export function KPIModalContent({
     <div className="flex flex-col gap-[var(--spacing-2xl)]">
       {showToggle && (
         <div className="flex justify-end">
-          <PerCustomerToggle mode={mode} onChange={setMode} />
+          <PerCustomerToggle mode={mode} onChange={setMode} entityLabel={entityLabel} />
         </div>
       )}
 
@@ -51,6 +52,7 @@ export function KPIModalContent({
           formatValue={perCustomer.formatValue}
           getPrevValue={perCustomer.getPrevValue}
           valueLabel={perCustomer.valueLabel}
+          entityLabel={entityLabel}
         />
       ) : (
         <>
@@ -98,6 +100,7 @@ export function KPIModalContent({
 interface HeroRevenueModalContentProps {
   kpis: KPIs;
   monthlyRevenue: MonthlyRevenue[];
+  entityLabel?: string;
   /** WHY: Enables per-customer toggle when in consolidated mode */
   perCustomer?: {
     entities: EntityListItem[];
@@ -107,7 +110,7 @@ interface HeroRevenueModalContentProps {
   };
 }
 
-export function HeroRevenueModalContent({ kpis, monthlyRevenue, perCustomer }: HeroRevenueModalContentProps) {
+export function HeroRevenueModalContent({ kpis, monthlyRevenue, entityLabel, perCustomer }: HeroRevenueModalContentProps) {
   const [mode, setMode] = useState<PerCustomerMode>('aggregated');
   const [chartRef, chartSize] = useContainerSize();
   const showToggle = !!perCustomer;
@@ -116,7 +119,7 @@ export function HeroRevenueModalContent({ kpis, monthlyRevenue, perCustomer }: H
     <div className="flex flex-col gap-[var(--spacing-2xl)]">
       {showToggle && (
         <div className="flex justify-end">
-          <PerCustomerToggle mode={mode} onChange={setMode} />
+          <PerCustomerToggle mode={mode} onChange={setMode} entityLabel={entityLabel} />
         </div>
       )}
 
@@ -127,6 +130,7 @@ export function HeroRevenueModalContent({ kpis, monthlyRevenue, perCustomer }: H
           formatValue={perCustomer.formatValue}
           getPrevValue={perCustomer.getPrevValue}
           valueLabel="Revenue"
+          entityLabel={entityLabel}
         />
       ) : (
         <>

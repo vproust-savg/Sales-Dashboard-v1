@@ -55,6 +55,7 @@ export function RightPanel({
         <KPISection
           kpis={kpis} monthlyRevenue={monthlyRevenue} sparklines={sparklines}
           activePeriod={activePeriod}
+          activeDimension={activeDimension}
           consolidatedEntities={consolidatedEntities}
         />
       </section>

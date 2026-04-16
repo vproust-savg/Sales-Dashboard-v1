@@ -4,7 +4,8 @@
 // EXPORTS: KPISection
 
 import { useState } from 'react';
-import type { KPIs, KPIMetricBreakdown, MonthlyRevenue, SparklineData, Period, EntityListItem } from '@shared/types/dashboard';
+import type { KPIs, KPIMetricBreakdown, MonthlyRevenue, SparklineData, Period, EntityListItem, Dimension } from '@shared/types/dashboard';
+import { DIMENSION_SINGULAR_LABELS } from '@shared/types/dashboard';
 import {
   formatCurrency,
   formatDays,
@@ -24,6 +25,7 @@ interface KPISectionProps {
   monthlyRevenue: MonthlyRevenue[];
   sparklines: Record<string, SparklineData>;
   activePeriod: Period;
+  activeDimension?: Dimension;
   /** WHY: When set, KPI modals render the per-customer toggle and table */
   consolidatedEntities?: EntityListItem[];
 }
@@ -137,8 +139,10 @@ export function KPISection({
   monthlyRevenue,
   sparklines: _sparklines,
   activePeriod,
+  activeDimension = 'customer',
   consolidatedEntities,
 }: KPISectionProps) {
+  const entityLabel = DIMENSION_SINGULAR_LABELS[activeDimension];
   const [showDetails, setShowDetails] = useState(false);
   const { openModal } = useModal();
   const { setCardRef, onCardFocus, onCardBlur } = useCardNavigation(7);
@@ -160,6 +164,7 @@ export function KPISection({
             <HeroRevenueModalContent
               kpis={kpis}
               monthlyRevenue={monthlyRevenue}
+              entityLabel={entityLabel}
               perCustomer={consolidatedEntities ? {
                 entities: consolidatedEntities,
                 getValue: (e) => e.revenue,
@@ -208,6 +213,7 @@ export function KPISection({
                     prevYearLabel={pyLabel}
                     prevYearFullLabel={pyFullLabel}
                     subItems={subItems}
+                    entityLabel={entityLabel}
                     perCustomer={consolidatedEntities ? {
                       entities: consolidatedEntities,
                       getValue: (e) => {
@@ -239,6 +245,7 @@ export function KPISection({
             onExpand={() => openModal('Last Order', (
               <KPIModalContent
                 value={kpis.lastOrderDays === null ? 'No orders' : formatDays(Math.round(kpis.lastOrderDays))}
+                entityLabel={entityLabel}
                 perCustomer={consolidatedEntities ? {
                   entities: consolidatedEntities,
                   getValue: (e) => {
