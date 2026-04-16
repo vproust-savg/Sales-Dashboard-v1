@@ -1,16 +1,32 @@
 // FILE: client/src/components/shared/ReportFilterModal.tsx
-// PURPOSE: Filter selection modal for Report — Sales Rep / Zone / Customer Type dropdowns
+// PURPOSE: Filter selection modal for Report — dropdowns vary by dimension, item-level fields use text inputs
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: ReportFilterModal
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { EntityListItem, FetchAllFilters } from '@shared/types/dashboard';
+import type { Dimension, EntityListItem, FetchAllFilters } from '@shared/types/dashboard';
+import { DIMENSION_PLURAL_LABELS } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
+
+type FilterKey = 'agentName' | 'zone' | 'customerType' | 'brand' | 'productFamily' | 'countryOfOrigin' | 'foodServiceRetail';
+
+/** WHY: Each dimension exposes a different set of relevant filter controls. Item-level filters
+ *  (brand, productFamily, countryOfOrigin, foodServiceRetail) only make sense for dims whose
+ *  orders carry those fields. Customer/zone/brand dims operate at entity level only. */
+const FILTERS_BY_DIMENSION: Record<Dimension, FilterKey[]> = {
+  customer:     ['agentName', 'zone', 'customerType'],
+  zone:         ['agentName', 'customerType'],
+  vendor:       ['agentName', 'zone', 'customerType', 'brand', 'productFamily', 'countryOfOrigin', 'foodServiceRetail'],
+  brand:        ['agentName', 'zone', 'customerType'],
+  product_type: ['agentName', 'zone', 'customerType', 'brand', 'countryOfOrigin', 'foodServiceRetail'],
+  product:      ['agentName', 'zone', 'customerType', 'brand', 'productFamily', 'countryOfOrigin', 'foodServiceRetail'],
+};
 
 interface ReportFilterModalProps {
   isOpen: boolean;
   entities: EntityListItem[];
+  activeDimension: Dimension;
   /** WHY: forceRefresh is passed through so the caller can thread it to useReport.startReport. */
   onConfirm: (filters: FetchAllFilters, forceRefresh: boolean) => void;
   onCancel: () => void;
@@ -25,16 +41,22 @@ function uniqueValues(entities: EntityListItem[], getter: (e: EntityListItem) =>
   return [...set].sort();
 }
 
+/** WHY: Parse a comma-separated text input into a trimmed, non-empty string array */
+function parseTextInput(raw: string): string[] {
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
 // WHY: Inner component is only mounted while isOpen is true. This forces useState to
 // reinitialize on every open, so the previous report's selection cannot leak into the next.
 // A useEffect-based reset is unreliable because the modal may be always-mounted and React
 // can batch the close+reopen transitions.
-export function ReportFilterModal({ isOpen, entities, onConfirm, onCancel }: ReportFilterModalProps) {
+export function ReportFilterModal({ isOpen, entities, activeDimension, onConfirm, onCancel }: ReportFilterModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
         <ReportFilterModalContent
           entities={entities}
+          activeDimension={activeDimension}
           onConfirm={onConfirm}
           onCancel={onCancel}
         />
@@ -45,16 +67,24 @@ export function ReportFilterModal({ isOpen, entities, onConfirm, onCancel }: Rep
 
 function ReportFilterModalContent({
   entities,
+  activeDimension,
   onConfirm,
   onCancel,
 }: Omit<ReportFilterModalProps, 'isOpen'>) {
   const [selectedReps, setSelectedReps] = useState<string[]>([]);
   const [selectedZones, setSelectedZones] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  // WHY: Item-level text inputs — comma-separated raw strings parsed on confirm
+  const [brandText, setBrandText] = useState('');
+  const [productFamilyText, setProductFamilyText] = useState('');
+  const [countryText, setCountryText] = useState('');
+  const [foodServiceRetailText, setFoodServiceRetailText] = useState('');
   // WHY: Resets to false each time the modal opens. The outer component
   // only mounts ReportFilterModalContent while isOpen, so useState naturally
   // reinitializes on reopen (matches the existing pattern for filter state).
   const [forceRefresh, setForceRefresh] = useState<boolean>(false);
+
+  const activeFilters = FILTERS_BY_DIMENSION[activeDimension];
 
   const reps = useMemo(() => uniqueValues(entities, e => e.rep), [entities]);
   const zones = useMemo(() => uniqueValues(entities, e => e.zone), [entities]);
@@ -74,8 +104,18 @@ function ReportFilterModalContent({
     if (selectedReps.length > 0) filters.agentName = selectedReps;
     if (selectedZones.length > 0) filters.zone = selectedZones;
     if (selectedTypes.length > 0) filters.customerType = selectedTypes;
+    const brands = parseTextInput(brandText);
+    if (brands.length > 0) filters.brand = brands;
+    const families = parseTextInput(productFamilyText);
+    if (families.length > 0) filters.productFamily = families;
+    const countries = parseTextInput(countryText);
+    if (countries.length > 0) filters.countryOfOrigin = countries;
+    const fsValues = parseTextInput(foodServiceRetailText);
+    if (fsValues.length > 0) filters.foodServiceRetail = fsValues;
     onConfirm(filters, forceRefresh);
   };
+
+  const pluralLabel = DIMENSION_PLURAL_LABELS[activeDimension].toLowerCase();
 
   return (
     <motion.div
@@ -104,9 +144,27 @@ function ReportFilterModalContent({
           <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Please select</h2>
         </div>
 
-        <FilterField label="Sales Rep" options={reps} selected={selectedReps} onChange={setSelectedReps} />
-        <FilterField label="Zone" options={zones} selected={selectedZones} onChange={setSelectedZones} />
-        <FilterField label="Customer Type" options={types} selected={selectedTypes} onChange={setSelectedTypes} />
+        {activeFilters.includes('agentName') && (
+          <FilterField label="Sales Rep" options={reps} selected={selectedReps} onChange={setSelectedReps} />
+        )}
+        {activeFilters.includes('zone') && (
+          <FilterField label="Zone" options={zones} selected={selectedZones} onChange={setSelectedZones} />
+        )}
+        {activeFilters.includes('customerType') && (
+          <FilterField label="Customer Type" options={types} selected={selectedTypes} onChange={setSelectedTypes} />
+        )}
+        {activeFilters.includes('brand') && (
+          <TextFilterField label="Brand" value={brandText} onChange={setBrandText} placeholder="Brand A, Brand B" />
+        )}
+        {activeFilters.includes('productFamily') && (
+          <TextFilterField label="Product Family" value={productFamilyText} onChange={setProductFamilyText} placeholder="Family X, Family Y" />
+        )}
+        {activeFilters.includes('countryOfOrigin') && (
+          <TextFilterField label="Country" value={countryText} onChange={setCountryText} placeholder="Italy, France" />
+        )}
+        {activeFilters.includes('foodServiceRetail') && (
+          <TextFilterField label="FS vs Retail" value={foodServiceRetailText} onChange={setFoodServiceRetailText} placeholder="Y for Retail, N for Food Service" />
+        )}
 
         <label className="flex cursor-pointer items-start gap-[var(--spacing-sm)]">
           <input
@@ -126,7 +184,7 @@ function ReportFilterModalContent({
         </label>
 
         <p className="text-center text-[12px] text-[var(--color-text-muted)]">
-          Fetching data for {formatInteger(estimatedCount)} customers. Estimated 4&ndash;7 minutes.
+          Fetching data for {formatInteger(estimatedCount)} {pluralLabel}. Estimated 4&ndash;7 minutes.
         </p>
 
         <div className="flex gap-[var(--spacing-md)]">
@@ -233,6 +291,31 @@ function FilterField({ label, options, selected, onChange }: FilterFieldProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+interface TextFilterFieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}
+
+/** WHY: Item-level master data (brand, family, country, FS) is not exposed as a queryable list
+ *  endpoint yet. Free-text comma-separated input is a pragmatic first round; proper dropdowns
+ *  can be added once a master-data route exists. */
+function TextFilterField({ label, value, onChange, placeholder }: TextFilterFieldProps) {
+  return (
+    <div className="flex items-center justify-between gap-[var(--spacing-lg)]">
+      <label className="text-[13px] font-medium text-[var(--color-text-secondary)]">{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="flex-1 max-w-[240px] rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-page)] px-[var(--spacing-lg)] py-[var(--spacing-md)] text-[13px] text-[var(--color-text-secondary)] placeholder:text-[var(--color-text-faint)] focus:outline-none focus:ring-1 focus:ring-[var(--color-gold-primary)]"
+      />
     </div>
   );
 }

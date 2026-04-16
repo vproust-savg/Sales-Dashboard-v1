@@ -111,6 +111,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
       <ReportFilterModal
         isOpen={report.state === 'configuring'}
         entities={allEntities}
+        activeDimension={activeDimension}
         onConfirm={handleReportStart}
         onCancel={report.cancel}
       />
