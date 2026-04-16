@@ -1,9 +1,10 @@
 // FILE: server/src/services/priority-queries.ts
 // PURPOSE: Build OData query parameters for each Priority entity the dashboard needs
 // USED BY: server/src/routes/dashboard.ts, server/src/routes/contacts.ts
-// EXPORTS: fetchOrders, fetchCustomers, fetchZones, fetchAgents, fetchVendors, fetchContacts
+// EXPORTS: fetchOrders, fetchCustomers, fetchZones, fetchAgents, fetchVendors, fetchContacts, fetchProductTypes, fetchProducts
 
 import { PriorityClient } from './priority-client.js';
+import type { RawProductType } from '@shared/types/dashboard';
 import {
   ORDER_SELECT, ORDERITEM_SELECT, ORDERITEM_SELECT_PREV,
   CUSTOMER_SELECT, CONTACT_SELECT,
@@ -163,4 +164,22 @@ export async function fetchContacts(
   );
   if (results.length === 0) return [];
   return (results[0].CUSTPERSONNEL_SUBFORM ?? []).filter(c => c.INACTIVE !== 'Y');
+}
+
+/** Fetch distinct product-type (family-type) pairs from FAMILY_LOG.
+ *  WHY: FTCODE/FTNAME matches order items' Y_3020_5_ESH/Y_3021_5_ESH for the Product Type dim.
+ *  FAMILY_LOG has many part families grouped under few product types — dedupe by FTCODE. */
+export async function fetchProductTypes(client: PriorityClient, signal?: AbortSignal): Promise<RawProductType[]> {
+  const rows = await client.fetchAllPages<{ FTCODE: string | null; FTNAME: string | null }>('FAMILY_LOG', {
+    select: 'FTCODE,FTNAME',
+    orderby: 'FTCODE asc',
+    signal,
+  });
+  const seen = new Map<string, RawProductType>();
+  for (const r of rows) {
+    if (r.FTCODE && r.FTNAME && !seen.has(r.FTCODE)) {
+      seen.set(r.FTCODE, { FTCODE: r.FTCODE, FTNAME: r.FTNAME });
+    }
+  }
+  return [...seen.values()];
 }
