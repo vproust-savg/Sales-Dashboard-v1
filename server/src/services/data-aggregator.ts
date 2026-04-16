@@ -7,6 +7,7 @@ import type { KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, TopSeller
 import type { RawOrder, RawOrderItem, RawCustomer } from './priority-queries.js';
 import { computeKPIs, computeMonthlyRevenue, computeSparklines } from './kpi-aggregator.js';
 import { buildFlatItems } from './order-transforms.js';
+import { scopeOrders } from './entity-subset-filter.js';
 
 interface AggregateResult {
   kpis: KPIs;
@@ -22,20 +23,37 @@ interface AggregateResult {
 }
 
 export interface AggregateOptions {
-  /** When true, populate customerName on OrderRow using the customers lookup */
+  /** When true, populate customerName on OrderRow using the customers lookup. */
   preserveEntityIdentity?: boolean;
-  /** Customer lookup used to resolve CUSTNAME → CUSTDES; required when preserveEntityIdentity is true */
+  /** Customer lookup used to resolve CUSTNAME → CUSTDES and required for scope's zone dim. */
   customers?: RawCustomer[];
-  /** When set, compute per-entity breakdowns (perEntityProductMixes, perEntityTopSellers, perEntityMonthlyRevenue) */
-  dimension?: Dimension;
+  /** Consolidated-mode scope. When set:
+   *  - Global view: orders pre-filtered via scopeOrders(rawOrders, dim, entityIds, customers).
+   *  - When entityIds.length > 1, perEntity{ProductMixes,TopSellers,MonthlyRevenue} populated
+   *    via per-entity loop (Codex finding #2 fix).
+   *  WHY: pre-filter normalization keeps downstream aggregators dimension-agnostic. They sum
+   *  TOTPRICE; scopeOrders rewrites TOTPRICE for item-based dims so those sums stay correct. */
+  scope?: {
+    dimension: Dimension;
+    entityIds: string[];
+  };
 }
 
 export function aggregateOrders(
-  currentOrders: RawOrder[],
-  prevOrders: RawOrder[],
+  rawOrders: RawOrder[],
+  rawPrevOrders: RawOrder[],
   period: string,
   opts?: AggregateOptions,
 ): AggregateResult {
+  // WHY scope pre-filter: keeps downstream aggregators dimension-agnostic. scopeOrders
+  // narrows item-based dims and rewrites TOTPRICE = Σ QPRICE of in-scope items.
+  const currentOrders = opts?.scope && opts.customers
+    ? scopeOrders(rawOrders, opts.scope.dimension, new Set(opts.scope.entityIds), opts.customers)
+    : rawOrders;
+  const prevOrders = opts?.scope && opts.customers
+    ? scopeOrders(rawPrevOrders, opts.scope.dimension, new Set(opts.scope.entityIds), opts.customers)
+    : rawPrevOrders;
+
   /** WHY: $0 orders are noise — no revenue, no margin contribution. Filter before all downstream
    * consumers so both order rows and KPI counts are consistent. Negative totals (credit memos) kept. */
   const nonZeroOrders = currentOrders.filter(o => o.TOTPRICE !== 0);
@@ -56,10 +74,25 @@ export function aggregateOrders(
 
   const result: AggregateResult = { kpis, monthlyRevenue, productMixes, topSellers, sparklines, orders, items };
 
-  if (opts?.dimension) {
-    result.perEntityProductMixes = computePerEntityProductMixes(nonZeroOrders, opts.dimension);
-    result.perEntityTopSellers = computePerEntityTopSellers(nonZeroOrders, opts.dimension);
-    result.perEntityMonthlyRevenue = computePerEntityMonthlyRevenue(nonZeroOrders, prevOrders, opts.dimension);
+  if (opts?.scope && opts.customers && opts.scope.entityIds.length > 1) {
+    const perEntityProductMixes: Record<string, Record<ProductMixType, ProductMixSegment[]>> = {};
+    const perEntityTopSellers: Record<string, TopSellerItem[]> = {};
+    const perEntityMonthlyRevenue: Record<string, MonthlyRevenue[]> = {};
+    for (const entityId of opts.scope.entityIds) {
+      // WHY scope from rawOrders (not currentOrders): each entity needs its OWN filtered view
+      // from the unscoped source. Using currentOrders would double-filter (harmless but wasteful
+      // for item-based dims) and would need re-rewriting TOTPRICE per entity.
+      const perCurrent = scopeOrders(rawOrders, opts.scope.dimension, new Set([entityId]), opts.customers);
+      const perPrev = scopeOrders(rawPrevOrders, opts.scope.dimension, new Set([entityId]), opts.customers);
+      const perNonZero = perCurrent.filter(o => o.TOTPRICE !== 0);
+      const perItems = perNonZero.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
+      perEntityProductMixes[entityId] = computeAllProductMixes(perItems);
+      perEntityTopSellers[entityId] = computeTopSellers(perItems);
+      perEntityMonthlyRevenue[entityId] = computeMonthlyRevenue(perNonZero, perPrev);
+    }
+    result.perEntityProductMixes = perEntityProductMixes;
+    result.perEntityTopSellers = perEntityTopSellers;
+    result.perEntityMonthlyRevenue = perEntityMonthlyRevenue;
   }
 
   return result;
@@ -171,98 +204,4 @@ function computeOrderMarginPct(order: RawOrder): number {
   const revenue = items.reduce((s, i) => s + i.QPRICE, 0);
   const profit = items.reduce((s, i) => s + i.QPROFIT, 0);
   return revenue > 0 ? (profit / revenue) * 100 : 0;
-}
-
-/** Group orders by the entity key for the given dimension.
- * WHY: Per-customer toggle tables need breakdowns by entity. Returns a map
- * from entity-ID to the subset of orders belonging to that entity. For item-level
- * dimensions (vendor, brand, product_type, product), one order may appear under
- * multiple entity groups. */
-function groupOrdersByDimension(orders: RawOrder[], dimension: Dimension): Map<string, RawOrder[]> {
-  const groups = new Map<string, RawOrder[]>();
-
-  orders.forEach(order => {
-    const keys = extractDimensionKeys(order, dimension);
-    keys.forEach(key => {
-      if (!key) return;
-      const existing = groups.get(key);
-      if (existing) {
-        existing.push(order);
-      } else {
-        groups.set(key, [order]);
-      }
-    });
-  });
-
-  return groups;
-}
-
-function extractDimensionKeys(order: RawOrder, dimension: Dimension): string[] {
-  switch (dimension) {
-    case 'customer':
-    case 'zone':
-      // WHY: Zone lives on CUSTOMERS, not ORDERS — for per-entity breakdowns in consolidated mode,
-      // we group by CUSTNAME. The caller already filtered orders to the relevant entity IDs.
-      return [order.CUSTNAME];
-    case 'vendor': {
-      const vendors = new Set((order.ORDERITEMS_SUBFORM ?? []).map(i => i.Y_1159_5_ESH).filter(Boolean));
-      return [...vendors];
-    }
-    case 'brand': {
-      const brands = new Set((order.ORDERITEMS_SUBFORM ?? []).map(i => i.Y_9952_5_ESH).filter(Boolean));
-      return [...brands];
-    }
-    case 'product_type': {
-      const types = new Set((order.ORDERITEMS_SUBFORM ?? [])
-        .map(i => i.Y_3020_5_ESH || i.Y_3021_5_ESH).filter(Boolean));
-      return [...types];
-    }
-    case 'product': {
-      const skus = new Set((order.ORDERITEMS_SUBFORM ?? []).map(i => i.PARTNAME).filter(Boolean));
-      return [...skus];
-    }
-    default:
-      return [];
-  }
-}
-
-function computePerEntityProductMixes(
-  orders: RawOrder[],
-  dimension: Dimension,
-): Record<string, Record<ProductMixType, ProductMixSegment[]>> {
-  const grouped = groupOrdersByDimension(orders, dimension);
-  const result: Record<string, Record<ProductMixType, ProductMixSegment[]>> = {};
-  grouped.forEach((entityOrders, entityId) => {
-    const entityItems = entityOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
-    result[entityId] = computeAllProductMixes(entityItems);
-  });
-  return result;
-}
-
-function computePerEntityTopSellers(
-  orders: RawOrder[],
-  dimension: Dimension,
-): Record<string, TopSellerItem[]> {
-  const grouped = groupOrdersByDimension(orders, dimension);
-  const result: Record<string, TopSellerItem[]> = {};
-  grouped.forEach((entityOrders, entityId) => {
-    const entityItems = entityOrders.flatMap(o => o.ORDERITEMS_SUBFORM ?? []);
-    result[entityId] = computeTopSellers(entityItems);
-  });
-  return result;
-}
-
-function computePerEntityMonthlyRevenue(
-  orders: RawOrder[],
-  prevOrders: RawOrder[],
-  dimension: Dimension,
-): Record<string, MonthlyRevenue[]> {
-  const grouped = groupOrdersByDimension(orders, dimension);
-  const prevGrouped = groupOrdersByDimension(prevOrders, dimension);
-  const result: Record<string, MonthlyRevenue[]> = {};
-  grouped.forEach((entityOrders, entityId) => {
-    const prevEntityOrders = prevGrouped.get(entityId) ?? [];
-    result[entityId] = computeMonthlyRevenue(entityOrders, prevEntityOrders);
-  });
-  return result;
 }
