@@ -1,8 +1,29 @@
-# Dimension Parity & Master-Data Design (v2)
+# Dimension Parity & Master-Data Design (v3)
 
 **Date:** 2026-04-16
-**Status:** v2 — revised after 6-agent adversarial review (3 explorers + 3 architects)
-**Scope:** Bring zone, vendor, brand, product_type, and product dimensions to full feature parity with the customer dimension. Reuse the existing universal order cache and `entity-subset-filter` predicates. Fix the real root-cause of empty non-customer panels.
+**Status:** v3 — revised after Codex adversarial review (4 findings) and live Priority measurement
+**Scope:** Bring zone, **vendor** (priority), product_type, and product dimensions to full feature parity with the customer dimension. **Brand dimension is deferred to a future round** (user direction 2026-04-16). Reuse the existing universal order cache and `entity-subset-filter` predicates. Fix the real root-cause of empty non-customer panels.
+
+## Changes from v2 (Codex review)
+
+Codex (run against HEAD~2 after v2 was committed) found four blocking issues. Live Priority measurement confirmed two of them were empirically justified. Resolutions:
+
+| Codex finding | v2 position | v3 resolution |
+|---|---|---|
+| [high] Master-data IDs don't match order-item keys (vendor/brand) | Entity list = master-data-first with metrics merge | **Entity list = orders-derived (existing `groupByX`). Master data is reference-only** — name fallback + filter dropdowns. On cold boot, master data seeds a fast "skeleton" list for customer + zone dims only (measurable match ratios); for vendor/brand/product_type/product, the orders cache warm happens BEFORE the entity list is relied upon. |
+| [high] `groupOrdersByDimension` corrupts per-entity breakdowns when fed one consolidated-scoped order array | Normalize once, feed all aggregators | **Per-entity breakdowns (`perEntityProductMixes` / `perEntityTopSellers` / `perEntityMonthlyRevenue`) are computed by scoping separately per selected entity, not by reusing the consolidated normalized order array.** The single-scope pre-filter still applies to global KPIs/YoY/etc. |
+| [medium] `staleTime: Infinity` + `meta.enriched=false` → left panel stuck on skeletons forever | staleTime: Infinity | **When `meta.enriched=false`, the entities query uses `staleTime: 0` and `refetchInterval: 15000` (poll every 15s) until `meta.enriched` becomes true. After enrichment: `staleTime: 5min`.** Server-driven refresh via a `/cache-status` poll is the alternative if polling pressure is a concern. |
+| [medium] "Dedupe by email" in non-customer contacts drops customer-contact relationships | Dedupe by email | **No cross-customer dedup.** One row per `(customer, email)` pair. UI already shows a Customer column in `ConsolidatedContactsTable` — preserved. Within a single customer's contact list, duplicate emails (rare) are deduped. |
+
+**Additional changes from user direction (2026-04-16):**
+1. **Drop the `STATDES='Active'` filter on SUPPLIERS.** Live verification showed V8534 (a vendor appearing in current orders) is `Inactive` — filtering by active would leave orders with unresolvable vendors. Include all SUPPLIERS in the master cache.
+2. **Remove brand dimension from this round's scope.** Brand left-panel toggle stays in the UI but continues to work as it does today (derived from orders only) and is NOT a parity target. The brand join-ratio problem (see below) is therefore moot for this round. Brand is preserved as a **filter field** (on vendor / product_type / product dimensions) — `Y_9952_5_ESH` on order items is a first-class filter attribute.
+
+### Live measurement results (used to ground design)
+
+- **Vendor codes (sample of 63 from 50 orders): all resolve in SUPPLIERS.** Vendor join is tight. But 38/232 SUPPLIERS (16%) are `Inactive` — if filtered out, active orders containing inactive vendors break. → STATDES filter dropped.
+- **Product type (FAMILY_LOG.FTCODE): only 3 distinct values** (Culinary, Pastry, Beverages) — all match orders.
+- **Brand (deferred, measured for future reference): only 78.6% join ratio** (66 of 84 orders-brands match SPEC4VALUES). This is the reason brand-dim parity would have been fragile; deferring is the right call.
 
 ---
 
@@ -61,24 +82,30 @@ User requirements:
 
 ## 2. Dimension Semantics
 
-Single source of truth. Verified live against Priority UAT on 2026-04-16.
+Single source of truth for the 5 in-scope dimensions. Brand is out-of-scope this round (deferred — see §10).
 
-| Dimension | Master entity (filter) | Entity `id` | Entity `name` | Order-predicate | Item-predicate | KPI revenue method |
-|---|---|---|---|---|---|---|
-| customer | CUSTOMERS | CUSTNAME | CUSTDES | `CUSTNAME ∈ ids` | `true` (keep all items) | Σ TOTPRICE |
-| zone | DISTRLINES | ZONECODE | ZONEDES | `custZoneMap[CUSTNAME] ∈ ids` | `true` | Σ TOTPRICE |
-| vendor | SUPPLIERS `STATDES='Active'` | SUPNAME | SUPDES | order has any item with `Y_1159_5_ESH ∈ ids` | `Y_1159_5_ESH ∈ ids` | Σ QPRICE of scoped items |
-| brand | SPEC4VALUES | SPECVALUE | SPECVALUE | order has any item with `Y_9952_5_ESH ∈ ids` | `Y_9952_5_ESH ∈ ids` | Σ QPRICE of scoped items |
-| product_type | FAMILY_LOG distinct `FTCODE` | FTCODE | FTNAME | order has any item with `Y_3020_5_ESH ∈ ids` | `Y_3020_5_ESH ∈ ids` | Σ QPRICE of scoped items |
-| product | LOGPART `STATDES='In Use'` | PARTNAME | PARTDES | order has any item with `PARTNAME ∈ ids` | `PARTNAME ∈ ids` | Σ QPRICE of scoped items |
+| Dimension | Entity ID source | Entity `name` source | Order-predicate | Item-predicate | KPI revenue method |
+|---|---|---|---|---|---|
+| customer | `CUSTOMERS.CUSTNAME` (master) | `CUSTDES` | `CUSTNAME ∈ ids` | `true` (keep all items) | Σ TOTPRICE |
+| zone | `DISTRLINES.ZONECODE` (master) | `ZONEDES` | `custZoneMap[CUSTNAME] ∈ ids` | `true` | Σ TOTPRICE |
+| vendor | **Order item `Y_1159_5_ESH`** (not SUPNAME) | `Y_1530_5_ESH` on item, fallback `SUPPLIERS[code].SUPDES` | order has any item with `Y_1159_5_ESH ∈ ids` | `Y_1159_5_ESH ∈ ids` | Σ QPRICE of scoped items |
+| product_type | **Order item `Y_3020_5_ESH`** (falls back to `Y_3021_5_ESH`) | `Y_3021_5_ESH` on item, fallback `FAMILY_LOG[FTCODE].FTNAME` | order has any item with `Y_3020_5_ESH ∈ ids` | `Y_3020_5_ESH ∈ ids` | Σ QPRICE of scoped items |
+| product | **Order item `PARTNAME`** | `PDES` on item, fallback `LOGPART[PARTNAME].PARTDES` | order has any item with `PARTNAME ∈ ids` | `PARTNAME ∈ ids` | Σ QPRICE of scoped items |
 
-**Key compatibility verified live:** `Y_1159_5_ESH` ("V8534") ↔ `SUPNAME` ("V00001") — V-prefix; `Y_9952_5_ESH` ("ANTICA VALLE DOFANTA") ↔ `SPECVALUE` ("ACETUM") — uppercase brand name; `Y_3020_5_ESH`/`Y_3021_5_ESH` ("01"/"Culinary") ↔ `FTCODE`/`FTNAME` — exact match. Brand join uses case-sensitive comparison; if Priority writes drift to mixed case we fall back to `toLowerCase()` on both sides (tracked as risk, not yet observed).
+**Critical correctness note (Codex finding #1):** for item-based dimensions (vendor, product_type, product), the entity ID is **the exact field that appears on the order item**, NOT the master-data primary key. This guarantees the scope predicate always matches. Master data provides canonical names (via left-join fallback) and populates filter dropdowns with reference values, but does not define the entity universe.
+
+**Key format verified live:**
+- `Y_1159_5_ESH` = `V8534` → joins to `SUPPLIERS.SUPNAME = V8534` (V-prefix convention, all tested samples resolve).
+- `Y_3020_5_ESH` = `01` → joins to `FAMILY_LOG.FTCODE = 01` (tight match, 3 distinct values total).
+- `PARTNAME` = `15992` → joins to `LOGPART.PARTNAME = 15992` (tight match).
 
 ---
 
-## 3. Architecture — Pre-Filter Normalization
+## 3. Architecture — Pre-Filter Normalization + Per-Entity Scoping
 
 **Core insight (from clean-architecture review):** don't branch aggregator logic on `isItemBased`. Instead, **scope-normalize the orders array before any aggregator runs.** After normalization, aggregators are dimension-agnostic and the existing `TOTPRICE`-summing math is correct by construction.
+
+**Codex finding #2 correction:** the single-pass normalization is correct for **global** KPIs / YoY / product-mix / top-sellers / orders-tab / items-tab. It is **wrong** for **per-entity breakdowns** (`perEntityProductMixes`, `perEntityTopSellers`, `perEntityMonthlyRevenue` in consolidated mode), because a shared order containing items from multiple selected entities would be reused across buckets with a single aggregated `TOTPRICE`, causing double-count and cross-contamination. Per-entity breakdowns must be computed by **re-scoping per entity, one entity at a time**, not by reusing the consolidated normalized order array.
 
 ### The normalization step (new function in `entity-subset-filter.ts`)
 
@@ -109,17 +136,28 @@ GET /dashboard  │  orders_ytd (universal)  │
                             ▼
                  ┌─────────────────────┐
                  │  scopeOrders(       │  ← only new logic (30-40 LOC)
-                 │    orders, dim, ids │
+                 │    orders, dim, ids │  ← scoped ORDERITEMS + TOTPRICE rewritten
                  │  )                  │
                  └──────────┬──────────┘
                             ▼
-                 ┌─────────────────────┐
-                 │  aggregateOrders    │  ← existing function, unchanged
-                 │  (scoped orders)    │
-                 └──────────┬──────────┘
-                            ▼
-                     DashboardPayload
+      ┌─────────────────────────┬────────────────────────────────────┐
+      ▼                         ▼                                    ▼
+┌──────────────┐      ┌──────────────────────┐        ┌──────────────────────────────┐
+│  Global KPIs │      │  Global aggregations │        │  Per-entity breakdowns        │
+│  (unchanged) │      │  (unchanged):        │        │  (consolidated mode only):    │
+└──────┬───────┘      │  YoY, mix, top-sell, │        │  FOR entityId in entityIds:   │
+       │              │  orders, items       │        │    entityOrders =             │
+       │              └──────────┬───────────┘        │      scopeOrders(raw orders,  │
+       │                         │                    │        dim, {entityId})       │
+       │                         │                    │    compute perEntity[i] from  │
+       │                         │                    │      entityOrders separately  │
+       └────────┬────────────────┘                    └──────────────┬────────────────┘
+                ▼                                                    ▼
+                                   DashboardPayload
+                       (global + per-entity maps from separate scopings)
 ```
+
+**The `perEntity*` loop is the key correctness fix.** In `aggregateOrders`, after the global pipeline runs on `scopedOrders`, a separate loop iterates `entityIds`, calls `scopeOrders(rawOrders, dim, new Set([entityId]))` once per entity, and computes each per-entity slice from that entity's OWN scoped order array. No single order object is reused across entity buckets. This scales O(n × k) where n = orders, k = selected entities; for typical consolidated selections (≤10 entities), this is an immaterial constant factor.
 
 ### Why pre-filter beats scope-inside-aggregator
 
@@ -152,20 +190,28 @@ GET /api/sales/entities?groupBy=<dim>&period=ytd
 
 **Zero-vs-null contract** (agent finding): entities that exist in master data but have zero orders this period return `{ revenue: 0, orderCount: 0, ... }`, not `null`. `null` means "not loaded yet." Clients distinguish skeleton (null) vs zero-display ("0 orders") based on this.
 
-### Seven master-data caches
+### Five master-data caches (brand dropped per user direction)
 
 All warm-cached at server startup via `Promise.all`, TTL 24h. Cache keys via `cacheKey()` — consistent with existing `dashboard:customers:all`.
 
-| Key (`cacheKey` form) → Redis key | Priority entity | Filter | Select |
-|---|---|---|---|
-| `cacheKey('customers','all')` → `dashboard:customers:all` | CUSTOMERS | none | existing |
-| `cacheKey('zones','all')` → `dashboard:zones:all` | DISTRLINES | none | `DISTRLINECODE,DISTRLINEDES,ZONECODE,ZONEDES` |
-| `cacheKey('vendors','all')` → `dashboard:vendors:all` | SUPPLIERS | `STATDES eq 'Active'` | `SUPNAME,SUPDES,STATDES` |
-| `cacheKey('brands','all')` → `dashboard:brands:all` | SPEC4VALUES | none | `SPECVALUE` |
-| `cacheKey('product_types','all')` → `dashboard:product_types:all` | FAMILY_LOG | none (dedup FTCODE in-memory) | `FTCODE,FTNAME` |
-| `cacheKey('products','all')` → `dashboard:products:all` | LOGPART | `STATDES eq 'In Use'` | `PARTNAME,PARTDES,FAMILYNAME,Y_9952_5_ESH,STATDES` |
+| Key (`cacheKey` form) → Redis key | Priority entity | Filter | Select | Purpose |
+|---|---|---|---|---|
+| `cacheKey('customers','all')` → `dashboard:customers:all` | CUSTOMERS | none | existing | Customer dim entity list + zone/type joins |
+| `cacheKey('zones','all')` → `dashboard:zones:all` | DISTRLINES | none | `DISTRLINECODE,DISTRLINEDES,ZONECODE,ZONEDES` | Zone dim entity list |
+| `cacheKey('vendors','all')` → `dashboard:vendors:all` | SUPPLIERS | **none** (all, incl. Inactive) | `SUPNAME,SUPDES,STATDES` | Vendor **name resolution + filter dropdown values** |
+| `cacheKey('product_types','all')` → `dashboard:product_types:all` | FAMILY_LOG | none (dedup FTCODE in-memory) | `FTCODE,FTNAME` | ProductType **name resolution + filter dropdown values** |
+| `cacheKey('products','all')` → `dashboard:products:all` | LOGPART | `STATDES eq 'In Use'` | `PARTNAME,PARTDES,FAMILYNAME,Y_9952_5_ESH,STATDES` | Product **name resolution + filter dropdown values** |
 
-**Customer Type values for filter dropdowns** are derived from `customers:all` via `[...new Set(customers.map(c => c.CTYPENAME).filter(Boolean))]`. No separate `ctype:all` cache. No `fetchCustomerTypes`.
+**Role of master data per dimension** (consolidated after Codex review):
+
+- **customer / zone**: master data **defines the entity list** (same as today for customers). CUSTOMERS is 1876; DISTRLINES has ~20 zones. These are small, stable, and complete.
+- **vendor / product_type / product**: master data is **reference only**. Entity list for these dims is orders-derived via existing `groupByVendor` / `groupByProductType` / `groupByProduct`. Master data is used to:
+  1. **Fallback name resolution** — if an item's `Y_1530_5_ESH` (vendor name) is empty, lookup `SUPPLIERS[SUPNAME=Y_1159_5_ESH].SUPDES`.
+  2. **Filter dropdown values** — e.g., when filtering vendors by "Country of Origin", populate the dropdown with all distinct `Y_5380_5_ESH` values in cached orders (orders-derived, not master-derived). Reserve master data for future: showing all possible filter values.
+
+**Customer Type values for filter dropdowns** are derived from `customers:all` via `[...new Set(customers.map(c => c.CTYPENAME).filter(Boolean))]`. No separate `ctype:all` cache.
+
+**Brand filter values** (Brand is not a dimension this round but IS still a filter field): derived from distinct `Y_9952_5_ESH` values in cached orders. No SPEC4VALUES cache needed.
 
 ### Rate-limit mitigation during cold startup
 
@@ -173,7 +219,7 @@ Master-data fetches (~5 small calls) run in parallel, but `fetchOrders` is a lon
 
 ### `cache-keys.ts` extensions (build-order critical)
 
-- Add `'zones' | 'vendors' | 'brands' | 'product_types' | 'products'` to `CacheEntity` union.
+- Add `'zones' | 'vendors' | 'product_types' | 'products'` to `CacheEntity` union. (Brand not cached this round.)
 - Add TTLs to `CACHE_TTLS` in `constants.ts` (24h for all five).
 - Extend `buildFilterHash` to accept the 4 new item-level filter fields: `brand`, `productFamily`, `countryOfOrigin`, `foodServiceRetail`. **Without this, two Report requests that differ only by brand filter collide on the same aggregated cache key.**
 - Add `buildEntitySetHash(ids: string[]): string` that sorts then joins then hashes. Only caller (for now): the optional contacts cache if we later decide to add one. Single canonical implementation avoids filter-hash-mismatch bugs documented in `learnings/universal-order-cache-pattern.md`.
@@ -201,11 +247,11 @@ Master-data fetches (~5 small calls) run in parallel, but `fetchOrders` is a lon
 | `services/data-aggregator.ts` | 366 | ~220 | Extract `order-transforms.ts`. Accept scoped orders; no scope awareness inside aggregator. |
 | `services/kpi-aggregator.ts` | 314 | ~260 | No behavior change — aggregators consume scoped orders. Inline-extract 2 private quarter/month helpers to stay under 300 LOC without a new file. |
 | `services/customer-filter.ts` | 61 | ~110 | Add `filterOrdersByItemCriteria(orders, { brand?, productFamily?, countryOfOrigin?, foodServiceRetail? })`. Composable with existing customer-level filters. |
-| `services/priority-queries.ts` | 167 | ~240 | Add `fetchBrands`, `fetchProductTypes`, `fetchProducts`. Update `fetchVendors` to filter `STATDES='Active'`. Add 4 new raw types. `fetchZones` already reads DISTRLINES (unchanged). |
-| `services/warm-cache.ts` | 50 | ~100 | Warm 5 new master caches in parallel. Apply 500ms delay before `fetchOrders` to respect rate limits. Remove the "skip when orders_raw_meta exists" guard for master-data fetches (master data should always refresh on startup). |
+| `services/priority-queries.ts` | 167 | ~220 | Add `fetchProductTypes` (FAMILY_LOG), `fetchProducts` (LOGPART with `STATDES='In Use'`). Keep existing `fetchVendors` (SUPPLIERS, **no STATDES filter** — include all). Add raw types for new fetches. `fetchZones` already reads DISTRLINES (unchanged). **Brand / SPEC4VALUES NOT added** (brand dim deferred). |
+| `services/warm-cache.ts` | 50 | ~90 | Warm 3 new master caches (vendors, product_types, products) in parallel alongside existing customers. Apply 500ms delay before `fetchOrders` to respect rate limits. Remove the "skip when orders_raw_meta exists" guard for master-data fetches (master data should always refresh on startup). |
 | `routes/dashboard.ts` | 104 | ~130 | Drop the `groupBy === 'customer'` special-case at line 40. Drop the buggy `entity_detail` cache writes for non-customer dims (silent-corruption fix). Normalize `entityId → [entityId]` at the Zod schema layer. Build predicate from `entity-subset-filter` helpers, call `scopeOrders`, then feed to `aggregateOrders`. |
 | `routes/entities.ts` | 89 | ~130 | Always read master cache for the dimension. When orders cache warm, enrich metrics. When cold, return null metrics. Replaces the `entity-stub-builder` path. |
-| `routes/contacts.ts` | ~80 | ~130 | Accept `dimension` + `entityId(s)`. For `customer`: unchanged. For other dims: resolve `customerIds` lazily via `scopeOrders` → collect `CUSTNAME`s → single batched Priority call `CUSTOMERS?$filter=CUSTNAME in (…)&$expand=CUSTPERSONNEL_SUBFORM(...)`. Dedupe by email. **No contacts_scope cache** (Karpathy review: cache hit rate ~0% in practice). |
+| `routes/contacts.ts` | ~80 | ~130 | Accept `dimension` + `entityId(s)`. For `customer`: unchanged. For other dims: resolve `customerIds` lazily via `scopeOrders` → collect `CUSTNAME`s → single batched Priority call `CUSTOMERS?$filter=CUSTNAME in (…)&$expand=CUSTPERSONNEL_SUBFORM(...)`. **One row per `(customer, email)` pair (Codex finding #4)** — no cross-customer dedup. Within a single customer, duplicate emails (rare) are deduped. Each `Contact` carries `customerName` for the existing Customer column in `ConsolidatedContactsTable`. **No contacts_scope cache** (Karpathy review: cache hit rate ~0% in practice). |
 | `routes/fetch-all.ts` | 307 | ~300 | Accept `dimension` + item-attribute filters (Zod). Call `filterOrdersByItemCriteria` after existing customer-level filters. Build entity predicate from `entity-subset-filter` helpers (already imported). No file extraction — fits under 300 after dropping the removed entity_detail write. |
 | `cache/cache-keys.ts` | 54 | ~80 | Add 5 new `CacheEntity` values. Extend `buildFilterHash` signature with 4 new item filter fields. Add `buildEntitySetHash(ids)`. |
 
@@ -220,7 +266,7 @@ Master-data fetches (~5 small calls) run in parallel, but `fetchOrders` is a lon
 | `hooks/useDashboardState.ts` | **L86**: drop `activeDimension === 'customer'` gate on `useContacts`. **L91-99**: drop gates on consolidated contacts. **L122**: parameterize the "Loading…" label via a `DIMENSION_PLURAL_LABELS` map. |
 | `hooks/useReport.ts` | Pass `dimension` + extended filters. |
 | `hooks/build-report-url.ts` | Serialize the 4 new `FetchAllFilters` fields into the SSE URL. |
-| `utils/filter-types.ts` | Add `brand` / `productType` / `countryOfOrigin` / `foodServiceRetail` to `FilterField` union. Extend `DIMENSION_FILTER_FIELDS` per dimension (vendor/brand/product_type/product can filter by these item-attrs). Add `DIMENSION_PLURAL_LABELS` and `DIMENSION_SINGULAR_LABELS` maps used across the UI. |
+| `utils/filter-types.ts` | Add `brand` / `productType` / `countryOfOrigin` / `foodServiceRetail` to `FilterField` union (as filter attributes, not as dimensions). Extend `DIMENSION_FILTER_FIELDS` per in-scope dim (vendor/product_type/product can filter by these item-attrs). Add `DIMENSION_PLURAL_LABELS` and `DIMENSION_SINGULAR_LABELS` maps used across the UI. |
 | `components/right-panel/RightPanel.tsx` | Thread `activeDimension` prop to `DetailHeader`. |
 | `components/right-panel/DetailHeader.tsx` | Use `DIMENSION_SINGULAR_LABELS[activeDimension]` for empty-state: "All Customers" / "All Vendors" / etc. |
 | `components/right-panel/TabsSection.tsx` | Contacts tab rendered for every dimension. |
@@ -235,7 +281,7 @@ Master-data fetches (~5 small calls) run in parallel, but `fetchOrders` is a lon
 
 | File | Change |
 |---|---|
-| `shared/types/dashboard.ts` | Add `RawBrand`, `RawProductType`, `RawProduct` types. Extend `FetchAllFilters` with `brand`, `productFamily`, `countryOfOrigin`, `foodServiceRetail`. Add `DIMENSION_SINGULAR_LABELS` + `DIMENSION_PLURAL_LABELS` constants. |
+| `shared/types/dashboard.ts` | Add `RawProductType`, `RawProduct` types (not `RawBrand` — brand dim deferred). Extend `FetchAllFilters` with `brand`, `productFamily`, `countryOfOrigin`, `foodServiceRetail` (as filter fields). Add `DIMENSION_SINGULAR_LABELS` + `DIMENSION_PLURAL_LABELS` constants. |
 
 ### LOC Compliance After Changes
 
@@ -345,7 +391,12 @@ export interface FetchAllFilters {
 5. **Contacts batch size** — batch `CUSTOMERS?$filter=CUSTNAME in (...)` at 50 CUSTNAMEs/call to stay under OData filter-length limits.
 6. **SSE abort on fetch-all** — existing `AbortSignal` pattern preserved; `scopeOrders` is pure and bails on signal.
 7. **Silent data-corruption fix** — `dashboard.ts:45-65` pre-existing behavior writes `entity_detail` cache key with un-scoped orders whenever `groupBy !== 'customer'`. **Removing this write is part of this change.** Confirm no downstream reads depend on the corrupt cache. Grep says no other reader; safe to drop.
-8. **TanStack staleTime defaults** — master-data query: `staleTime: Infinity` (invalidate only on dimension change). Dashboard query per `(dimension, period, entityIds)` key: `staleTime: 5min`. Documented in hook JSDoc to avoid refetch storms on dimension toggle.
+8. **TanStack staleTime defaults (Codex finding #3 resolution)** — the entities query has a **conditional policy based on `meta.enriched`**:
+   - When `meta.enriched === false` (cold boot, orders cache not yet warm): `staleTime: 0`, `refetchInterval: 15000` (poll every 15s). Stops once `meta.enriched === true`.
+   - When `meta.enriched === true`: `staleTime: 5min`, `refetchInterval: false`.
+   - Dimension change always triggers an immediate refetch (separate queryKey).
+   Dashboard query per `(dimension, period, entityIds)` key: `staleTime: 5min`, `refetchInterval: false`.
+   Documented in hook JSDoc to avoid refetch storms. **Never `staleTime: Infinity`** — would leave users stuck on skeleton metrics forever if `useReport` never fires.
 
 ---
 
@@ -375,8 +426,10 @@ export interface FetchAllFilters {
 1. Cold Railway deploy — verify all 7 master caches populate in parallel in <10s.
 2. Cold cache, navigate to Vendor dim — expect master-data list rendered with skeleton metric cells; within ~30s fetch-all populates and numbers fill in.
 3. Click each of 6 dimensions → select an entity → verify KPIs, YoY chart, product mix, orders tab, items tab, contacts tab.
-4. Multi-select on Brand dim (3 brands) → verify consolidated dashboard.
-5. Report export on Vendor dim with `brand` + `countryOfOrigin` filters → verify SSE completes and CSV contains only scoped rows.
+4. Multi-select on Vendor dim (3 vendors) → verify consolidated dashboard + perEntity breakdowns (confirming Codex #2 fix).
+5. Report export on Vendor dim with `brand` + `countryOfOrigin` item-attribute filters → verify SSE completes and CSV contains only scoped rows.
+6. Cold-boot simulation: clear Redis, navigate to Vendor dim → verify `/entities` returns quickly with `meta.enriched=false`, polls, then transitions to `enriched=true` within 30s.
+7. Consolidated contacts on Vendor dim with 3 vendors → verify customer column shows correct per-customer attribution (Codex #4 fix).
 
 ### Regression (must pass identically to today)
 
@@ -388,17 +441,18 @@ export interface FetchAllFilters {
 
 ## 10. Out of Scope (tracked for future rounds)
 
-1. **Vendor-contacts tab** (new Priority form TBD). Separate spec when credentials provided.
-2. **Per-customer breakdown cards/tabs** on non-customer dims.
-3. **`KPISection.getActivityStatus` copy** — "Active buyer" / "At risk" wording is customer-specific but renders valid data for non-customer dims. Rename deferred.
-4. **`useExport.ts` CSV dimension/entity context line** — deferred clarity improvement.
-5. **Contacts scope cache** — if measured latency justifies it later, add `contacts_scope:{dim}:{buildEntitySetHash(ids)}` with the pre-built hash helper.
+1. **Brand dimension parity** (deferred per user 2026-04-16). Brand toggle stays in the UI but behaves as today (orders-derived, non-priority). The 78.6% brand ↔ SPEC4VALUES join ratio makes master-data fast-load fragile; revisit when brand data is reconciled in Priority.
+2. **Vendor-contacts tab** (new Priority form TBD). Separate spec when credentials provided.
+3. **Per-customer breakdown cards/tabs** on non-customer dims.
+4. **`KPISection.getActivityStatus` copy** — "Active buyer" / "At risk" wording is customer-specific but renders valid data for non-customer dims. Rename deferred.
+5. **`useExport.ts` CSV dimension/entity context line** — deferred clarity improvement.
+6. **Contacts scope cache** — if measured latency justifies it later, add `contacts_scope:{dim}:{buildEntitySetHash(ids)}` with the pre-built hash helper.
 
 ---
 
 ## 11. Rollout & Sequencing
 
-### Build order (critical to avoid Railway TS failures)
+### Build order (critical to avoid Railway TS failures; vendor-first per user priority)
 
 1. **Foundation** (no behavior change, safe to land first):
    - `cache-keys.ts` + `constants.ts` — new `CacheEntity` values, `buildFilterHash` signature, `buildEntitySetHash`.
@@ -406,23 +460,28 @@ export interface FetchAllFilters {
    - `entity-subset-filter.ts` — add `scopeOrders`; existing `filterOrdersByEntityIds` preserved for back-compat.
    - `customer-filter.ts` — add `filterOrdersByItemCriteria`.
 
-2. **Master data**:
-   - `priority-queries.ts` — new `fetchX` functions + `STATDES='Active'` on vendors.
-   - `warm-cache.ts` — warm 5 new caches in parallel with rate-limit delay.
+2. **Master data (vendor first — user priority)**:
+   - `priority-queries.ts` — `fetchProductTypes`, `fetchProducts` (LOGPART `In Use`). `fetchVendors` already exists; just ensure it has NO STATDES filter.
+   - `warm-cache.ts` — warm 3 new caches in parallel with 500ms-delayed `fetchOrders` start.
 
-3. **Backend integration**:
+3. **Backend integration (vendor-first path)**:
    - `data-aggregator.ts` + `order-transforms.ts` — extract transforms (pure refactor, no semantic change).
    - `kpi-aggregator.ts` — inline-extract 2 private helpers (pure refactor).
-   - `dashboard.ts` — drop customer-only guard, remove entity_detail write, call `scopeOrders`.
-   - `entities.ts` + `entity-list-builder.ts` — master-data-first flow; delete `entity-stub-builder.ts`.
-   - `contacts.ts` — dimension-aware resolution.
+   - `dashboard.ts` — drop customer-only guard, remove entity_detail write, call `scopeOrders` for all dims.
+   - **`aggregateOrders` perEntity loop** — implement per-entity re-scoping for consolidated breakdowns (Codex finding #2).
+   - `entities.ts` + `entity-list-builder.ts` — master-data list for customer/zone dims; orders-derived list for vendor/product_type/product with name-fallback left-join.
+   - `contacts.ts` — dimension-aware resolution; one row per (customer, email).
    - `fetch-all.ts` — accept new filters; apply item predicates.
 
 4. **Client integration**:
    - Shared types flow through.
-   - `utils/filter-types.ts` — new filter fields + label maps.
-   - Hooks updated.
+   - `utils/filter-types.ts` — new filter fields + label maps; `DIMENSION_FILTER_FIELDS` updated for in-scope dims only.
+   - Hooks updated — entities query with conditional staleTime/refetchInterval based on `meta.enriched`.
    - Components updated (bottom-up: shared types → hooks → components).
+
+5. **Vendor smoke test before proceeding to other dims**:
+   - Land steps 1-4 for the vendor dimension first. Validate end-to-end (entity list, single-entity detail, consolidated, Report, Contacts tab with resolved customers).
+   - Then flip on product_type, product, zone in the same release or subsequent deploys.
 
 Each step independently testable. Each must pass pre-deploy checks before the next lands. No feature flag; instead, incremental safe-by-default changes.
 
@@ -448,7 +507,16 @@ Each step independently testable. Each must pass pre-deploy checks before the ne
 
 ---
 
-## 13. Karpathy Sanity Check
+## 13. Codex Finding Resolution Summary
+
+| Finding | Severity | Resolution |
+|---|---|---|
+| #1 Master-data IDs don't match order-item keys | [high] | Entity ID for vendor/product_type/product = order-item field, not master-data PK. Master data = reference only (names + filter dropdowns). Brand dim deferred entirely. |
+| #2 `groupOrdersByDimension` corrupts per-entity breakdowns | [high] | Consolidated `perEntity*` computation loops per entity and re-scopes via `scopeOrders(rawOrders, dim, {entityId})` for each. No reuse of consolidated normalized orders. |
+| #3 Entities query stuck on skeleton with `staleTime: Infinity` | [medium] | Conditional policy: when `meta.enriched=false` → `staleTime: 0`, `refetchInterval: 15s`. When enriched → `staleTime: 5min`. |
+| #4 Email dedup collapses customer-contact relationships | [medium] | One row per `(customer, email)` pair. Within a single customer only, duplicate emails deduped. Customer column in `ConsolidatedContactsTable` preserved. |
+
+## 14. Karpathy Sanity Check
 
 - **Every change traces to a user requirement** — yes; the "Out of scope" section lists four items deferred because they don't trace cleanly.
 - **No speculative abstractions** — `entity-scope.ts` dropped; reused existing `entity-subset-filter.ts`. `master-data.ts` wrapper dropped. `kpi-breakdowns.ts` / `fetch-all-filters.ts` / `product-mix-aggregator.ts` / `ctype:all` / `contacts_scope` all dropped.
