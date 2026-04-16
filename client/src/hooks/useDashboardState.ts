@@ -14,6 +14,7 @@ import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
 import type { FilterField, FilterOperator } from '../utils/filter-types';
 import type { Dimension } from '@shared/types/dashboard';
+import { DIMENSION_PLURAL_LABELS } from '@shared/types/dashboard';
 import { useDashboardShellState } from './useDashboardShellState';
 
 export function useDashboardState() {
@@ -82,20 +83,19 @@ export function useDashboardState() {
   const dashboard = detailQuery.data?.data ?? null;
   const meta = detailQuery.data?.meta ?? entitiesQuery.data?.meta ?? null;
 
-  // WHY: Contacts only load for the customer dimension when the Contacts tab is active.
-  const contactsQuery = useContacts(activeEntityId, activeDimension === 'customer');
+  // WHY: Contacts load for any dimension — server resolves to customer contacts via scopeOrders.
+  const contactsQuery = useContacts(activeDimension, activeEntityId, !!activeEntityId);
 
-  // WHY: In consolidated mode, the active entity is the set of loaded entity IDs.
-  // We derive them from whichever mode is loaded and fetch contacts via the multi-
-  // customer endpoint so ConsolidatedContactsTable has customerName-annotated rows.
+  // WHY: In consolidated mode, entity IDs come from report.payload regardless of dimension.
+  // Server resolves non-customer dims to customer contacts via scopeOrders.
   const consolidatedContactIds = useMemo(() => {
-    if (activeDimension !== 'customer') return [] as string[];
     if (report.state === 'loaded' && report.payload) return report.payload.entities.map(e => e.id);
     return [] as string[];
-  }, [activeDimension, report.state, report.payload]);
+  }, [report.state, report.payload]);
   const consolidatedContactsQuery = useConsolidatedContacts(
+    activeDimension,
     consolidatedContactIds,
-    activeDimension === 'customer' && consolidatedContactIds.length > 0,
+    consolidatedContactIds.length > 0,
   );
 
   // --- Client-side pipeline: search -> filter -> sort (spec Section 6) ---
@@ -119,7 +119,7 @@ export function useDashboardState() {
 
   // --- Loading stage for progress modal ---
   const loadingStage = entitiesQuery.isLoading
-    ? 'Loading customers...'
+    ? `Loading ${DIMENSION_PLURAL_LABELS[activeDimension].toLowerCase()}...`
     : detailQuery.isLoading
       ? 'Loading dashboard data...'
       : null;
