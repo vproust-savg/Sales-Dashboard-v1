@@ -106,7 +106,17 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
   }
 });
 
-/** Read orders from the universal per-order cache; fall back to Priority fetch on miss. */
+/** Read orders from the universal per-order cache; fall back to Priority fetch on miss.
+ *  WHY two layers:
+ *    Layer 1 — readOrders(period, 'all'): universal per-order cache populated by fetch-all.ts
+ *      (the Report flow). Fastest path; covers the typical "user runs Report, then shares
+ *      dashboard" operational pattern.
+ *    Layer 2 — cachedFetch(cacheKey(cacheEntity, period), ...): legacy bulk cache populated
+ *      by warm-cache.ts on server startup. Covers the cold-boot case when no Report has
+ *      ever run. 15-minute TTL (orders_ytd) means a fresh deploy without Report runs will
+ *      re-fetch every 15 minutes.
+ *  A future task could update warm-cache.ts to write the per-order cache instead, unifying
+ *  these paths — but that migration is out of scope for the dimension-parity rollout. */
 async function readOrdersOrFallback(
   period: string,
   cacheEntity: 'orders_ytd' | 'orders_year',
