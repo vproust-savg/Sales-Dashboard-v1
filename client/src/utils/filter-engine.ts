@@ -72,7 +72,9 @@ function evaluateCondition(entity: EntityListItem, cond: FilterCondition): boole
   }
 }
 
-/** WHY: Direct property access from enriched EntityListItem — no label translation needed */
+/** WHY: Direct property access from enriched EntityListItem — no label translation needed.
+ *  Item-level attributes (brand, productFamily, etc.) are not on EntityListItem — return null
+ *  so is_empty / contains operators still work via the null path in evaluateCondition. */
 function getFieldValue(entity: EntityListItem, field: FilterField): number | string | null {
   const map: Record<FilterField, number | string | null> = {
     revenue: entity.revenue,
@@ -85,6 +87,12 @@ function getFieldValue(entity: EntityListItem, field: FilterField): number | str
     rep: entity.rep,
     zone: entity.zone,
     customerType: entity.customerType,
+    // WHY: Item-level attributes are not stored on EntityListItem — these fields are used
+    // by the Report filter dialog (FetchAllFilters), not client-side list filtering.
+    brand: null,
+    productFamily: null,
+    countryOfOrigin: null,
+    foodServiceRetail: null,
   };
   return map[field] ?? null;
 }

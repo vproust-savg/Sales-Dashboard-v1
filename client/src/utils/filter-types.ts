@@ -9,7 +9,8 @@ import type { Dimension } from '@shared/types/dashboard';
 export type FilterField =
   | 'revenue' | 'orderCount' | 'avgOrder' | 'marginPercent'
   | 'frequency' | 'lastOrderDate'
-  | 'name' | 'rep' | 'zone' | 'customerType';
+  | 'name' | 'rep' | 'zone' | 'customerType'
+  | 'brand' | 'productFamily' | 'countryOfOrigin' | 'foodServiceRetail';  // item-level attributes
 
 export type FilterOperator =
   | 'gt' | 'lt' | 'gte' | 'lte'
@@ -24,6 +25,8 @@ export const FIELD_LABELS: Record<FilterField, string> = {
   marginPercent: 'Margin %', frequency: 'Frequency',
   lastOrderDate: 'Last Order',
   name: 'Name', rep: 'Rep', zone: 'Zone', customerType: 'Customer Type',
+  brand: 'Brand', productFamily: 'Product Family',
+  countryOfOrigin: 'Country of Origin', foodServiceRetail: 'FS vs Retail',
 };
 
 /** Human-readable labels shown in operator dropdown */
@@ -41,6 +44,8 @@ export const FIELD_TYPES: Record<FilterField, FieldType> = {
   marginPercent: 'numeric', frequency: 'numeric',
   lastOrderDate: 'date',
   name: 'text', rep: 'text', zone: 'text', customerType: 'text',
+  brand: 'text', productFamily: 'text',
+  countryOfOrigin: 'text', foodServiceRetail: 'text',
 };
 
 /** Operators available per field type */
@@ -55,12 +60,13 @@ export const METRIC_FILTER_FIELDS: Set<FilterField> = new Set([
   'revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency',
 ]);
 
-/** WHY: Not all fields exist on all dimensions — rep/zone/customerType only on customers */
+/** WHY: Not all fields exist on all dimensions — rep/zone/customerType only on customers;
+ *  brand/productFamily/countryOfOrigin/foodServiceRetail only on item-level dims. */
 export const DIMENSION_FILTER_FIELDS: Record<Dimension, FilterField[]> = {
-  customer: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name', 'rep', 'zone', 'customerType'],
-  zone: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name'],
-  vendor: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name'],
-  brand: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name'],
-  product_type: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name'],
-  product: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name'],
+  customer:     ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name', 'rep', 'zone', 'customerType'],
+  zone:         ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name'],
+  vendor:       ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name', 'brand', 'productFamily', 'countryOfOrigin', 'foodServiceRetail'],
+  brand:        ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name'],
+  product_type: ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name', 'brand', 'countryOfOrigin', 'foodServiceRetail'],
+  product:      ['revenue', 'orderCount', 'avgOrder', 'marginPercent', 'frequency', 'lastOrderDate', 'name', 'brand', 'productFamily', 'countryOfOrigin', 'foodServiceRetail'],
 };
