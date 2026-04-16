@@ -9,7 +9,6 @@ import { useContacts, useConsolidatedContacts } from './useContacts';
 import { useEntitySelection } from './useEntitySelection';
 import { useFilters } from './useFilters';
 import { useReport } from './useReport';
-import { useConsolidated } from './useConsolidated';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
@@ -48,7 +47,6 @@ export function useDashboardState() {
     clearAll: clearFilters, togglePanel: toggleFilterPanel,
   } = useFilters();
   const report = useReport(activeDimension, activePeriod);
-  const consolidated = useConsolidated(activeDimension, activePeriod);
 
   // --- Spec Section 13.1: Dimension switch resets ALL other state ---
   const switchDimension = useCallback((dim: Dimension) => {
@@ -58,8 +56,7 @@ export function useDashboardState() {
     clearFilters();
     resetSort();
     report.reset();
-    consolidated.reset();
-  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, report, consolidated]);
+  }, [setShellDimension, clearSelection, resetSearch, clearFilters, resetSort, report]);
 
   const prevDimensionRef = useRef(activeDimension);
   useEffect(() => {
@@ -94,9 +91,8 @@ export function useDashboardState() {
   const consolidatedContactIds = useMemo(() => {
     if (activeDimension !== 'customer') return [] as string[];
     if (report.state === 'loaded' && report.payload) return report.payload.entities.map(e => e.id);
-    if (consolidated.state === 'loaded' && consolidated.payload) return consolidated.payload.entities.map(e => e.id);
     return [] as string[];
-  }, [activeDimension, report.state, report.payload, consolidated.state, consolidated.payload]);
+  }, [activeDimension, report.state, report.payload]);
   const consolidatedContactsQuery = useConsolidatedContacts(
     consolidatedContactIds,
     activeDimension === 'customer' && consolidatedContactIds.length > 0,
@@ -159,7 +155,6 @@ export function useDashboardState() {
     sortDirection,
     panelCollapsed,
     report,
-    consolidated,
 
     // Actions
     switchDimension,

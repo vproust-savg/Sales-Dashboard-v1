@@ -90,6 +90,7 @@ export async function fetchOrders(
   isCurrentPeriod: boolean,
   extraFilter?: string,
   onProgress?: (rowsFetched: number, estimatedTotal: number) => void,
+  signal?: AbortSignal,
 ): Promise<RawOrder[]> {
   const statusExclude = EXCLUDED_STATUSES.map(s => `ORDSTATUSDES ne '${s}'`).join(' and ');
   // WHY: extraFilter lets callers narrow by entity (e.g., CUSTNAME eq 'C7826') without
@@ -106,14 +107,16 @@ export async function fetchOrders(
     // WHY: onProgress keeps the SSE connection alive during long pagination fetches.
     // Without it, Railway's nginx proxy closes idle SSE connections after ~60s.
     onProgress,
+    signal,
   });
 }
 
 /** Fetch all customers — spec Section 17.3 */
-export async function fetchCustomers(client: PriorityClient): Promise<RawCustomer[]> {
+export async function fetchCustomers(client: PriorityClient, signal?: AbortSignal): Promise<RawCustomer[]> {
   return client.fetchAllPages<RawCustomer>('CUSTOMERS', {
     select: CUSTOMER_SELECT,
     orderby: 'CUSTNAME asc',
+    signal,
   });
 }
 

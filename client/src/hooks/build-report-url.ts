@@ -20,6 +20,7 @@ export function buildReportUrl(
   if (filters.agentName?.length) params.set('agentName', filters.agentName.join(','));
   if (filters.zone?.length) params.set('zone', filters.zone.join(','));
   if (filters.customerType?.length) params.set('customerType', filters.customerType.join(','));
+  if (filters.entityIds?.length) params.set('entityIds', filters.entityIds.join(','));
   if (forceRefresh) params.set('refresh', 'true');
   return `/api/sales/fetch-all?${params}`;
 }

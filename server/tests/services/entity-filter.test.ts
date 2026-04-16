@@ -5,19 +5,10 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-// WHY: dashboard.ts imports Redis, fetch, and other services.
-// We must mock these before importing the function under test.
-vi.mock('../../src/cache/redis-client', () => ({
-  redis: { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue('OK') },
-}));
-vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-  new Response(JSON.stringify({ value: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
-));
-vi.mock('../../src/services/priority-instance', () => ({
-  priorityClient: {},
-}));
+// WHY: entity-subset-filter.ts has no service dependencies — no mocks needed.
+// The function is a pure filter over in-memory arrays.
 
-import { filterOrdersByEntityIds } from '../../src/routes/dashboard';
+import { filterOrdersByEntityIds } from '../../src/services/entity-subset-filter';
 import type { RawOrder, RawOrderItem, RawCustomer } from '../../src/services/priority-queries';
 
 function makeItem(overrides: Partial<RawOrderItem> = {}): RawOrderItem {

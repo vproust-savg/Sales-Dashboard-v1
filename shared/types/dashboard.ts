@@ -21,6 +21,12 @@ export interface EntityListItem {
   rep: string | null;              // sales agent name (customer dimension only, null otherwise)
   zone: string | null;             // zone name (customer dimension only, null otherwise)
   customerType: string | null;     // customer type (customer dimension only, null otherwise)
+  /** WHY: Per-entity prev-year revenue for the consolidated Per-Customer table (Feature B).
+   *  Same-period semantics match computeKPIs() in kpi-aggregator.ts (day-precise YTD cutoff).
+   *  Null when prev data not loaded (e.g., entity-stub-builder lightweight path). */
+  prevYearRevenue: number | null;
+  /** Full previous-year revenue (all 12 months). Null when prev data not loaded. */
+  prevYearRevenueFull: number | null;
 }
 
 /** Per-metric breakdown for KPI cards — mirrors the hero card sub-items pattern */
@@ -192,6 +198,8 @@ export interface FetchAllFilters {
   agentName?: string[];
   zone?: string[];
   customerType?: string[];
+  /** WHY: Pre-selected entity subset from View Consolidated (D3). Applied after the other filters. */
+  entityIds?: string[];
 }
 
 /** SSE progress events from GET /api/sales/fetch-all */

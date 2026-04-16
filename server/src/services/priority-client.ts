@@ -16,6 +16,9 @@ interface FetchOptions {
   skip?: number;
   orderby?: string;
   expand?: string;
+  /** WHY: D1 — when the SSE client cancels, abort the in-flight Priority fetch so we don't
+   *  burn API budget on work the user no longer wants. Combined with timeout via AbortSignal.any. */
+  signal?: AbortSignal;
 }
 
 interface PaginateOptions {
@@ -26,6 +29,9 @@ interface PaginateOptions {
   pageSize?: number;
   cursorField?: string;
   onProgress?: (rowsFetched: number, estimatedTotal: number) => void;
+  /** WHY: D1 — propagates client disconnect through the full pagination loop so every
+   *  Priority page fetch can be cancelled as soon as the user closes the Report modal. */
+  signal?: AbortSignal;
 }
 
 interface ClientConfig {
@@ -52,7 +58,7 @@ export class PriorityClient {
     let lastError: PriorityApiError | null = null;
 
     for (let attempt = 0; attempt < API_LIMITS.MAX_RETRIES; attempt++) {
-      await this.throttle();
+      await this.throttle(opts.signal);
       const url = buildODataUrl(this.baseUrl, entity, opts);
       const response = await fetch(url, {
         method: 'GET',
@@ -62,7 +68,12 @@ export class PriorityClient {
           'Prefer': 'odata.maxpagesize=49900',
           'Authorization': this.authHeader,
         },
-        signal: AbortSignal.timeout(API_LIMITS.REQUEST_TIMEOUT_MS),
+        // WHY: D1 — combine user cancellation signal with per-request timeout. Either
+        // fires first and the fetch aborts. Without AbortSignal.any, a cancelled SSE
+        // connection would still hold the request open until the 3-min timeout.
+        signal: opts.signal
+          ? AbortSignal.any([opts.signal, AbortSignal.timeout(API_LIMITS.REQUEST_TIMEOUT_MS)])
+          : AbortSignal.timeout(API_LIMITS.REQUEST_TIMEOUT_MS),
       });
 
       if (response.ok) {
@@ -80,7 +91,16 @@ export class PriorityClient {
 
       // WHY: Exponential backoff: 2s, 4s, 8s — capped at 60s per spec Section 14
       const waitMs = Math.min(60_000, 1_000 * 2 ** (attempt + 1));
-      await new Promise(r => setTimeout(r, waitMs));
+      // WHY: D1 — abort-aware backoff so a cancelled request exits immediately
+      // instead of burning the full backoff window (up to 60s) before discovering
+      // the SSE client already disconnected.
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, waitMs);
+        opts.signal?.addEventListener('abort', () => {
+          clearTimeout(timer);
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      });
     }
 
     throw lastError!;
@@ -99,12 +119,19 @@ export class PriorityClient {
 
     // Outer loop: MAXAPILINES query contexts
     while (true) {
+      // WHY: D1 — check before starting each MAXAPILINES batch; the inner loop also checks
+      // per-page so both abort points are covered.
+      if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const batch: T[] = [];
       let skip = 0;
 
       // Inner loop: $top/$skip pages within each context
       while (true) {
+        // WHY: D1 — check before each page fetch; fetchEntity also checks but the guard here
+        // avoids the extra throttle() call when we know we're already cancelled.
+        if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         const filter = this.buildCursorFilter(opts.filter, cursorField, cursorValue);
+        const pageStart = Date.now();
         const records = await this.fetchEntity<T>(entity, {
           select: opts.select,
           filter,
@@ -112,22 +139,28 @@ export class PriorityClient {
           skip,
           orderby: opts.orderby,
           expand: opts.expand,
+          signal: opts.signal,
         });
+        const elapsedMs = Date.now() - pageStart;
+        console.log(`[priority] ${entity} page skip=${skip} got=${records.length} in ${elapsedMs}ms (total=${allRecords.length + batch.length + records.length})`);
 
         if (records.length === 0) break;
         batch.push(...records);
+
+        // WHY: Per-page progress instead of per-MAXAPILINES-batch. For 60K orders at
+        // PAGE_SIZE=5000 this yields ~12 progress events instead of 2, so the client
+        // modal's Phase 1 bar fills smoothly instead of jumping 0% -> 100%.
+        if (opts.onProgress) {
+          const fetched = allRecords.length + batch.length;
+          const hasMore = records.length === pageSize;
+          opts.onProgress(fetched, hasMore ? fetched + pageSize : fetched);
+        }
+
         if (records.length < pageSize) break;
         skip += pageSize;
       }
 
       allRecords.push(...batch);
-
-      // WHY: Report progress after each batch for SSE streaming
-      if (opts.onProgress) {
-        const hasMore = batch.length > 0 && batch.length % pageSize === 0 && batch.length >= pageSize;
-        const estimated = hasMore ? allRecords.length + pageSize : allRecords.length;
-        opts.onProgress(allRecords.length, estimated);
-      }
 
       // If batch hit MAXAPILINES, continue with cursor from last record
       if (batch.length > 0 && batch.length % pageSize === 0 && batch.length >= pageSize) {
@@ -151,14 +184,24 @@ export class PriorityClient {
   }
 
   /** Rate limiting — 100 calls/min — spec Section 17.5 */
-  private async throttle(): Promise<void> {
+  private async throttle(signal?: AbortSignal): Promise<void> {
     const now = Date.now();
     this.requestTimestamps = this.requestTimestamps.filter(t => now - t < 60_000);
 
     if (this.requestTimestamps.length >= API_LIMITS.CALLS_PER_MINUTE) {
       const oldest = this.requestTimestamps[0];
       const waitMs = 60_000 - (now - oldest) + 100;
-      if (waitMs > 0) await new Promise(r => setTimeout(r, waitMs));
+      if (waitMs > 0) {
+        // WHY: D1 — abort-aware rate-limit wait so a cancelled SSE request exits
+        // the throttle hold immediately instead of waiting up to 60s.
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, waitMs);
+          signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new DOMException('Aborted', 'AbortError'));
+          }, { once: true });
+        });
+      }
     }
 
     this.requestTimestamps.push(Date.now());

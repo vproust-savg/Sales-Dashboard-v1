@@ -20,7 +20,7 @@ interface EntityListProps {
   selectedCount: number;
   onClearSelection: () => void;
   reportState: ReportState;
-  activeView: 'single' | 'report' | 'consolidated';
+  activeView: 'single' | 'report';
   onReportClick: () => void;
   onViewConsolidatedClick: () => void;
 }
