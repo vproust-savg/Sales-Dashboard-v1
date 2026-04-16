@@ -6,6 +6,7 @@ dist/
 .DS_Store
 *.log
 .superpowers/
+.claude/worktrees/
 
 # Compiled output alongside source (only dist/ should have .js)
 client/src/**/*.js
