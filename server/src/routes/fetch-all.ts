@@ -14,6 +14,7 @@ import { groupByDimension } from '../services/dimension-grouper.js';
 import { filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
 import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
+import { writeOrders, readOrders, deleteOrderIndex } from '../cache/order-cache.js';
 import { cacheKey, getTTL, buildFilterQualifier, buildFilterHash } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
@@ -46,10 +47,6 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
   req.on('close', () => abortController.abort(new Error('Client cancelled Report')));
   try {
     const filterHash = buildFilterHash(agentName, zone, customerType);
-    // WHY: Raw cache key is dimension-agnostic — the same 22K orders serve all 6 dimensions.
-    // Only the aggregation step differs per dimension. This eliminates redundant full fetches.
-    const rawKey = cacheKey('orders_raw', period, filterHash);
-    const metaKey = cacheKey('orders_raw_meta', period, filterHash);
 
     // Date ranges
     const now = new Date();
@@ -65,14 +62,11 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // could read the stale prev-year cache key before the del completed — a race condition.
     // Hoisting them sequentially here guarantees both branches start with a clean slate.
     if (forceRefresh) {
-      // WHY: Force refresh clears both current-period raw + prev-year raw caches
-      // under the same filterHash. Without clearing prev-year, retroactive edits
-      // to closed-period orders would still be served from the stale prev-year
-      // cache, breaking YoY accuracy.
+      // WHY: Force refresh clears index + meta for both current and prev-year scopes.
+      // Individual order keys are NOT deleted — they're shared across scopes and expire via TTL.
       await Promise.all([
-        redis.del(rawKey),
-        redis.del(metaKey),
-        redis.del(cacheKey('orders_year', String(year - 1), filterHash)),
+        deleteOrderIndex(period, filterHash),
+        deleteOrderIndex(String(year - 1), filterHash),
       ]);
     }
 
@@ -98,7 +92,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
         if (forceRefresh) {
           return fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
         }
-        const cached = await tryIncrementalRefresh(rawKey, metaKey, startDate, endDate, extraFilter, sendEvent, abortController.signal);
+        const cached = await tryIncrementalRefresh(period, filterHash, startDate, endDate, extraFilter, sendEvent, abortController.signal);
         return cached ?? fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
       })(),
       // WHY: Include filterHash in prev-year key. Without it, the first filtered Report
@@ -114,16 +108,9 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // Cache raw orders + metadata (sequential after Promise.all — depends on orders result)
     sendEvent('progress', { phase: 'processing', message: 'Computing metrics...' });
     if (ordersWrapped.didFetch) {
-      // WHY: Same-day cache hit returns orders unchanged — rewriting would waste two Redis
-      // round-trips per Report click and reset lastFetchDate pointlessly. The next day's
-      // incremental path still works because lastFetchDate persists from the last actual fetch.
-      const rawEnvelope = { data: orders, cachedAt: new Date().toISOString() };
-      await redis.set(rawKey, JSON.stringify(rawEnvelope), { ex: getTTL('orders_raw') });
-      const metaEnvelope = {
-        data: { lastFetchDate: new Date().toISOString(), rowCount: orders.length, filterHash },
-        cachedAt: new Date().toISOString(),
-      };
-      await redis.set(metaKey, JSON.stringify(metaEnvelope), { ex: getTTL('orders_raw_meta') });
+      // WHY: Per-order keys with all-or-nothing semantics. If any pipeline batch fails,
+      // index/meta won't be published — the next request retries the full write.
+      await writeOrders(orders, period, filterHash, getTTL('orders_raw'));
     }
     const customers = await cachedFetch(
       cacheKey('customers', 'all'), getTTL('customers'),
@@ -165,18 +152,19 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // produce a distinct cache entry (combinatorial blowup). Raw cache writes stay in place above;
     // they are entity-agnostic and benefit all subsets equally.
     if (!entityIdList || entityIdList.length === 0) {
-      // WHY: Cache aggregated results — entities_full for the entity list
-      // + report_payload (per-dimension payload for instant dimension switches).
       const fullKey = cacheKey('entities_full', period, buildFilterQualifier(groupBy, filterHash));
       const fullEnvelope = { data: { entities, yearsAvailable: payload.yearsAvailable }, cachedAt: new Date().toISOString() };
       await redis.set(fullKey, JSON.stringify(fullEnvelope), { ex: getTTL('entities_full') });
 
+      // WHY: Strip orders from report_payload — with 10K+ orders, the payload exceeds Upstash's
+      // 10 MB limit. Orders are reconstructed from per-order keys when this cache is read.
       const payloadKey = cacheKey('report_payload', period, `${filterHash}:${groupBy}`);
-      const payloadEnvelope = { data: payload, cachedAt: new Date().toISOString() };
+      const strippedPayload = { ...payload, orders: [] as typeof payload.orders };
+      const payloadEnvelope = { data: strippedPayload, cachedAt: new Date().toISOString() };
       await redis.set(payloadKey, JSON.stringify(payloadEnvelope), { ex: getTTL('report_payload') });
 
       const detailKey = cacheKey('entity_detail', period, `${groupBy}:ALL:${filterHash}`);
-      const detailEnvelope = { data: payload, cachedAt: new Date().toISOString() };
+      const detailEnvelope = { data: strippedPayload, cachedAt: new Date().toISOString() };
       await redis.set(detailKey, JSON.stringify(detailEnvelope), { ex: getTTL('entities_full') });
     }
 
@@ -248,19 +236,17 @@ async function fullFetch(startDate: string, endDate: string, extraFilter: string
 }
 
 async function tryIncrementalRefresh(
-  rawKey: string, metaKey: string,
+  period: string, filterHash: string,
   startDate: string, endDate: string, extraFilter: string | undefined,
   sendEvent: (event: string, data: unknown) => void,
   signal?: AbortSignal,
 ): Promise<FetchedOrders | null> {
-  const rawCached = await redis.get(rawKey);
-  const metaCached = await redis.get(metaKey);
-  if (!rawCached || !metaCached) return null;
+  // Read from per-order cache
+  const cached = await readOrders(period, filterHash);
+  if (!cached) return null;
 
-  const rawEnvelope = typeof rawCached === 'string' ? JSON.parse(rawCached) : rawCached;
-  const metaEnvelope = typeof metaCached === 'string' ? JSON.parse(metaCached) : metaCached;
-  const lastFetchDate = new Date((metaEnvelope as { data: { lastFetchDate: string } }).data.lastFetchDate);
-  const cachedOrders: RawOrder[] = (rawEnvelope as { data: RawOrder[] }).data;
+  const { orders: cachedOrders, meta } = cached;
+  const lastFetchDate = new Date(meta.lastFetchDate);
 
   // If fetched today, use as-is (didFetch=false → caller skips raw-cache rewrite)
   const today = new Date();
