@@ -8,10 +8,26 @@
 
 ## How to Use This Document
 
+### 🛑 Separation-of-Duties Rule (non-negotiable)
+
+**Eval verification MUST be performed by a fresh agent — NOT by the agent that wrote the code.**
+
+Why: implementing agents have a known bias toward declaring success. A fresh verifier has no sunk cost in the implementation and reads failures more honestly. The PR template and subagent orchestration must enforce this split.
+
+Concretely:
+- **Implementing agent** (subagent or inline executor) writes the code and runs the plan's TDD tests as it goes. It does NOT run the eval's Quick Smoke Test, does NOT paste eval output, does NOT declare the eval passed.
+- **Verifier agent** is a fresh subagent spawned with no prior context on this implementation. It receives the spec path, plan path, and eval path. It runs the relevant eval sections for the completed phase, pastes raw output, and reports PASS/FAIL per check.
+- **Phase handoff** only proceeds after the verifier agent returns a clean report. If the verifier reports any FAIL, the failing check goes back to a (possibly new) implementing agent — do NOT let the original implementer "re-verify" its own fix.
+- **Pre-Completion Gate** is the strictest application: spawn a dedicated verifier agent whose sole job is running the Quick Smoke Test + §9 Chrome MCP checks and reporting.
+
+This rule applies to both subagent-driven and inline execution modes. In inline mode, the parent session acts as the implementer; for verification, spawn a fresh `general-purpose` or `Explore` subagent with the eval doc path and ask it to run the checks and return output.
+
+### Process
+
 1. **Read before starting.** Read this entire doc before writing code so implementation choices are shaped by the criteria. The bar for "done" is defined here, not by intuition.
 2. **Verify as you go.** Each section has a `Verify After: Tasks X, Y` tag. Run those checks at that phase boundary — not at the end. Catching a regression between Task 1.3 and Task 3.3 is cheap; catching it after Phase 7 means unwinding 30 commits.
 3. **Show your work.** Paste the command and its output. "I verified it" is not proof. Terminal output, curl responses, `tsc --noEmit` exit codes, diff output — that's proof.
-4. **Pre-Completion Gate.** Before claiming the feature is complete, run the Quick Smoke Test at the bottom, paste the full output, and confirm every line says OK or PASS. Any FAIL line blocks completion.
+4. **Pre-Completion Gate.** Before claiming the feature is complete, a **fresh verifier agent** runs the Quick Smoke Test at the bottom, pastes the full output, and confirms every line says OK or PASS. Any FAIL line blocks completion.
 5. **Failure recovery.** If a check fails, do NOT retry the same code change. Read the error, re-read the spec, identify the root cause, change approach. If the same check fails 3 times, stop and ask the user — you're in a loop.
 6. **Commit after every passing task.** The plan mandates a commit step as the final step of each task. This is non-negotiable. A clean commit stream is required so that:
    - Reviewers can bisect if a regression shows up later.
@@ -287,14 +303,20 @@ Run eval sections at these plan checkpoints:
 
 ## Pre-Completion Gate
 
-Before declaring the feature complete, the implementing agent must:
+Before declaring the feature complete:
 
-1. Run the full Quick Smoke Test below.
-2. Paste the complete terminal output (not a summary) into the PR description or completion message.
-3. Confirm every check shows OK or PASS.
-4. If any line shows FAIL: do NOT declare complete. Fix root cause, re-run, paste again.
+1. Spawn a **fresh verifier agent** (not the implementing agent) — `general-purpose` or `Explore` subagent type. Provide it:
+   - Path to this eval doc
+   - Path to the spec: `docs/superpowers/specs/2026-04-16-dimension-parity-and-master-data-design.md`
+   - Path to the plan: `docs/superpowers/plans/2026-04-16-dimension-parity-and-master-data-plan.md`
+   - The smoke-test script path (once written to `scripts/smoke-dimension-parity.sh`)
+2. The verifier agent runs the full Quick Smoke Test below.
+3. The verifier agent pastes the complete terminal output (not a summary) back to the orchestrating session.
+4. The verifier agent also executes §9 Live Production Verification via Chrome MCP (after Railway deploy), including §9A (production dashboard), §9B (Upstash Redis inspection), and §9C (Railway console).
+5. The verifier confirms every check shows OK or PASS.
+6. If any line shows FAIL: the failing check goes back to an implementing agent (may be the original, may be a new one). The implementing agent fixes the root cause, commits, then a **new fresh verifier** re-runs the gate. Do NOT allow an implementer to verify its own fix.
 
-**This gate is non-negotiable.** Implementation is not done until the gate passes with pasted evidence.
+**This gate is non-negotiable.** Implementation is not done until a fresh-agent verifier returns a pasted clean run.
 
 ---
 
