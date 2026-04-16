@@ -14,6 +14,8 @@ export const API_LIMITS = {
 /** Pagination — spec Section 17.4 */
 export const PAGE_SIZE = 5000;
 export const MAXAPILINES = 50_000;  // Current instance setting
+/** Orders per Redis pipeline batch — 500 × ~2 KB = ~1 MB per pipeline, well under 10 MB limit */
+export const ORDER_PIPELINE_BATCH = 500;
 
 /** Redis cache TTLs in seconds — spec Section 19.2 */
 export const CACHE_TTLS = {

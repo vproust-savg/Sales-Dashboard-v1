@@ -1,7 +1,7 @@
 // FILE: server/src/cache/cache-keys.ts
 // PURPOSE: Cache key schema and TTL mapping — spec Section 19.1
-// USED BY: server/src/cache/cache-layer.ts, server/src/routes/fetch-all.ts, server/src/routes/dashboard.ts
-// EXPORTS: cacheKey, getTTL, buildFilterQualifier, buildFilterHash
+// USED BY: server/src/cache/cache-layer.ts, server/src/routes/fetch-all.ts, server/src/routes/dashboard.ts, server/src/cache/order-cache.ts
+// EXPORTS: cacheKey, getTTL, buildFilterQualifier, buildFilterHash, orderKey, orderIndexKey, orderMetaKey
 
 import { CACHE_TTLS } from '../config/constants.js';
 
@@ -31,6 +31,21 @@ export function buildFilterHash(agentName?: string, zone?: string, customerType?
   if (zone) parts.push(`zone=${zone}`);
   if (customerType) parts.push(`type=${customerType}`);
   return parts.length > 0 ? parts.join('&') : 'all';
+}
+
+/** Per-order Redis key. WHY: Orders are shared across periods/filters — top-level namespace. */
+export function orderKey(ordname: string): string {
+  return `order:${ordname}`;
+}
+
+/** Index key listing all ORDNAME IDs for a period/filter scope. */
+export function orderIndexKey(period: string, filterHash: string): string {
+  return `orders:idx:${period}:${filterHash}`;
+}
+
+/** Meta key with lastFetchDate and orderCount for a period/filter scope. */
+export function orderMetaKey(period: string, filterHash: string): string {
+  return `orders:meta:${period}:${filterHash}`;
 }
 
 export function getTTL(entity: CacheEntity): number {
