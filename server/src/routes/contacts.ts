@@ -25,8 +25,8 @@ const querySchema = z.object({
   entityId: z.string().optional(),
   entityIds: z.string().optional(),
 }).refine(
-  q => q.customerId || q.customerIds || ((q.dimension && q.dimension !== 'customer') && (q.entityId || q.entityIds)),
-  { message: 'Requires customerId(s) or (dimension + entityId(s)) with dimension != customer' },
+  q => q.customerId || q.customerIds || (q.dimension && (q.entityId || q.entityIds)),
+  { message: 'Requires customerId(s) or dimension + entityId(s)' },
 );
 
 export const contactsRouter = Router();
