@@ -49,7 +49,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // WHY: filterHash is used ONLY for aggregated caches (entities_full, report_payload,
     // entity_detail). Raw order cache always uses 'all' — one universal scope.
     // Agent/zone/customerType filtering happens post-cache in-memory.
-    const filterHash = buildFilterHash(agentName, zone, customerType);
+    const filterHash = buildFilterHash({ agentName, zone, customerType });
 
     // Date ranges
     const now = new Date();
