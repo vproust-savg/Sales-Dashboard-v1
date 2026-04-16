@@ -37,69 +37,8 @@ export function computeKPIs(
     ? Math.max(1, now.getUTCMonth() + 1)
     : 12;
 
-  // Quarter calculations — WHY: fall back to the most recently *completed* quarter.
-  // If today is the first month of a quarter (month % 3 === 0), the current quarter has
-  // only days of data, which is misleading. Use the previous completed quarter instead.
-  // Edge case: January (currentQNum=0) → Q4 of the previous year, which lives in prevOrders.
-  const currentQNum = Math.floor(now.getUTCMonth() / 3);
-  const monthInQuarter = now.getUTCMonth() % 3;
-  let effectiveQuarterNum: number;
-  let effectiveYear: number;
-  if (monthInQuarter === 0) {
-    if (currentQNum === 0) { effectiveQuarterNum = 3; effectiveYear = now.getUTCFullYear() - 1; }
-    else                   { effectiveQuarterNum = currentQNum - 1; effectiveYear = now.getUTCFullYear(); }
-  } else {
-    effectiveQuarterNum = currentQNum; effectiveYear = now.getUTCFullYear();
-  }
-  const quarterLabel = `Q${effectiveQuarterNum + 1}`;
-  const qStart = new Date(Date.UTC(effectiveYear, effectiveQuarterNum * 3, 1));
-  const qEnd   = new Date(Date.UTC(effectiveYear, effectiveQuarterNum * 3 + 3, 1));
-  const qSource = effectiveYear < now.getUTCFullYear() ? prevOrders : orders;
-  const qFilteredOrders = qSource.filter(o => { const d = new Date(o.CURDATE); return d >= qStart && d < qEnd; });
-  const qRevenue    = qFilteredOrders.reduce((s, o) => s + o.TOTPRICE, 0);
-  const qOrderCount = qFilteredOrders.length;
-  const qItemRev    = qFilteredOrders.reduce((s, o) => s + (o.ORDERITEMS_SUBFORM ?? []).reduce((ps, i) => ps + i.QPRICE, 0), 0);
-  const qProfit     = qFilteredOrders.reduce((s, o) => s + (o.ORDERITEMS_SUBFORM ?? []).reduce((ps, i) => ps + i.QPROFIT, 0), 0);
-  const thisQuarterRevenue = qRevenue;
-  // WHY: lastQuarterRevenue kept as simple rolling previous-quarter for reference (not displayed)
-  const prevQStart = new Date(Date.UTC(now.getUTCFullYear(), currentQNum * 3 - 3, 1));
-  const prevQEnd   = new Date(Date.UTC(now.getUTCFullYear(), currentQNum * 3, 1));
-  const lastQuarterRevenue = orders
-    .filter(o => { const d = new Date(o.CURDATE); return d >= prevQStart && d < prevQEnd; })
-    .reduce((sum, o) => sum + o.TOTPRICE, 0);
-
-  // Monthly buckets for all metrics — WHY: derive breakdown sub-items per metric
-  const monthRevenues = new Array(12).fill(0) as number[];
-  const monthOrderCounts = new Array(12).fill(0) as number[];
-  const monthProfit = new Array(12).fill(0) as number[];
-  const monthItemRevenue = new Array(12).fill(0) as number[];
-  orders.forEach(o => {
-    const m = new Date(o.CURDATE).getUTCMonth();
-    monthRevenues[m] += o.TOTPRICE;
-    monthOrderCounts[m] += 1;
-    // WHY: profit/margin per month derived from order's nested items, not flat items array
-    (o.ORDERITEMS_SUBFORM ?? []).forEach(i => {
-      monthProfit[m] += i.QPROFIT;
-      monthItemRevenue[m] += i.QPRICE;
-    });
-  });
-
-  // Best month (revenue)
-  const bestMonthIdx = monthRevenues.indexOf(Math.max(...monthRevenues));
-
-  // Last month — WHY: if current month is January, last month is December from prev year
-  const prevMonthIdx = now.getUTCMonth() - 1;
-  let lastMonthRevenue: number;
-  let lastMonthName: string;
-  if (prevMonthIdx >= 0) {
-    lastMonthRevenue = monthRevenues[prevMonthIdx];
-    lastMonthName = MONTH_NAMES[prevMonthIdx];
-  } else {
-    lastMonthRevenue = prevOrders
-      .filter(o => new Date(o.CURDATE).getUTCMonth() === 11)
-      .reduce((sum, o) => sum + o.TOTPRICE, 0);
-    lastMonthName = 'Dec';
-  }
+  const { quarterLabel, qRevenue, qOrderCount, qItemRev, qProfit, thisQuarterRevenue, lastQuarterRevenue } = computeQuarterBlock(orders, prevOrders, now);
+  const { monthRevenues, monthOrderCounts, monthProfit, monthItemRevenue, bestMonthIdx, prevMonthIdx, lastMonthRevenue, lastMonthName } = computeMonthBlocks(orders, prevOrders, now);
 
   // Last order
   const dates = orders.map(o => new Date(o.CURDATE).getTime());
@@ -311,4 +250,69 @@ function buildFrequencyBreakdown(
     lastMonthName: prevMonthIdx >= 0 ? MONTH_NAMES[prevMonthIdx] : 'Dec',
     bestMonth: { name: MONTH_NAMES[bestIdx] ?? 'N/A', value: bestVal },
   };
+}
+
+// Quarter calculations — WHY: fall back to the most recently *completed* quarter.
+// If today is the first month of a quarter (month % 3 === 0), the current quarter has
+// only days of data, which is misleading. Use the previous completed quarter instead.
+// Edge case: January (currentQNum=0) → Q4 of the previous year, which lives in prevOrders.
+function computeQuarterBlock(orders: RawOrder[], prevOrders: RawOrder[], now: Date) {
+  const currentQNum = Math.floor(now.getUTCMonth() / 3);
+  const monthInQuarter = now.getUTCMonth() % 3;
+  let effectiveQuarterNum: number; let effectiveYear: number;
+  if (monthInQuarter === 0) {
+    if (currentQNum === 0) { effectiveQuarterNum = 3; effectiveYear = now.getUTCFullYear() - 1; }
+    else                   { effectiveQuarterNum = currentQNum - 1; effectiveYear = now.getUTCFullYear(); }
+  } else {
+    effectiveQuarterNum = currentQNum; effectiveYear = now.getUTCFullYear();
+  }
+  const quarterLabel = `Q${effectiveQuarterNum + 1}`;
+  const qStart = new Date(Date.UTC(effectiveYear, effectiveQuarterNum * 3, 1));
+  const qEnd   = new Date(Date.UTC(effectiveYear, effectiveQuarterNum * 3 + 3, 1));
+  const qSource = effectiveYear < now.getUTCFullYear() ? prevOrders : orders;
+  const qFilteredOrders = qSource.filter(o => { const d = new Date(o.CURDATE); return d >= qStart && d < qEnd; });
+  const qRevenue    = qFilteredOrders.reduce((s, o) => s + o.TOTPRICE, 0);
+  const qOrderCount = qFilteredOrders.length;
+  const qItemRev    = qFilteredOrders.reduce((s, o) => s + (o.ORDERITEMS_SUBFORM ?? []).reduce((ps, i) => ps + i.QPRICE, 0), 0);
+  const qProfit     = qFilteredOrders.reduce((s, o) => s + (o.ORDERITEMS_SUBFORM ?? []).reduce((ps, i) => ps + i.QPROFIT, 0), 0);
+  const thisQuarterRevenue = qRevenue;
+  // WHY: lastQuarterRevenue kept as simple rolling previous-quarter for reference (not displayed)
+  const prevQStart = new Date(Date.UTC(now.getUTCFullYear(), currentQNum * 3 - 3, 1));
+  const prevQEnd   = new Date(Date.UTC(now.getUTCFullYear(), currentQNum * 3, 1));
+  const lastQuarterRevenue = orders
+    .filter(o => { const d = new Date(o.CURDATE); return d >= prevQStart && d < prevQEnd; })
+    .reduce((sum, o) => sum + o.TOTPRICE, 0);
+  return { quarterLabel, qRevenue, qOrderCount, qItemRev, qProfit, thisQuarterRevenue, lastQuarterRevenue };
+}
+
+// Monthly buckets — WHY: derive breakdown sub-items per metric.
+// Edge case: current month is January → last month is December from prev year.
+function computeMonthBlocks(orders: RawOrder[], prevOrders: RawOrder[], now: Date) {
+  const monthRevenues = new Array(12).fill(0) as number[];
+  const monthOrderCounts = new Array(12).fill(0) as number[];
+  const monthProfit = new Array(12).fill(0) as number[];
+  const monthItemRevenue = new Array(12).fill(0) as number[];
+  orders.forEach(o => {
+    const m = new Date(o.CURDATE).getUTCMonth();
+    monthRevenues[m] += o.TOTPRICE;
+    monthOrderCounts[m] += 1;
+    // WHY: profit/margin per month derived from order's nested items, not flat items array
+    (o.ORDERITEMS_SUBFORM ?? []).forEach(i => {
+      monthProfit[m] += i.QPROFIT;
+      monthItemRevenue[m] += i.QPRICE;
+    });
+  });
+  const bestMonthIdx = monthRevenues.indexOf(Math.max(...monthRevenues));
+  const prevMonthIdx = now.getUTCMonth() - 1;
+  let lastMonthRevenue: number; let lastMonthName: string;
+  if (prevMonthIdx >= 0) {
+    lastMonthRevenue = monthRevenues[prevMonthIdx];
+    lastMonthName = MONTH_NAMES[prevMonthIdx];
+  } else {
+    lastMonthRevenue = prevOrders
+      .filter(o => new Date(o.CURDATE).getUTCMonth() === 11)
+      .reduce((sum, o) => sum + o.TOTPRICE, 0);
+    lastMonthName = 'Dec';
+  }
+  return { monthRevenues, monthOrderCounts, monthProfit, monthItemRevenue, bestMonthIdx, prevMonthIdx, lastMonthRevenue, lastMonthName };
 }
