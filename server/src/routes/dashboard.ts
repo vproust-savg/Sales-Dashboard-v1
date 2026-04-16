@@ -8,76 +8,80 @@ import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
 import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
+import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
+import { readOrders } from '../cache/order-cache.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 import type { ApiResponse } from '@shared/types/api-responses';
 
 const querySchema = z.object({
   groupBy: z.enum(['customer', 'zone', 'vendor', 'brand', 'product_type', 'product']).default('customer'),
   period: z.string().default('ytd'),
-  entityId: z.string().optional(),
+  entityId: z.string().optional(),           // single-select (back-compat)
+  entityIds: z.string().optional(),          // comma-separated multi-select
 });
 
 export const dashboardRouter = Router();
 
 dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, next) => {
   try {
-    const { groupBy, period, entityId } = res.locals.query as z.infer<typeof querySchema>;
+    const { groupBy, period, entityId, entityIds } = res.locals.query as z.infer<typeof querySchema>;
     const now = new Date();
     const year = period === 'ytd' ? now.getFullYear() : parseInt(period, 10);
 
-    // Date ranges
+    // Normalize: entityIds array always, whether from entityId or entityIds
+    const ids: string[] = entityIds
+      ? entityIds.split(',').map(s => s.trim()).filter(Boolean)
+      : entityId
+        ? [entityId]
+        : [];
+
     const startDate = `${year}-01-01T00:00:00Z`;
     const endDate = `${year + 1}-01-01T00:00:00Z`;
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
 
-    // WHY: When entityId is provided, fetch only that entity's orders (10-100 rows vs 5000+).
-    // This makes per-entity detail fast while background warm handles the full list.
-    const entityFilter = entityId && groupBy === 'customer'
-      ? `CUSTNAME eq '${entityId.replace(/'/g, "''")}'`
-      : undefined;
-
-    // WHY: Per-entity requests use a separate cache key with shorter TTL so detail data stays fresh.
-    const detailKey = entityId
-      ? cacheKey('entity_detail', period, `${groupBy}:${entityId}`)
-      : undefined;
+    // WHY universal cache: orders_ytd / orders_{year} are dimension-agnostic. scopeOrders at
+    // aggregator layer narrows to entity subset without per-entity cache keys (which previously
+    // caused silent corruption for non-customer dims).
     const cacheEntityType = period === 'ytd' ? 'orders_ytd' : 'orders_year';
 
-    // Fetch all data in parallel, with caching
-    const [ordersResult, prevOrdersResult, customersResult] = await Promise.all([
-      detailKey
-        ? cachedFetch(detailKey, getTTL('entity_detail'),
-            () => fetchOrders(priorityClient, startDate, endDate, true, entityFilter))
-        : cachedFetch(cacheKey(cacheEntityType, period), getTTL(cacheEntityType),
-            () => fetchOrders(priorityClient, startDate, endDate, true)),
-      // WHY: When entityId is provided, prev-year orders are also entity-scoped.
-      // Use a separate cache key to avoid corrupting the global prev-year cache.
-      entityId
-        ? cachedFetch(cacheKey('entity_detail', String(year - 1), `${groupBy}:${entityId}:prev`),
-            getTTL('entity_detail'),
-            () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, entityFilter))
-        : cachedFetch(cacheKey('orders_year', String(year - 1)), getTTL('orders_year'),
-            () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false)),
+    const [ordersCached, prevOrdersCached, customersResult] = await Promise.all([
+      readOrdersOrFallback(period, cacheEntityType, startDate, endDate, true),
+      readOrdersOrFallback(String(year - 1), 'orders_year', prevStartDate, prevEndDate, false),
       cachedFetch(cacheKey('customers', 'all'), getTTL('customers'),
         () => fetchCustomers(priorityClient)),
     ]);
 
-    // Aggregate and group
-    const aggregate = aggregateOrders(ordersResult.data, prevOrdersResult.data, period);
-    // WHY: periodMonths is used by dimension-grouper for frequency calculation
-    const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
-    // WHY: Pass prevOrdersResult.data + period so EntityListItem carries prevYearRevenue fields
-    // for the Per-Customer table in the Revenue hero card modal (Feature B).
-    // dashboard.ts:84 (consolidated branch) intentionally omitted — D3 will delete that branch.
-    const entities = groupByDimension(groupBy as Dimension, ordersResult.data, customersResult.data, periodMonths, prevOrdersResult.data, period);
+    // Build scope if entity subset requested
+    const scope = ids.length > 0
+      ? { dimension: groupBy as Dimension, entityIds: ids }
+      : undefined;
 
-    // Derive years available from order dates
-    const years = new Set(ordersResult.data.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
-    prevOrdersResult.data.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
+    const aggregate = aggregateOrders(
+      ordersCached.orders,
+      prevOrdersCached.orders,
+      period,
+      scope ? { scope, customers: customersResult.data } : undefined,
+    );
+
+    // WHY: entity list is derived from the FULL period orders (not scoped) — the left panel
+    // shows every entity in the dimension, not just the selected subset.
+    const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
+    const entities = groupByDimension(
+      groupBy as Dimension,
+      ordersCached.orders,
+      customersResult.data,
+      periodMonths,
+      prevOrdersCached.orders,
+      period,
+    );
+
+    const years = new Set(ordersCached.orders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
+    prevOrdersCached.orders.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
 
     const payload: DashboardPayload = {
       entities,
@@ -88,8 +92,8 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     const response: ApiResponse<DashboardPayload> = {
       data: payload,
       meta: {
-        cached: ordersResult.cached,
-        cachedAt: ordersResult.cachedAt,
+        cached: ordersCached.fromCache,
+        cachedAt: ordersCached.cachedAt,
         period,
         dimension: groupBy,
         entityCount: entities.length,
@@ -102,3 +106,20 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
   }
 });
 
+/** Read orders from the universal per-order cache; fall back to Priority fetch on miss. */
+async function readOrdersOrFallback(
+  period: string,
+  cacheEntity: 'orders_ytd' | 'orders_year',
+  startDate: string,
+  endDate: string,
+  isCurrentPeriod: boolean,
+): Promise<{ orders: RawOrder[]; fromCache: boolean; cachedAt: string | null }> {
+  const cached = await readOrders(period, 'all');
+  if (cached) {
+    return { orders: cached.orders, fromCache: true, cachedAt: cached.meta.lastFetchDate };
+  }
+  // Fallback: use legacy bulk cache (still populated by warm-cache for cold boot).
+  const result = await cachedFetch(cacheKey(cacheEntity, period), getTTL(cacheEntity),
+    () => fetchOrders(priorityClient, startDate, endDate, isCurrentPeriod));
+  return { orders: result.data, fromCache: result.cached, cachedAt: result.cachedAt };
+}
