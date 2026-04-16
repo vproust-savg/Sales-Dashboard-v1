@@ -1,9 +1,10 @@
 // FILE: server/src/services/entity-subset-filter.ts
-// PURPOSE: Filter and scope raw orders to a specific subset of entity IDs across all dimensions.
-//   filterOrdersByEntityIds: predicate-only, keeps all items, used in fetch-all.ts.
-//   scopeOrders: transform for aggregators — narrows items for item-based dims and rewrites
-//   TOTPRICE so downstream sums (computeKPIs, computeMonthlyRevenue, etc.) are correct.
-// USED BY: server/src/routes/fetch-all.ts (filterOrdersByEntityIds)
+// PURPOSE: Filter and scope raw orders by dimension + entity-id set. Two exports with
+//   distinct semantics: filterOrdersByEntityIds is a predicate (items/TOTPRICE untouched);
+//   scopeOrders also narrows items and rewrites TOTPRICE for item-based dimensions.
+// USED BY: server/src/routes/fetch-all.ts (filterOrdersByEntityIds).
+//   scopeOrders: consumed by Task 3.3's aggregateOrders per-entity re-scoping loop
+//   (foundation export — no production callers in this commit).
 // EXPORTS: filterOrdersByEntityIds, scopeOrders
 
 import type { RawOrder, RawCustomer } from './priority-queries.js';
@@ -35,7 +36,9 @@ export function filterOrdersByEntityIds(
     case 'product_type':
       return orders.filter(o =>
         (o.ORDERITEMS_SUBFORM ?? []).some(i =>
-          entityIds.has(i.Y_3020_5_ESH ?? i.Y_3021_5_ESH ?? ''),
+          // WHY ||: Y_3020_5_ESH can be '' (empty string from API); || falls back to
+          // Y_3021_5_ESH in that case. ?? would not, since '' is not null/undefined.
+          entityIds.has(i.Y_3020_5_ESH || i.Y_3021_5_ESH || ''),
         ),
       );
     case 'product':
@@ -77,9 +80,15 @@ export function scopeOrders(
     switch (dimension) {
       case 'vendor':       return i.Y_1159_5_ESH ?? '';
       case 'brand':        return i.Y_9952_5_ESH ?? '';
-      case 'product_type': return i.Y_3020_5_ESH ?? i.Y_3021_5_ESH ?? '';
+      // WHY ||: Y_3020_5_ESH can be '' (empty string from API); || falls back to
+      // Y_3021_5_ESH in that case. ?? would not, since '' is not null/undefined.
+      case 'product_type': return i.Y_3020_5_ESH || i.Y_3021_5_ESH || '';
       case 'product':      return i.PARTNAME;
-      default: return '';
+      default:
+        // WHY throw: customer/zone are handled by early-return guards above. This default
+        // is structurally unreachable today, but a future Dimension added without updating
+        // this switch would silently drop all items (empty key never matches entityIds).
+        throw new Error(`scopeOrders: unexpected dimension ${dimension}`);
     }
   };
 

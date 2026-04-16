@@ -70,6 +70,16 @@ describe('scopeOrders', () => {
     expect(scoped[0].TOTPRICE).toBe(100);
   });
 
+  it('product_type dim: falls back to Y_3021_5_ESH when Y_3020_5_ESH is empty', () => {
+    const orders = [makeOrder('O1', 'C1', [
+      { Y_3020_5_ESH: '',  Y_3021_5_ESH: 'Culinary', QPRICE: 100 },
+      { Y_3020_5_ESH: '',  Y_3021_5_ESH: 'Pastry',   QPRICE: 50 },
+    ])];
+    const scoped = scopeOrders(orders, 'product_type', new Set(['Culinary']), customers);
+    expect(scoped[0].ORDERITEMS_SUBFORM).toHaveLength(1);
+    expect(scoped[0].TOTPRICE).toBe(100);
+  });
+
   it('product dim: matches on PARTNAME', () => {
     const orders = [makeOrder('O1', 'C1', [
       { PARTNAME: 'P1', QPRICE: 100 },
