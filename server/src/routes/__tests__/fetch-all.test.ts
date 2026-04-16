@@ -459,11 +459,17 @@ describe('Same-day cache hit skips raw-cache rewrites (I5)', () => {
   it('skips writeOrders when readOrders returns same-day cache', async () => {
     // WHY: readOrders is mocked at module level to return null (cache miss). Override it here
     // to simulate a same-day cache hit so tryIncrementalRefresh returns didFetch=false.
+    // Must mock TWICE: once for current-year (tryIncrementalRefresh), once for prev-year.
     const { readOrders } = await import('../../cache/order-cache.js');
-    vi.mocked(readOrders).mockResolvedValueOnce({
-      orders: [],
-      meta: { lastFetchDate: new Date().toISOString(), orderCount: 0, filterHash: 'all' },
-    });
+    vi.mocked(readOrders)
+      .mockResolvedValueOnce({
+        orders: [],
+        meta: { lastFetchDate: new Date().toISOString(), orderCount: 0, filterHash: 'all' },
+      })
+      .mockResolvedValueOnce({
+        orders: [],
+        meta: { lastFetchDate: new Date().toISOString(), orderCount: 0, filterHash: 'all' },
+      });
 
     await request(makeApp())
       .get('/api/sales/fetch-all?period=ytd')

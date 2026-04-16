@@ -87,7 +87,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // The laptop benchmark does NOT survive the ±30% laptop-vs-Railway variance. A production
     // measurement (see spec "Runtime — D2" verification) is required before closing the
     // wall-clock risk; the architectural-redesign path stays open in the backlog.
-    const [ordersWrapped, prevOrders] = await Promise.all([
+    const [ordersWrapped, prevOrdersResult] = await Promise.all([
       (async (): Promise<FetchedOrders> => {
         if (forceRefresh) {
           return fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
@@ -95,15 +95,21 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
         const cached = await tryIncrementalRefresh(period, filterHash, startDate, endDate, extraFilter, sendEvent, abortController.signal);
         return cached ?? fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
       })(),
-      // WHY: Include filterHash in prev-year key. Without it, the first filtered Report
-      // poisons the prev-year cache for every subsequent filter (e.g., running Alexandra's
-      // report caches her prev-year orders under a global key; the next rep reads her data).
-      cachedFetch(
-        cacheKey('orders_year', String(year - 1), filterHash), getTTL('orders_year'),
-        () => fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter, undefined, abortController.signal),
-      ),
+      // WHY: Prev-year also uses per-order caching — with 50K+ orders the bulk cachedFetch
+      // payload exceeds Upstash's 10 MB limit (production failure: 20 MB for 2025 orders).
+      // Same readOrders/writeOrders pattern as current-year, keyed by prev-year period.
+      (async (): Promise<FetchedOrders> => {
+        const prevPeriod = String(year - 1);
+        if (!forceRefresh) {
+          const cached = await readOrders(prevPeriod, filterHash);
+          if (cached) return { orders: cached.orders, didFetch: false };
+        }
+        const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter, undefined, abortController.signal);
+        return { orders: prevData, didFetch: true };
+      })(),
     ]);
     const orders = ordersWrapped.orders;
+    const prevOrders = prevOrdersResult;
 
     // Cache raw orders + metadata (sequential after Promise.all — depends on orders result)
     sendEvent('progress', { phase: 'processing', message: 'Computing metrics...' });
@@ -111,6 +117,10 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       // WHY: Per-order keys with all-or-nothing semantics. If any pipeline batch fails,
       // index/meta won't be published — the next request retries the full write.
       await writeOrders(orders, period, filterHash, getTTL('orders_raw'));
+    }
+    if (prevOrders.didFetch) {
+      // WHY: Prev-year also written as per-order keys — same 10 MB limit applies.
+      await writeOrders(prevOrders.orders, String(year - 1), filterHash, getTTL('orders_year'));
     }
     const customers = await cachedFetch(
       cacheKey('customers', 'all'), getTTL('customers'),
@@ -121,7 +131,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     const filteredOrders = filterOrdersByCustomerCriteria(orders, customers.data, { zone, customerType });
     // WHY: Same zone/customerType filter must be applied to prev-year data so YoY compares
     // the same entity population. Agent filtering already happened in OData.
-    const filteredPrev = filterOrdersByCustomerCriteria(prevOrders.data, customers.data, { zone, customerType });
+    const filteredPrev = filterOrdersByCustomerCriteria(prevOrders.orders, customers.data, { zone, customerType });
 
     // WHY: entityIds narrows filteredOrders to the pre-selected entity subset (View Consolidated D3).
     // Applied AFTER customer-criteria so both filters compose correctly (AND semantics).
@@ -140,7 +150,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // WHY: yearsAvailable is derived from filteredOrders (not subsetOrders) so the year picker
     // reflects all years the raw cache covers — not just the subset's years.
     const years = new Set(filteredOrders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
-    prevOrders.data.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
+    prevOrders.orders.forEach(o => years.add(new Date(o.CURDATE).getUTCFullYear().toString()));
 
     const payload: DashboardPayload = {
       entities,
