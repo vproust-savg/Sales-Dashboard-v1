@@ -1,7 +1,7 @@
 // FILE: shared/types/dashboard.ts
 // PURPOSE: Shared types for dashboard data exchanged between server and client
 // USED BY: server/services/data-aggregator.ts, client/hooks/useDashboardData.ts
-// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER, TopSellerItem, OrderLineItem, OrderRow, FlatItem, Contact
+// EXPORTS: DashboardPayload, EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType, PRODUCT_MIX_LABELS, PRODUCT_MIX_ORDER, TopSellerItem, OrderLineItem, OrderRow, FlatItem, Contact, RawProductType, RawProduct, DIMENSION_SINGULAR_LABELS, DIMENSION_PLURAL_LABELS
 
 /** One entity in the left-panel list (customer, zone, vendor, brand, product type, or product) */
 export interface EntityListItem {
@@ -187,8 +187,43 @@ export interface Contact {
   customerName?: string;
 }
 
+/** Priority ERP raw shape for a product type (from FAMILY_LOG, deduplicated by FTCODE). */
+export interface RawProductType {
+  FTCODE: string;
+  FTNAME: string;
+}
+
+/** Priority ERP raw shape for a product (LOGPART filtered by STATDES='In Use'). */
+export interface RawProduct {
+  PARTNAME: string;
+  PARTDES: string;
+  FAMILYNAME: string;
+  Y_9952_5_ESH: string | null;  // brand on part
+  STATDES: string;
+}
+
 /** Available dimensions — spec Section 5 */
 export type Dimension = 'customer' | 'zone' | 'vendor' | 'brand' | 'product_type' | 'product';
+
+/** Singular labels for empty-state placeholders ("All Vendors" → "Vendor" in per-row UI). */
+export const DIMENSION_SINGULAR_LABELS: Record<Dimension, string> = {
+  customer: 'Customer',
+  zone: 'Zone',
+  vendor: 'Vendor',
+  brand: 'Brand',
+  product_type: 'Product Type',
+  product: 'Product',
+};
+
+/** Plural labels for list headers + loading messages ("Loading vendors..."). */
+export const DIMENSION_PLURAL_LABELS: Record<Dimension, string> = {
+  customer: 'Customers',
+  zone: 'Zones',
+  vendor: 'Vendors',
+  brand: 'Brands',
+  product_type: 'Product Types',
+  product: 'Products',
+};
 
 /** Period selection */
 export type Period = 'ytd' | string;  // 'ytd' or a year like '2025'
@@ -198,6 +233,10 @@ export interface FetchAllFilters {
   agentName?: string[];
   zone?: string[];
   customerType?: string[];
+  brand?: string[];              // NEW — item level (even though brand dim is deferred, filter is in scope)
+  productFamily?: string[];      // NEW — item level
+  countryOfOrigin?: string[];    // NEW — item level
+  foodServiceRetail?: string[];  // NEW — item level (values: 'Y' = Retail, 'N' = Food Service)
   /** WHY: Pre-selected entity subset from View Consolidated (D3). Applied after the other filters. */
   entityIds?: string[];
 }
