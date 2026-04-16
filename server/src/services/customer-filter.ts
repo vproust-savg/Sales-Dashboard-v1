@@ -1,7 +1,7 @@
 // FILE: server/src/services/customer-filter.ts
-// PURPOSE: Post-fetch filtering of orders by agent name and customer-level criteria (zone, customerType)
+// PURPOSE: Post-fetch filtering of orders by agent name, customer-level criteria (zone, customerType), and item-level criteria (brand, productFamily, countryOfOrigin, foodServiceRetail)
 // USED BY: server/src/routes/fetch-all.ts
-// EXPORTS: filterOrdersByAgent, filterOrdersByCustomerCriteria
+// EXPORTS: filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItemCriteria, ItemFilterCriteria
 
 import type { RawOrder, RawCustomer } from './priority-queries.js';
 
@@ -58,4 +58,36 @@ export function filterOrdersByCustomerCriteria(
   }
 
   return orders.filter(o => matchingCustomers.has(o.CUSTNAME));
+}
+
+export interface ItemFilterCriteria {
+  brand?: string[];
+  productFamily?: string[];
+  countryOfOrigin?: string[];
+  foodServiceRetail?: string[];
+}
+
+/** Filter orders to those where ANY item matches ALL supplied criteria fields.
+ *  Within each criteria field: OR (multi-value). Across fields: AND.
+ *  Empty criteria (or all arrays empty/undefined) → all orders pass through unchanged.
+ *  WHY item-level: brand/family/country/fsr live on ORDERITEMS_SUBFORM custom fields, not on
+ *  the order header. Filtering is post-fetch (universal "all" cache pattern). */
+export function filterOrdersByItemCriteria(
+  orders: RawOrder[],
+  criteria: ItemFilterCriteria,
+): RawOrder[] {
+  const brands    = criteria.brand?.length             ? new Set(criteria.brand)             : null;
+  const families  = criteria.productFamily?.length     ? new Set(criteria.productFamily)     : null;
+  const countries = criteria.countryOfOrigin?.length   ? new Set(criteria.countryOfOrigin)   : null;
+  const fsr       = criteria.foodServiceRetail?.length ? new Set(criteria.foodServiceRetail) : null;
+  if (!brands && !families && !countries && !fsr) return orders;
+
+  return orders.filter(o =>
+    (o.ORDERITEMS_SUBFORM ?? []).some(i =>
+      (!brands    || brands.has(i.Y_9952_5_ESH ?? '')) &&
+      (!families  || families.has(i.Y_2075_5_ESH ?? '')) &&
+      (!countries || countries.has(i.Y_5380_5_ESH ?? '')) &&
+      (!fsr       || fsr.has(i.Y_9967_5_ESH ?? ''))
+    ),
+  );
 }
