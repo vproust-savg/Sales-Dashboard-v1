@@ -228,15 +228,18 @@ export const DIMENSION_PLURAL_LABELS: Record<Dimension, string> = {
 /** Period selection */
 export type Period = 'ytd' | string;  // 'ytd' or a year like '2025'
 
-/** Filter params for the fetch-all dialog — narrows the server-side OData query */
+/** Filter params for the fetch-all dialog — narrows the server-side OData query.
+ *  WHY string[]: multi-select arrays at this layer. The server route flattens them
+ *  into comma-separated strings (query params), then into scalars for buildFilterHash
+ *  (cache-keys.ts FilterHashInput). Three layers, three shapes — intentional. */
 export interface FetchAllFilters {
   agentName?: string[];
   zone?: string[];
   customerType?: string[];
-  brand?: string[];              // NEW — item level (even though brand dim is deferred, filter is in scope)
-  productFamily?: string[];      // NEW — item level
-  countryOfOrigin?: string[];    // NEW — item level
-  foodServiceRetail?: string[];  // NEW — item level (values: 'Y' = Retail, 'N' = Food Service)
+  brand?: string[];              // item level (brand dim deferred, filter in scope)
+  productFamily?: string[];      // item level
+  countryOfOrigin?: string[];    // item level
+  foodServiceRetail?: string[];  // item level; values: 'Y' = Retail, 'N' = Food Service
   /** WHY: Pre-selected entity subset from View Consolidated (D3). Applied after the other filters. */
   entityIds?: string[];
 }
