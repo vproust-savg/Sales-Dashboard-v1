@@ -8,9 +8,10 @@ export type PerCustomerMode = 'aggregated' | 'per-customer';
 interface PerCustomerToggleProps {
   mode: PerCustomerMode;
   onChange: (mode: PerCustomerMode) => void;
+  entityLabel?: string;
 }
 
-export function PerCustomerToggle({ mode, onChange }: PerCustomerToggleProps) {
+export function PerCustomerToggle({ mode, onChange, entityLabel }: PerCustomerToggleProps) {
   return (
     <div
       role="radiogroup"
@@ -18,7 +19,7 @@ export function PerCustomerToggle({ mode, onChange }: PerCustomerToggleProps) {
       className="inline-flex rounded-full bg-[var(--color-gold-subtle)] p-[2px]"
     >
       <ToggleOption label="Aggregated" active={mode === 'aggregated'} onClick={() => onChange('aggregated')} />
-      <ToggleOption label="Per Customer" active={mode === 'per-customer'} onClick={() => onChange('per-customer')} />
+      <ToggleOption label={`Per ${entityLabel ?? 'Customer'}`} active={mode === 'per-customer'} onClick={() => onChange('per-customer')} />
     </div>
   );
 }

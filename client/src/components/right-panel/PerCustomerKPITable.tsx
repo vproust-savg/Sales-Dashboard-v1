@@ -19,6 +19,7 @@ interface PerCustomerKPITableProps {
   /** Optional per-entity previous-year value for YoY calculation */
   getPrevValue?: (e: EntityListItem) => number | null;
   valueLabel: string;
+  entityLabel?: string;
 }
 
 function yoy(current: number | null, prev: number | null | undefined): number | null {
@@ -26,7 +27,7 @@ function yoy(current: number | null, prev: number | null | undefined): number | 
   return ((current - prev) / prev) * 100;
 }
 
-export function PerCustomerKPITable({ entities, getValue, formatValue, getPrevValue, valueLabel }: PerCustomerKPITableProps) {
+export function PerCustomerKPITable({ entities, getValue, formatValue, getPrevValue, valueLabel, entityLabel }: PerCustomerKPITableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -60,7 +61,7 @@ export function PerCustomerKPITable({ entities, getValue, formatValue, getPrevVa
       <table className="w-full text-[12px]">
         <thead className="sticky top-0 bg-[var(--color-bg-card)]">
           <tr className="border-b border-[var(--color-gold-subtle)]">
-            <Th label="Customer" sortKey="name" active={sortKey} dir={sortDir} onClick={onHeaderClick} />
+            <Th label={entityLabel ?? 'Customer'} sortKey="name" active={sortKey} dir={sortDir} onClick={onHeaderClick} />
             <Th label={valueLabel} sortKey="value" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
             <Th label="YoY" sortKey="yoy" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
           </tr>

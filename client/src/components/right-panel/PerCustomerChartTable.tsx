@@ -18,9 +18,10 @@ interface PerCustomerChartTableProps {
   productMixType?: ProductMixType;
   /** Per-entity top sellers (keyed by entity id) */
   perEntityTopSellers?: Record<string, TopSellerItem[]>;
+  entityLabel?: string;
 }
 
-export function PerCustomerChartTable({ mode, entities, perEntityProductMixes, productMixType, perEntityTopSellers }: PerCustomerChartTableProps) {
+export function PerCustomerChartTable({ mode, entities, perEntityProductMixes, productMixType, perEntityTopSellers, entityLabel }: PerCustomerChartTableProps) {
   const rows = useMemo(() => {
     if (mode === 'product-mix') {
       if (!perEntityProductMixes || !productMixType) return [];
@@ -59,7 +60,7 @@ export function PerCustomerChartTable({ mode, entities, perEntityProductMixes, p
       <table className="w-full text-[12px]">
         <thead className="sticky top-0 bg-[var(--color-bg-card)]">
           <tr className="border-b border-[var(--color-gold-subtle)]">
-            <th className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Customer</th>
+            <th className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">{entityLabel ?? 'Customer'}</th>
             <th className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">{categoryHeader}</th>
             <th className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">{valueHeader}</th>
             {mode === 'product-mix' && (
