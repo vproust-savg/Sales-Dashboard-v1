@@ -1,8 +1,10 @@
 // FILE: server/src/services/entity-subset-filter.ts
-// PURPOSE: Filter raw orders to a specific subset of entity IDs across all dimensions.
-//   Used by the SSE fetch-all route when View Consolidated narrows the result to selected customers.
-// USED BY: server/src/routes/fetch-all.ts
-// EXPORTS: filterOrdersByEntityIds
+// PURPOSE: Filter and scope raw orders to a specific subset of entity IDs across all dimensions.
+//   filterOrdersByEntityIds: predicate-only, keeps all items, used in fetch-all.ts.
+//   scopeOrders: transform for aggregators — narrows items for item-based dims and rewrites
+//   TOTPRICE so downstream sums (computeKPIs, computeMonthlyRevenue, etc.) are correct.
+// USED BY: server/src/routes/fetch-all.ts (filterOrdersByEntityIds)
+// EXPORTS: filterOrdersByEntityIds, scopeOrders
 
 import type { RawOrder, RawCustomer } from './priority-queries.js';
 import type { Dimension } from '@shared/types/dashboard';
@@ -43,4 +45,49 @@ export function filterOrdersByEntityIds(
     default:
       return orders;
   }
+}
+
+/** Scope orders to a dimension + entity-id set. For item-based dims, narrows each order's
+ *  ORDERITEMS_SUBFORM to matching items AND rewrites TOTPRICE = Σ QPRICE of remaining items.
+ *  This lets downstream aggregators (computeKPIs, computeMonthlyRevenue, etc.) remain
+ *  dimension-agnostic — they sum TOTPRICE as they always have, and it's correct by construction.
+ *  WHY not mutate: callers may reuse the input orders array for other scopes (consolidated
+ *  perEntity loop). Return new objects. */
+export function scopeOrders(
+  orders: RawOrder[],
+  dimension: Dimension,
+  entityIds: Set<string>,
+  customers: RawCustomer[],
+): RawOrder[] {
+  if (entityIds.size === 0) return [];
+
+  if (dimension === 'customer') {
+    return orders.filter(o => entityIds.has(o.CUSTNAME));
+  }
+
+  if (dimension === 'zone') {
+    const custInZones = new Set(
+      customers.filter(c => entityIds.has(c.ZONECODE)).map(c => c.CUSTNAME),
+    );
+    return orders.filter(o => custInZones.has(o.CUSTNAME));
+  }
+
+  // Item-based dims: narrow items + rewrite TOTPRICE
+  const itemKey = (i: RawOrder['ORDERITEMS_SUBFORM'][number]): string => {
+    switch (dimension) {
+      case 'vendor':       return i.Y_1159_5_ESH ?? '';
+      case 'brand':        return i.Y_9952_5_ESH ?? '';
+      case 'product_type': return i.Y_3020_5_ESH ?? i.Y_3021_5_ESH ?? '';
+      case 'product':      return i.PARTNAME;
+      default: return '';
+    }
+  };
+
+  return orders.reduce<RawOrder[]>((acc, o) => {
+    const items = (o.ORDERITEMS_SUBFORM ?? []).filter(i => entityIds.has(itemKey(i)));
+    if (items.length === 0) return acc;
+    const scopedTotprice = items.reduce((s, i) => s + i.QPRICE, 0);
+    acc.push({ ...o, ORDERITEMS_SUBFORM: items, TOTPRICE: scopedTotprice });
+    return acc;
+  }, []);
 }
