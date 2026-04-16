@@ -11,7 +11,7 @@ import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
-import { filterOrdersByAgent, filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
+import { filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItemCriteria } from '../services/customer-filter.js';
 import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { writeOrders, readOrders, deleteOrderIndex } from '../cache/order-cache.js';
@@ -24,17 +24,21 @@ import { createSseWriter } from './sse-writer.js';
 const querySchema = z.object({
   groupBy: z.enum(['customer', 'zone', 'vendor', 'brand', 'product_type', 'product']).default('customer'),
   period: z.string().default('ytd'),
-  agentName: z.string().optional(),   // comma-separated agent names
-  zone: z.string().optional(),         // comma-separated zone names
-  customerType: z.string().optional(), // comma-separated customer types
-  entityIds: z.string().optional(),    // WHY: comma-separated entity IDs for View Consolidated subset (D3)
+  agentName: z.string().optional(),        // comma-separated agent names
+  zone: z.string().optional(),             // comma-separated zone names
+  customerType: z.string().optional(),     // comma-separated customer types
+  brand: z.string().optional(),            // comma-separated brand codes
+  productFamily: z.string().optional(),    // comma-separated family codes
+  countryOfOrigin: z.string().optional(),  // comma-separated country names
+  foodServiceRetail: z.string().optional(),// 'Y' (Retail) and/or '' (Food Service) comma-separated
+  entityIds: z.string().optional(),        // WHY: comma-separated entity IDs for View Consolidated subset (D3)
   refresh: z.enum(['true', 'false']).optional(),
 });
 
 export const fetchAllRouter = Router();
 
 fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) => {
-  const { groupBy, period, agentName, zone, customerType, entityIds, refresh }
+  const { groupBy, period, agentName, zone, customerType, brand, productFamily, countryOfOrigin, foodServiceRetail, entityIds, refresh }
     = res.locals.query as z.infer<typeof querySchema>;
   const forceRefresh = refresh === 'true';
 
@@ -49,7 +53,10 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // WHY: filterHash is used ONLY for aggregated caches (entities_full, report_payload,
     // entity_detail). Raw order cache always uses 'all' — one universal scope.
     // Agent/zone/customerType filtering happens post-cache in-memory.
-    const filterHash = buildFilterHash({ agentName, zone, customerType });
+    const filterHash = buildFilterHash({
+      agentName, zone, customerType,
+      brand, productFamily, countryOfOrigin, foodServiceRetail,
+    });
 
     // Date ranges
     const now = new Date();
@@ -137,8 +144,19 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // Same filters on both current + prev year so YoY compares the same population.
     const agentFiltered = filterOrdersByAgent(orders, agentName);
     const agentFilteredPrev = filterOrdersByAgent(prevOrders.orders, agentName);
-    const filteredOrders = filterOrdersByCustomerCriteria(agentFiltered, customers.data, { zone, customerType });
-    const filteredPrev = filterOrdersByCustomerCriteria(agentFilteredPrev, customers.data, { zone, customerType });
+    const custFiltered = filterOrdersByCustomerCriteria(agentFiltered, customers.data, { zone, customerType });
+    const custFilteredPrev = filterOrdersByCustomerCriteria(agentFilteredPrev, customers.data, { zone, customerType });
+
+    // WHY: Item-level criteria (brand/family/country/FS-vs-Retail) live on ORDERITEMS_SUBFORM custom
+    // fields. Applied after agent/customer filters for consistent AND semantics across all filter types.
+    const itemCriteria = {
+      brand:             brand             ? brand.split(',').map(s => s.trim()).filter(Boolean)             : undefined,
+      productFamily:     productFamily     ? productFamily.split(',').map(s => s.trim()).filter(Boolean)     : undefined,
+      countryOfOrigin:   countryOfOrigin   ? countryOfOrigin.split(',').map(s => s.trim()).filter(Boolean)   : undefined,
+      foodServiceRetail: foodServiceRetail ? foodServiceRetail.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+    };
+    const filteredOrders = filterOrdersByItemCriteria(custFiltered, itemCriteria);
+    const filteredPrev   = filterOrdersByItemCriteria(custFilteredPrev, itemCriteria);
 
     // WHY: entityIds narrows filteredOrders to the pre-selected entity subset (View Consolidated D3).
     // Applied AFTER customer-criteria so both filters compose correctly (AND semantics).
@@ -152,7 +170,20 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
     const entities = groupByDimension(groupBy as Dimension, subsetOrders, customers.data, periodMonths, subsetPrev, period);
-    const aggregate = aggregateOrders(subsetOrders, subsetPrev, period);
+
+    // WHY: Build scope for aggregateOrders so item-based dims get per-entity rescoping in
+    // consolidated mode (Task 3.3 fix). filterOrdersByEntityIds above is predicate-only
+    // (order-level match) for the entities list; scope adds item-narrowing + TOTPRICE rewrite
+    // needed for correct KPIs and per-entity breakdowns.
+    const scope = entityIdList && entityIdList.length > 0
+      ? { dimension: groupBy as Dimension, entityIds: entityIdList }
+      : undefined;
+    const aggregate = aggregateOrders(
+      subsetOrders,
+      subsetPrev,
+      period,
+      scope ? { scope, customers: customers.data } : undefined,
+    );
 
     // WHY: yearsAvailable is derived from filteredOrders (not subsetOrders) so the year picker
     // reflects all years the raw cache covers — not just the subset's years.
