@@ -18,12 +18,21 @@ interface ConsolidatedHeaderProps {
   onExport: () => void;
 }
 
+/** WHY: foodServiceRetail values: 'Y' = Retail, anything else = Food Service */
+function mapFoodServiceRetail(values: string[]): string {
+  return values.map(v => v === 'Y' ? 'Retail' : 'Food Service').join(', ');
+}
+
 function formatFilters(filters: FetchAllFilters | null): string | null {
   if (!filters) return null;
   const parts: string[] = [];
   if (filters.agentName?.length) parts.push(`Rep: ${filters.agentName.join(', ')}`);
   if (filters.zone?.length) parts.push(`Zone: ${filters.zone.join(', ')}`);
   if (filters.customerType?.length) parts.push(`Type: ${filters.customerType.join(', ')}`);
+  if (filters.brand?.length) parts.push(`Brand: ${filters.brand.join(', ')}`);
+  if (filters.productFamily?.length) parts.push(`Product Family: ${filters.productFamily.join(', ')}`);
+  if (filters.countryOfOrigin?.length) parts.push(`Country: ${filters.countryOfOrigin.join(', ')}`);
+  if (filters.foodServiceRetail?.length) parts.push(`FS vs Retail: ${mapFoodServiceRetail(filters.foodServiceRetail)}`);
   return parts.length > 0 ? `Filters: ${parts.join(' · ')}` : null;
 }
 
