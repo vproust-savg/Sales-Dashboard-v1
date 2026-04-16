@@ -51,6 +51,10 @@ COPY --from=builder-server /app/server/dist/ server/dist/
 COPY --from=builder-client /app/client/dist/ client/dist/
 
 ENV NODE_ENV=production
+# WHY: Default V8 heap (~512 MB) is too small when processing 60K+ orders in memory:
+# current-year + prev-year orders + customers + aggregated results + JSON.stringify buffers.
+# 2 GB gives comfortable headroom for the full Report pipeline.
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 EXPOSE 3001
 
 CMD ["node", "server/dist/server/src/index.js"]

@@ -40,4 +40,14 @@ describe('parseSSEErrorEvent', () => {
     const event = new MessageEvent('error', { data: 'garbage{json' });
     expect(parseSSEErrorEvent(event)).toBe('Connection lost');
   });
+
+  it('truncates oversized error messages to prevent wall-of-text rendering (PE-T7)', () => {
+    // WHY: If the server error message contains stringified raw order data (e.g., from a
+    // failed JSON.stringify of 60K orders), the modal would render a massive block of red text.
+    const hugeMessage = 'X'.repeat(1000);
+    const event = new MessageEvent('error', { data: JSON.stringify({ message: hugeMessage }) });
+    const result = parseSSEErrorEvent(event);
+    expect(result.length).toBeLessThanOrEqual(301); // 300 chars + ellipsis
+    expect(result).toMatch(/…$/);
+  });
 });

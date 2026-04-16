@@ -16,12 +16,18 @@ export function parseSSEProgressEvent(event: MessageEvent): SSEProgressEvent | n
   }
 }
 
+/** WHY: Guard against oversized error messages (e.g., raw order data leaking through from a
+ *  failed JSON.stringify). The server now also truncates, but this is defense-in-depth so
+ *  the error modal never renders a wall of unreadable text regardless of the source. */
+const MAX_ERROR_LENGTH = 300;
+
 /** Returns the error message — server-sent message if present, fallback 'Connection lost' otherwise. */
 export function parseSSEErrorEvent(event: Event): string {
   if (event instanceof MessageEvent && event.data) {
     try {
       const data = JSON.parse(event.data) as { message?: string } | null;
-      return data?.message ?? 'Connection lost';
+      const msg = data?.message ?? 'Connection lost';
+      return msg.length > MAX_ERROR_LENGTH ? msg.slice(0, MAX_ERROR_LENGTH) + '…' : msg;
     } catch {
       return 'Connection lost';
     }

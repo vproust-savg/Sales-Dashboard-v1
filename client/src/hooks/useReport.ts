@@ -6,7 +6,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
-  Dimension, Period, DashboardPayload, FetchAllFilters, SSEProgressEvent,
+  Dimension, Period, DashboardPayload, FetchAllFilters, SSEProgressEvent, OrderRow,
 } from '@shared/types/dashboard';
 import { buildReportUrl } from './build-report-url';
 import { parseSSEProgressEvent, parseSSEErrorEvent } from './sse-event-parser';
@@ -115,18 +115,32 @@ export function useReport(dimension: Dimension, period: Period): UseReportReturn
       if (parsed) setProgress(parsed);
     });
 
+    // WHY: Server streams orders separately from the summary payload (orders=[]) to avoid
+    // a 40+ MB single SSE event. Three events: `complete` (summary), `orders-batch` × N
+    // (1000 orders each), `orders-done` (close). Dashboard shows immediately on `complete`;
+    // orders populate as batches arrive.
     es.addEventListener('complete', (e) => {
       if (isStale()) return;
       const data = JSON.parse((e as MessageEvent).data) as DashboardPayload;
       setPayload(data);
       setProgress(null);
       setState('loaded');
-      es.close();
-      eventSourceRef.current = null;
+      // DON'T close — wait for orders-batch / orders-done events
 
-      // WHY: Invalidate cache-status so Report button reflects new cache state
       queryClient.invalidateQueries({ queryKey: ['cache-status', period] });
       queryClient.invalidateQueries({ queryKey: ['entities', dimension, period] });
+    });
+
+    es.addEventListener('orders-batch', (e) => {
+      if (isStale()) return;
+      const batch = JSON.parse((e as MessageEvent).data) as OrderRow[];
+      setPayload(prev => prev ? { ...prev, orders: [...prev.orders, ...batch] } : null);
+    });
+
+    es.addEventListener('orders-done', () => {
+      if (isStale()) return;
+      es.close();
+      eventSourceRef.current = null;
     });
 
     es.addEventListener('error', (e) => {

@@ -180,7 +180,23 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       await redis.set(detailKey, JSON.stringify(detailEnvelope), { ex: getTTL('entities_full') });
     }
 
+    // WHY: Stream orders separately from the summary payload. With 60K orders at ~650 bytes
+    // per row (+ nested OrderLineItems), the `complete` event can exceed 40 MB — enough to
+    // crash the browser EventSource or get truncated by Railway's nginx proxy. Splitting into:
+    //   1. `complete`      — summary (entities, KPIs, charts, items) with orders=[]
+    //   2. `orders-batch`  — 1000 orders per event (~650 KB each, well within SSE limits)
+    //   3. `orders-done`   — signals client to close EventSource
+    // Cache writes above keep the FULL payload; only the SSE transport is chunked.
+    const ORDER_BATCH_SIZE = 1000;
+    const allOrders = payload.orders;
+    payload.orders = [];
     sendEvent('complete', payload);
+
+    for (let i = 0; i < allOrders.length; i += ORDER_BATCH_SIZE) {
+      if (sse.isClosed()) break;
+      sendEvent('orders-batch', allOrders.slice(i, i + ORDER_BATCH_SIZE));
+    }
+    sendEvent('orders-done', {});
   } catch (err) {
     // WHY: AbortError means the user cancelled the Report — not a server fault. Logging it
     // as a failure would pollute Railway logs and mask real errors. The SSE connection is
@@ -193,13 +209,18 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     if (err instanceof Error && err.name === 'AbortError') {
       console.log('[fetch-all] Report cancelled by client');
     } else {
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const rawMessage = err instanceof Error ? err.message : 'Unknown error';
       const stack = err instanceof Error ? err.stack : undefined;
       console.error('[fetch-all] Report failed:', {
         groupBy, period, agentName, zone, customerType,
-        message,
+        message: rawMessage,
         stack,
       });
+      // WHY: Truncate to 500 chars. A thrown Error with a very large message (e.g., from a
+      // failed JSON.stringify of the full order set) would otherwise be sent as the SSE error
+      // event data, which the client renders verbatim in the error modal — producing a wall
+      // of unreadable text (the raw-data-as-error screenshot that surfaced this fix).
+      const message = rawMessage.length > 500 ? rawMessage.slice(0, 500) + '…' : rawMessage;
       sendEvent('error', { message });
     }
   } finally {

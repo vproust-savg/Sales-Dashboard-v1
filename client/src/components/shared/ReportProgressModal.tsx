@@ -131,7 +131,7 @@ function ErrorContent({ message, onClose, onRetry }: ErrorContentProps) {
     <>
       <div className="flex flex-col items-center gap-[var(--spacing-md)]">
         <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Something went wrong</h2>
-        <p className="rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] p-[var(--spacing-md)] text-center text-[12px] text-[var(--color-red)]">
+        <p className="max-h-[120px] overflow-auto rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] p-[var(--spacing-md)] text-center text-[12px] text-[var(--color-red)]">
           {message}
         </p>
       </div>
