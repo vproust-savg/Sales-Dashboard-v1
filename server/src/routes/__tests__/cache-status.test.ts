@@ -45,12 +45,13 @@ describe('GET /api/sales/cache-status', () => {
 
   it('returns raw=true with metadata when cache exists', async () => {
     (redis.keys as ReturnType<typeof vi.fn>).mockResolvedValue([
-      'dashboard:orders_raw_meta:ytd:all',
+      'orders:meta:ytd:all',
     ]);
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(
       JSON.stringify({
-        data: { lastFetchDate: '2026-04-14T08:23:00Z', rowCount: 22431, filterHash: 'all' },
-        cachedAt: '2026-04-14T08:23:00Z',
+        lastFetchDate: '2026-04-14T08:23:00Z',
+        orderCount: 22431,
+        filterHash: 'all',
       }),
     );
 
