@@ -11,7 +11,7 @@ import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension } from '../services/dimension-grouper.js';
-import { filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
+import { filterOrdersByAgent, filterOrdersByCustomerCriteria } from '../services/customer-filter.js';
 import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { writeOrders, readOrders, deleteOrderIndex } from '../cache/order-cache.js';
@@ -46,6 +46,9 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
   const abortController = new AbortController();
   req.on('close', () => abortController.abort(new Error('Client cancelled Report')));
   try {
+    // WHY: filterHash is used ONLY for aggregated caches (entities_full, report_payload,
+    // entity_detail). Raw order cache always uses 'all' — one universal scope.
+    // Agent/zone/customerType filtering happens post-cache in-memory.
     const filterHash = buildFilterHash(agentName, zone, customerType);
 
     // Date ranges
@@ -54,19 +57,16 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     const startDate = `${year}-01-01T00:00:00Z`;
     const endDate = `${year + 1}-01-01T00:00:00Z`;
 
-    // Build OData filter from dialog dropdowns
-    const extraFilter = buildODataFilter(agentName);
-
     // WHY: D2 — hoist redis.del calls BEFORE Promise.all when forceRefresh is true.
     // If these ran inside the current-year IIFE, the prev-year branch (running concurrently)
     // could read the stale prev-year cache key before the del completed — a race condition.
     // Hoisting them sequentially here guarantees both branches start with a clean slate.
     if (forceRefresh) {
-      // WHY: Force refresh clears index + meta for both current and prev-year scopes.
-      // Individual order keys are NOT deleted — they're shared across scopes and expire via TTL.
+      // WHY: Force refresh clears the universal "all" index + meta for both years.
+      // Individual order keys are NOT deleted — they're shared and expire via TTL.
       await Promise.all([
-        deleteOrderIndex(period, filterHash),
-        deleteOrderIndex(String(year - 1), filterHash),
+        deleteOrderIndex(period, 'all'),
+        deleteOrderIndex(String(year - 1), 'all'),
       ]);
     }
 
@@ -87,13 +87,16 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // The laptop benchmark does NOT survive the ±30% laptop-vs-Railway variance. A production
     // measurement (see spec "Runtime — D2" verification) is required before closing the
     // wall-clock risk; the architectural-redesign path stays open in the backlog.
+    // WHY: Universal "all" cache — always read/write with filterHash='all'. Agent/zone/customerType
+    // filtering happens post-cache in-memory. This means one painful initial load caches everything,
+    // then all filtered views are instant reads from the same cache.
     const [ordersWrapped, prevOrdersResult] = await Promise.all([
       (async (): Promise<FetchedOrders> => {
         if (forceRefresh) {
-          return fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
+          return fullFetch(startDate, endDate, sendEvent, abortController.signal);
         }
-        const cached = await tryIncrementalRefresh(period, filterHash, startDate, endDate, extraFilter, sendEvent, abortController.signal);
-        return cached ?? fullFetch(startDate, endDate, extraFilter, sendEvent, abortController.signal);
+        const cached = await tryIncrementalRefresh(period, startDate, endDate, sendEvent, abortController.signal);
+        return cached ?? fullFetch(startDate, endDate, sendEvent, abortController.signal);
       })(),
       // WHY: Prev-year also uses per-order caching — with 50K+ orders the bulk cachedFetch
       // payload exceeds Upstash's 10 MB limit (production failure: 20 MB for 2025 orders).
@@ -101,10 +104,11 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       (async (): Promise<FetchedOrders> => {
         const prevPeriod = String(year - 1);
         if (!forceRefresh) {
-          const cached = await readOrders(prevPeriod, filterHash);
+          const cached = await readOrders(prevPeriod, 'all');
           if (cached) return { orders: cached.orders, didFetch: false };
         }
-        const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, extraFilter, undefined, abortController.signal);
+        // WHY: No extraFilter — always fetch ALL prev-year orders for the universal cache.
+        const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, undefined, undefined, abortController.signal);
         return { orders: prevData, didFetch: true };
       })(),
     ]);
@@ -114,24 +118,27 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // Cache raw orders + metadata (sequential after Promise.all — depends on orders result)
     sendEvent('progress', { phase: 'processing', message: 'Computing metrics...' });
     if (ordersWrapped.didFetch) {
-      // WHY: Per-order keys with all-or-nothing semantics. If any pipeline batch fails,
-      // index/meta won't be published — the next request retries the full write.
-      await writeOrders(orders, period, filterHash, getTTL('orders_raw'));
+      // WHY: Per-order keys with all-or-nothing semantics. Always write under 'all' scope.
+      // Every order gets its own `order:{ORDNAME}` key (365-day TTL) so it's available
+      // for any future read regardless of filter. Index rebuilt authoritatively from full set.
+      await writeOrders(orders, period, 'all', getTTL('orders_raw'));
     }
     if (prevOrders.didFetch) {
-      // WHY: Prev-year also written as per-order keys — same 10 MB limit applies.
-      await writeOrders(prevOrders.orders, String(year - 1), filterHash, getTTL('orders_year'));
+      // WHY: Prev-year also written under 'all' scope — same pattern, same 10 MB limit applies.
+      await writeOrders(prevOrders.orders, String(year - 1), 'all', getTTL('orders_year'));
     }
     const customers = await cachedFetch(
       cacheKey('customers', 'all'), getTTL('customers'),
       () => fetchCustomers(priorityClient, abortController.signal),
     );
 
-    // WHY: Zone/customerType are CUSTOMERS-level. Post-fetch filter after join.
-    const filteredOrders = filterOrdersByCustomerCriteria(orders, customers.data, { zone, customerType });
-    // WHY: Same zone/customerType filter must be applied to prev-year data so YoY compares
-    // the same entity population. Agent filtering already happened in OData.
-    const filteredPrev = filterOrdersByCustomerCriteria(prevOrders.orders, customers.data, { zone, customerType });
+    // WHY: All filters are post-cache in-memory. Agent filtering is ORDER-level (AGENTNAME),
+    // zone/customerType are CUSTOMER-level (require customer lookup). Applied in sequence.
+    // Same filters on both current + prev year so YoY compares the same population.
+    const agentFiltered = filterOrdersByAgent(orders, agentName);
+    const agentFilteredPrev = filterOrdersByAgent(prevOrders.orders, agentName);
+    const filteredOrders = filterOrdersByCustomerCriteria(agentFiltered, customers.data, { zone, customerType });
+    const filteredPrev = filterOrdersByCustomerCriteria(agentFilteredPrev, customers.data, { zone, customerType });
 
     // WHY: entityIds narrows filteredOrders to the pre-selected entity subset (View Consolidated D3).
     // Applied AFTER customer-criteria so both filters compose correctly (AND semantics).
@@ -231,12 +238,14 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 // reused same-day raw cache (didFetch=false → skip the two redis.set calls). Local to this route.
 interface FetchedOrders { orders: RawOrder[]; didFetch: boolean; }
 
-async function fullFetch(startDate: string, endDate: string, extraFilter: string | undefined,
+// WHY: No extraFilter — always fetches ALL orders for the universal "all" cache.
+// Agent/zone/customerType filtering happens post-fetch in the main handler.
+async function fullFetch(startDate: string, endDate: string,
   sendEvent: (event: string, data: unknown) => void, signal?: AbortSignal): Promise<FetchedOrders> {
   sendEvent('progress', { phase: 'fetching', rowsFetched: 0, estimatedTotal: 0 });
   // WHY: onProgress sends SSE events as each page arrives, preventing Railway proxy timeout
   // during the 1–5 min it takes to paginate 50,000 orders from Priority API.
-  const orders = await fetchOrders(priorityClient, startDate, endDate, true, extraFilter,
+  const orders = await fetchOrders(priorityClient, startDate, endDate, true, undefined,
     (rowsFetched, estimatedTotal) => {
       sendEvent('progress', { phase: 'fetching', rowsFetched, estimatedTotal });
     },
@@ -245,14 +254,16 @@ async function fullFetch(startDate: string, endDate: string, extraFilter: string
   return { orders, didFetch: true };
 }
 
+// WHY: Always reads/writes the universal "all" cache. Incremental delta fetches ALL orders
+// (no agent filter) so every new order gets cached regardless of who placed it.
 async function tryIncrementalRefresh(
-  period: string, filterHash: string,
-  startDate: string, endDate: string, extraFilter: string | undefined,
+  period: string,
+  startDate: string, endDate: string,
   sendEvent: (event: string, data: unknown) => void,
   signal?: AbortSignal,
 ): Promise<FetchedOrders | null> {
-  // Read from per-order cache
-  const cached = await readOrders(period, filterHash);
+  // Read from universal "all" per-order cache
+  const cached = await readOrders(period, 'all');
   if (!cached) return null;
 
   const { orders: cachedOrders, meta } = cached;
@@ -271,7 +282,9 @@ async function tryIncrementalRefresh(
   const sinceDateStr = sinceDate.toISOString().split('T')[0] + 'T00:00:00Z';
   sendEvent('progress', { phase: 'incremental', message: `Fetching orders since ${sinceDate.toLocaleDateString()}...`, rowsFetched: 0 });
 
-  const newOrders = await fetchOrders(priorityClient, sinceDateStr, endDate, true, extraFilter,
+  // WHY: No extraFilter — delta fetch includes ALL agents' orders so the universal cache
+  // stays complete. Every fetched order gets written back as order:{ORDNAME} key.
+  const newOrders = await fetchOrders(priorityClient, sinceDateStr, endDate, true, undefined,
     (rowsFetched, estimatedTotal) => {
       sendEvent('progress', { phase: 'incremental', rowsFetched, estimatedTotal });
     },
@@ -279,7 +292,8 @@ async function tryIncrementalRefresh(
   );
   sendEvent('progress', { phase: 'merging', message: `Merging ${newOrders.length} new orders with ${cachedOrders.length} cached...` });
 
-  // Deduplicate by ORDNAME — new version wins
+  // WHY: Deduplicate by ORDNAME — new version wins. Map ensures no duplicate order IDs
+  // in the merged set, which would produce incorrect KPIs (double-counted revenue).
   const orderMap = new Map<string, RawOrder>();
   cachedOrders.forEach(o => orderMap.set(o.ORDNAME, o));
   newOrders.forEach(o => orderMap.set(o.ORDNAME, o));
@@ -290,16 +304,4 @@ async function tryIncrementalRefresh(
   return { orders: merged, didFetch: true };
 }
 
-// WHY: agentName is OData-filterable on ORDERS. Zone/customerType handled by filterOrdersByCustomerCriteria().
-function buildODataFilter(agentName?: string): string | undefined {
-  if (!agentName) return undefined;
-  const names = agentName.split(',').map(n => n.trim()).filter(Boolean);
-  if (names.length === 0) return undefined;
-  if (names.length === 1) {
-    return `AGENTNAME eq '${names[0].replace(/'/g, "''")}'`;
-  }
-  // WHY: Multiple agents → OR clause: (AGENTNAME eq 'A' or AGENTNAME eq 'B')
-  const clauses = names.map(n => `AGENTNAME eq '${n.replace(/'/g, "''")}'`);
-  return `(${clauses.join(' or ')})`;
-}
 

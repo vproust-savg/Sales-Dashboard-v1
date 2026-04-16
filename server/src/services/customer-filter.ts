@@ -1,9 +1,24 @@
 // FILE: server/src/services/customer-filter.ts
-// PURPOSE: Post-fetch filtering of orders by customer-level criteria (zone, customerType)
+// PURPOSE: Post-fetch filtering of orders by agent name and customer-level criteria (zone, customerType)
 // USED BY: server/src/routes/fetch-all.ts
-// EXPORTS: filterOrdersByCustomerCriteria
+// EXPORTS: filterOrdersByAgent, filterOrdersByCustomerCriteria
 
 import type { RawOrder, RawCustomer } from './priority-queries.js';
+
+/**
+ * Filter orders by agent name(s). AGENTNAME is an ORDER-level field — filtered directly
+ * on the order, unlike zone/customerType which require a customer lookup.
+ * WHY: With the universal "all" cache, agent filtering is post-cache (not OData pre-fetch).
+ * Returns all orders if no agentName is set.
+ */
+export function filterOrdersByAgent(
+  orders: RawOrder[],
+  agentName?: string,
+): RawOrder[] {
+  if (!agentName) return orders;
+  const nameSet = new Set(agentName.split(',').map(n => n.trim().toLowerCase()));
+  return orders.filter(o => nameSet.has((o.AGENTNAME ?? '').toLowerCase()));
+}
 
 interface CustomerFilterCriteria {
   zone?: string;         // comma-separated zone names (ZONEDES)

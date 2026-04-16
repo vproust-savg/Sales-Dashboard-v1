@@ -82,15 +82,17 @@ describe('GET /api/sales/fetch-all', () => {
     expect(deleteOrderIndex).not.toHaveBeenCalled();
   });
 
-  it('with refresh=true AND agentName filter: prev-year del uses the same filterHash', async () => {
+  it('with refresh=true AND agentName filter: prev-year del uses universal "all" scope', async () => {
     const year = new Date().getFullYear();
 
     await request(makeApp())
       .get('/api/sales/fetch-all?period=ytd&refresh=true&agentName=Alexandra')
       .expect(200);
 
-    expect(deleteOrderIndex).toHaveBeenCalledWith('ytd', 'agent=Alexandra');
-    expect(deleteOrderIndex).toHaveBeenCalledWith(String(year - 1), 'agent=Alexandra');
+    // WHY: Raw order cache always uses 'all' — agent filtering is post-cache in-memory.
+    // Even when agentName is provided, deleteOrderIndex targets the universal scope.
+    expect(deleteOrderIndex).toHaveBeenCalledWith('ytd', 'all');
+    expect(deleteOrderIndex).toHaveBeenCalledWith(String(year - 1), 'all');
   });
 });
 

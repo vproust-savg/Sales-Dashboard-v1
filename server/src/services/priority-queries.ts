@@ -100,7 +100,8 @@ export async function fetchOrders(
   const itemFields = isCurrentPeriod ? ORDERITEM_SELECT : ORDERITEM_SELECT_PREV;
 
   return client.fetchAllPages<RawOrder>('ORDERS', {
-    select: isCurrentPeriod ? ORDER_SELECT : 'ORDNAME,CURDATE,TOTPRICE,CUSTNAME,AGENTCODE',
+    // WHY: Prev-year needs AGENTNAME for in-memory agent filtering (universal "all" cache).
+    select: isCurrentPeriod ? ORDER_SELECT : 'ORDNAME,CURDATE,TOTPRICE,CUSTNAME,AGENTCODE,AGENTNAME',
     filter: dateFilter,
     orderby: 'ORDNAME asc',
     expand: `ORDERITEMS_SUBFORM($select=${itemFields})`,
