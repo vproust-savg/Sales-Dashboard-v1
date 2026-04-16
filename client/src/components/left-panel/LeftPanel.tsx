@@ -14,6 +14,7 @@ import { SearchBox } from './SearchBox';
 import { FilterSortToolbar } from './FilterSortToolbar';
 import { FilterPanel } from './FilterPanel';
 import { EntityList } from './EntityList';
+import { ReportButton } from './ReportButton';
 
 interface LeftPanelProps {
   // Data — already filtered/sorted by useDashboardState
@@ -69,6 +70,12 @@ export function LeftPanel({
         onDimensionChange={onDimensionChange}
       />
 
+      <ReportButton
+        state={reportState}
+        isActive={activeView === 'report'}
+        onClick={onReportClick}
+      />
+
       <SearchBox
         value={searchTerm}
         onChange={onSearchChange}
@@ -105,9 +112,6 @@ export function LeftPanel({
           totalCount={totalCount}
           selectedCount={selectedEntityIds.length}
           onClearSelection={onClearSelection}
-          reportState={reportState}
-          activeView={activeView}
-          onReportClick={onReportClick}
           onViewConsolidatedClick={onViewConsolidatedClick}
         />
       </div>

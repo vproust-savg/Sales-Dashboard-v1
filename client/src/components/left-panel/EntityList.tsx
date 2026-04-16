@@ -4,10 +4,8 @@
 // EXPORTS: EntityList
 
 import type { EntityListItem as EntityListItemType } from '@shared/types/dashboard';
-import type { ReportState } from '../../hooks/useReport';
 import { EntityListItem } from './EntityListItem';
 import { SelectionBar } from './SelectionBar';
-import { ReportButton } from './ReportButton';
 
 interface EntityListProps {
   entities: EntityListItemType[];
@@ -19,9 +17,6 @@ interface EntityListProps {
   totalCount: number;
   selectedCount: number;
   onClearSelection: () => void;
-  reportState: ReportState;
-  activeView: 'single' | 'report';
-  onReportClick: () => void;
   onViewConsolidatedClick: () => void;
 }
 
@@ -35,9 +30,6 @@ export function EntityList({
   totalCount,
   selectedCount,
   onClearSelection,
-  reportState,
-  activeView,
-  onReportClick,
   onViewConsolidatedClick,
 }: EntityListProps) {
   return (
@@ -50,12 +42,6 @@ export function EntityList({
           {dimensionLabel} ({entities.length} of {totalCount})
         </span>
       </div>
-
-      <ReportButton
-        state={reportState}
-        isActive={activeView === 'report'}
-        onClick={onReportClick}
-      />
 
       {/* WHY: live region announces list count changes to screen readers */}
       <div aria-live="polite" className="sr-only">
