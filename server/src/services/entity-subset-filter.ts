@@ -2,9 +2,8 @@
 // PURPOSE: Filter and scope raw orders by dimension + entity-id set. Two exports with
 //   distinct semantics: filterOrdersByEntityIds is a predicate (items/TOTPRICE untouched);
 //   scopeOrders also narrows items and rewrites TOTPRICE for item-based dimensions.
-// USED BY: server/src/routes/fetch-all.ts (filterOrdersByEntityIds).
-//   scopeOrders: consumed by Task 3.3's aggregateOrders per-entity re-scoping loop
-//   (foundation export — no production callers in this commit).
+// USED BY: server/src/routes/fetch-all.ts (filterOrdersByEntityIds);
+//   server/src/services/data-aggregator.ts (scopeOrders — global pre-scope + per-entity loop).
 // EXPORTS: filterOrdersByEntityIds, scopeOrders
 
 import type { RawOrder, RawCustomer } from './priority-queries.js';

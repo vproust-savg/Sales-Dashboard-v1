@@ -244,6 +244,16 @@ describe('aggregateOrders scope — Codex #2 fix: per-entity re-scoping for item
     expect(v2Brands.find(s => s.category === 'Brand X')).toBeUndefined();
   });
 
+  it('throws when scope is provided without customers', () => {
+    const order = makeOrder({ ORDNAME: 'O1', CUSTNAME: 'C1', TOTPRICE: 100 });
+    expect(() =>
+      aggregateOrders([order], [], 'ytd', {
+        scope: { dimension: 'customer', entityIds: ['C1'] },
+        // no customers — must throw
+      }),
+    ).toThrow(/opts\.scope requires opts\.customers/);
+  });
+
   it('entityIds.length === 1 → does NOT populate perEntity fields (single-entity view has no "per-entity" concept)', () => {
     const order = makeOrder({
       ORDNAME: 'O1', CUSTNAME: 'C1', TOTPRICE: 100,

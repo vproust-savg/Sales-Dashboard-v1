@@ -45,6 +45,13 @@ export function aggregateOrders(
   period: string,
   opts?: AggregateOptions,
 ): AggregateResult {
+  // WHY throw: scope without customers silently bypasses all scoping and returns unscoped
+  // data — a correctness landmine. Require both together so the type-absence is a loud
+  // failure at the boundary, not a quiet wrong answer downstream.
+  if (opts?.scope && !opts.customers) {
+    throw new Error('aggregateOrders: opts.scope requires opts.customers');
+  }
+
   // WHY scope pre-filter: keeps downstream aggregators dimension-agnostic. scopeOrders
   // narrows item-based dims and rewrites TOTPRICE = Σ QPRICE of in-scope items.
   const currentOrders = opts?.scope && opts.customers
