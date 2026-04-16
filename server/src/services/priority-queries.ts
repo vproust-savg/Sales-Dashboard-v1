@@ -4,7 +4,7 @@
 // EXPORTS: fetchOrders, fetchCustomers, fetchZones, fetchAgents, fetchVendors, fetchContacts, fetchProductTypes, fetchProducts
 
 import { PriorityClient } from './priority-client.js';
-import type { RawProductType } from '@shared/types/dashboard';
+import type { RawProductType, RawProduct } from '@shared/types/dashboard';
 import {
   ORDER_SELECT, ORDERITEM_SELECT, ORDERITEM_SELECT_PREV,
   CUSTOMER_SELECT, CONTACT_SELECT,
@@ -182,4 +182,16 @@ export async function fetchProductTypes(client: PriorityClient, signal?: AbortSi
     }
   }
   return [...seen.values()];
+}
+
+/** Fetch all in-use products from LOGPART.
+ *  WHY: PARTNAME matches order items' PARTNAME field for the Product dim.
+ *  STATDES='In Use' filter excludes discontinued/archived parts at the API level. */
+export async function fetchProducts(client: PriorityClient, signal?: AbortSignal): Promise<RawProduct[]> {
+  return client.fetchAllPages<RawProduct>('LOGPART', {
+    select: 'PARTNAME,PARTDES,FAMILYNAME,Y_9952_5_ESH,STATDES',
+    filter: "STATDES eq 'In Use'",
+    orderby: 'PARTNAME asc',
+    signal,
+  });
 }
