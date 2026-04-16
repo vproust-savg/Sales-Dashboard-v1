@@ -35,7 +35,11 @@ export function useEntities({ groupBy, period }: { groupBy: Dimension; period: P
   return useQuery({
     queryKey: ['entities', groupBy, period],
     queryFn: () => fetchEntities(groupBy, period),
-    staleTime: 5 * 60 * 1000, // 5 minutes — matches server cache TTL
+    // WHY Codex #3: while server reports enriched=false (orders cache not yet warm), poll
+    // every 15s so the UI escapes the "null metrics" state automatically once Report runs.
+    // Once enriched=true, fall back to normal 5-minute staleness matching server TTL.
+    staleTime: (query) => query.state.data?.meta?.enriched === false ? 0 : 5 * 60 * 1000,
+    refetchInterval: (query) => query.state.data?.meta?.enriched === false ? 15_000 : false,
   });
 }
 
