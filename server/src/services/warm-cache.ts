@@ -14,7 +14,7 @@ import {
   fetchProducts,
 } from './priority-queries.js';
 import { cachedFetch } from '../cache/cache-layer.js';
-import { cacheKey, getTTL } from '../cache/cache-keys.js';
+import { cacheKey, getTTL, orderMetaKey } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 
 /**
@@ -23,8 +23,11 @@ import { redis } from '../cache/redis-client.js';
  * Runs in the background after server start — does not block request handling.
  */
 export async function warmEntityCache(): Promise<void> {
-  const rawMetaKey = cacheKey('orders_raw_meta', 'ytd', 'customer:all');
-  const existingMeta = await redis.get(rawMetaKey);
+  // Was: const rawMetaKey = cacheKey('orders_raw_meta', 'ytd', 'customer:all');
+  // That key was never written by fetch-all.ts (which uses orderMetaKey → orders:meta:ytd:all).
+  // The hot-meta skip was dead code, causing a redundant YTD orders fetch on every server restart.
+  const ordersMetaKey = orderMetaKey('ytd', 'all');
+  const existingMeta = await redis.get(ordersMetaKey);
 
   // WHY: Always refresh master data (small, rarely changes, cheap). cachedFetch no-ops on
   // hot cache, so this is free on subsequent reloads. Master data drives entity list names
@@ -55,8 +58,10 @@ export async function warmEntityCache(): Promise<void> {
 
   console.log('[warm-cache] Cold boot — warming master data + YTD orders...');
 
-  // WHY: Start master data first, delay orders by 500ms — avoids Priority's 15-queued-max limit
-  // when the 5 master-data calls + paginated fetchOrders would otherwise overlap.
+  // WHY 500ms buffer: awaited master-data Promise.all already guarantees no overlap with
+  // fetchOrders — PriorityClient.throttle() handles the 100-calls/min sliding window.
+  // This passive gap is a conservative margin for any server-side queuing latency on
+  // Priority's end; safe to remove if future benchmarks show it's unnecessary.
   await Promise.all(masterDataPromises);
   await new Promise(r => setTimeout(r, 500));
 
