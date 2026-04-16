@@ -11,6 +11,10 @@ export interface ApiResponse<T> {
     period: string;
     dimension: string;
     entityCount: number;
+    /** WHY: True when orders cache was warm and entity metrics were computed from orders.
+     *  False means entities are master-data stubs with null metrics — client uses this to
+     *  decide whether to aggressively poll for enriched data (see useEntityList in Task 5.2). */
+    enriched?: boolean;
   };
 }
 

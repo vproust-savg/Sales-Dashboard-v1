@@ -137,14 +137,16 @@ describe('groupByDimension prev-year fields (B)', () => {
     expect(v01?.prevYearRevenueFull).toBeCloseTo(50, 2);
   });
 
-  // B-T8: Structural guard on the entity-stub-builder caller contract — the lightweight path
+  // B-T8: Structural guard on the entity-list-builder caller contract — the lightweight path
   // MUST NOT pass prevOrders/period to groupByDimension (that would defeat the "no prev fetch"
   // promise). Regression risk: a future developer "helpfully" adds the args, making the cold
   // entity list path require a prev-year fetch. This test fails if that happens.
-  it('entity-stub-builder invokes groupByDimension without prev-year args (B-T8)', async () => {
+  // WHY entity-list-builder.ts: entity-stub-builder.ts was deleted in Task 4.3; buildEntityList
+  // in entity-list-builder.ts is the new home for all groupByDimension calls in the entity path.
+  it('entity-list-builder invokes groupByDimension without prev-year args (B-T8)', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
-    const src = readFileSync(resolve(__dirname, '../../src/services/entity-stub-builder.ts'), 'utf8');
+    const src = readFileSync(resolve(__dirname, '../../src/services/entity-list-builder.ts'), 'utf8');
     // Match any groupByDimension(...) call; then ensure it has ≤4 positional args (no prev data).
     const calls = src.matchAll(/groupByDimension\s*\(([^)]*)\)/g);
     const found = [...calls];
