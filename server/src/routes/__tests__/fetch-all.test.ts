@@ -28,6 +28,12 @@ vi.mock('../../cache/cache-layer.js', () => ({
   }),
 }));
 
+vi.mock('../../cache/order-cache.js', () => ({
+  writeOrders: vi.fn().mockResolvedValue(true),
+  readOrders: vi.fn().mockResolvedValue(null),
+  deleteOrderIndex: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../../services/priority-instance.js', () => ({
   priorityClient: {},
 }));
@@ -41,6 +47,7 @@ vi.mock('../../services/priority-queries.js', () => ({
 import { fetchAllRouter } from '../fetch-all.js';
 import { redis } from '../../cache/redis-client.js';
 import { fetchOrders, fetchCustomers } from '../../services/priority-queries.js';
+import { writeOrders, deleteOrderIndex } from '../../cache/order-cache.js';
 
 function makeApp() {
   const app = express();
@@ -56,29 +63,23 @@ describe('GET /api/sales/fetch-all', () => {
     (redis.del as ReturnType<typeof vi.fn>).mockResolvedValue(1);
   });
 
-  it('with refresh=true: deletes current-year raw, meta, AND prev-year raw caches', async () => {
+  it('with refresh=true: deletes current-year and prev-year order indexes', async () => {
     const year = new Date().getFullYear();
 
     await request(makeApp())
       .get('/api/sales/fetch-all?period=ytd&refresh=true')
       .expect(200);
 
-    const delCalls = (redis.del as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0]);
-    expect(delCalls).toContain('dashboard:orders_raw:ytd:all');
-    expect(delCalls).toContain('dashboard:orders_raw_meta:ytd:all');
-    expect(delCalls).toContain(`dashboard:orders_year:${year - 1}:all`);
+    expect(deleteOrderIndex).toHaveBeenCalledWith('ytd', 'all');
+    expect(deleteOrderIndex).toHaveBeenCalledWith(String(year - 1), 'all');
   });
 
-  it('without refresh: does NOT delete any raw caches (uses incremental path or full fetch)', async () => {
-    const year = new Date().getFullYear();
-
+  it('without refresh: does NOT delete any order indexes', async () => {
     await request(makeApp())
       .get('/api/sales/fetch-all?period=ytd')
       .expect(200);
 
-    const delCalls = (redis.del as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0]);
-    expect(delCalls).not.toContain('dashboard:orders_raw:ytd:all');
-    expect(delCalls).not.toContain(`dashboard:orders_year:${year - 1}:all`);
+    expect(deleteOrderIndex).not.toHaveBeenCalled();
   });
 
   it('with refresh=true AND agentName filter: prev-year del uses the same filterHash', async () => {
@@ -88,10 +89,8 @@ describe('GET /api/sales/fetch-all', () => {
       .get('/api/sales/fetch-all?period=ytd&refresh=true&agentName=Alexandra')
       .expect(200);
 
-    const delCalls = (redis.del as ReturnType<typeof vi.fn>).mock.calls.map(c => c[0]);
-    expect(delCalls).toContain(`dashboard:orders_raw:ytd:agent=Alexandra`);
-    expect(delCalls).toContain(`dashboard:orders_raw_meta:ytd:agent=Alexandra`);
-    expect(delCalls).toContain(`dashboard:orders_year:${year - 1}:agent=Alexandra`);
+    expect(deleteOrderIndex).toHaveBeenCalledWith('ytd', 'agent=Alexandra');
+    expect(deleteOrderIndex).toHaveBeenCalledWith(String(year - 1), 'agent=Alexandra');
   });
 });
 
@@ -326,17 +325,16 @@ describe('parallel current + prev-year fetch (D2)', () => {
     // sequence which the current fetch-all.test.ts infrastructure doesn't inspect deeply.
   });
 
-  // WHY: commit 820cd74 hoisted redis.del OUT of the Promise.all parallel block specifically
+  // WHY: commit 820cd74 hoisted cache deletion OUT of the Promise.all parallel block specifically
   // to prevent the race where prev-year reads the stale current-year cache before del completed.
   // Existing D2-T1/T4 only assert that dels fire; they don't pin the ORDER. A refactor that
-  // moved redis.del back inside Promise.all would silently reintroduce the stale-prev-year
+  // moved deleteOrderIndex back inside Promise.all would silently reintroduce the stale-prev-year
   // race without tripping any test — that's the regression this test catches.
-  it('redis.del completes BEFORE Promise.all starts (D2-T6 stale-prev-year race prevention)', async () => {
+  it('deleteOrderIndex completes BEFORE Promise.all starts (D2-T6 stale-prev-year race prevention)', async () => {
     const callOrder: string[] = [];
-    vi.mocked(redis.del).mockImplementation(async (key: string) => {
+    vi.mocked(deleteOrderIndex).mockImplementation(async (period: string, hash: string) => {
       await new Promise(r => setTimeout(r, 20));
-      callOrder.push(`del:${key}`);
-      return 1;
+      callOrder.push(`del:${period}:${hash}`);
     });
     vi.mocked(fetchOrders).mockImplementation(async (_c, startDate) => {
       callOrder.push(`fetch:${startDate as string}`);
@@ -350,7 +348,7 @@ describe('parallel current + prev-year fetch (D2)', () => {
 
     const delIndices = callOrder.map((s, i) => s.startsWith('del:') ? i : -1).filter(i => i >= 0);
     const fetchIndices = callOrder.map((s, i) => s.startsWith('fetch:') ? i : -1).filter(i => i >= 0);
-    expect(delIndices).toHaveLength(3);  // orders_raw, orders_raw_meta, prev-year
+    expect(delIndices).toHaveLength(2);  // current-year + prev-year order indexes
     expect(fetchIndices.length).toBeGreaterThanOrEqual(2);  // current + prev
     // Every del index must be LESS than every fetch index — strictly before, not interleaved.
     expect(Math.max(...delIndices)).toBeLessThan(Math.min(...fetchIndices));
@@ -458,33 +456,23 @@ describe('Same-day cache hit skips raw-cache rewrites (I5)', () => {
     vi.mocked(fetchCustomers).mockResolvedValue([]);
   });
 
-  it('skips orders_raw + orders_raw_meta redis.set when metaCached.lastFetchDate is today', async () => {
-    const today = new Date().toISOString();
-    (redis.get as ReturnType<typeof vi.fn>).mockImplementation(async (key: string) => {
-      if (key.includes('orders_raw_meta')) {
-        return JSON.stringify({
-          data: { lastFetchDate: today, rowCount: 0, filterHash: 'all' },
-          cachedAt: today,
-        });
-      }
-      if (key.includes('orders_raw')) {
-        return JSON.stringify({ data: [], cachedAt: today });
-      }
-      return null;
+  it('skips writeOrders when readOrders returns same-day cache', async () => {
+    // WHY: readOrders is mocked at module level to return null (cache miss). Override it here
+    // to simulate a same-day cache hit so tryIncrementalRefresh returns didFetch=false.
+    const { readOrders } = await import('../../cache/order-cache.js');
+    vi.mocked(readOrders).mockResolvedValueOnce({
+      orders: [],
+      meta: { lastFetchDate: new Date().toISOString(), orderCount: 0, filterHash: 'all' },
     });
 
     await request(makeApp())
       .get('/api/sales/fetch-all?period=ytd')
       .expect(200);
 
-    const rawCacheWrites = vi.mocked(redis.set).mock.calls.filter(c => {
-      const key = c[0] as string;
-      return key.startsWith('dashboard:orders_raw:') || key.startsWith('dashboard:orders_raw_meta:');
-    });
-    expect(rawCacheWrites).toHaveLength(0);
+    expect(writeOrders).not.toHaveBeenCalled();
   });
 
-  it('still writes orders_raw + orders_raw_meta on full fetch (refresh=true)', async () => {
+  it('still writes orders via writeOrders on full fetch (refresh=true)', async () => {
     // WHY: Negative control — the guard must only skip on same-day cache, NOT on full refetch.
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
@@ -492,10 +480,11 @@ describe('Same-day cache hit skips raw-cache rewrites (I5)', () => {
       .get('/api/sales/fetch-all?period=ytd&refresh=true')
       .expect(200);
 
-    const rawCacheWrites = vi.mocked(redis.set).mock.calls.filter(c => {
-      const key = c[0] as string;
-      return key.startsWith('dashboard:orders_raw:') || key.startsWith('dashboard:orders_raw_meta:');
-    });
-    expect(rawCacheWrites.length).toBeGreaterThanOrEqual(2);  // raw + meta
+    expect(writeOrders).toHaveBeenCalledWith(
+      expect.any(Array),
+      'ytd',
+      'all',
+      expect.any(Number),
+    );
   });
 });
