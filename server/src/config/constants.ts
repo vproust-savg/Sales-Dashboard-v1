@@ -52,9 +52,15 @@ export const ORDERITEM_SELECT = [
   'Y_2075_5_ESH', 'Y_5380_5_ESH', 'Y_9967_5_ESH',
 ].join(',');
 
-/** Lighter set for previous-year queries — includes TQUANT for YoY units comparison */
+/** Lighter set for previous-year queries — includes TQUANT for YoY units comparison.
+ *  WHY Y_1159_5_ESH: vendor code is the bucket key for groupByVendor prev-year maps; absent →
+ *  all prev items fall into 'UNKNOWN' bucket → zero prev-year revenue for every vendor.
+ *  WHY Y_3020_5_ESH: product_type entity id = Y_3020_5_ESH (code); absent → bucket key is
+ *  Y_3021_5_ESH (name) but entity lookup uses code → key mismatch → null prev for all types. */
 export const ORDERITEM_SELECT_PREV = [
-  'PARTNAME', 'QPRICE', 'QPROFIT', 'TQUANT', 'Y_9952_5_ESH', 'Y_3021_5_ESH',
+  'PARTNAME', 'QPRICE', 'QPROFIT', 'TQUANT',
+  'Y_9952_5_ESH', 'Y_3021_5_ESH',
+  'Y_1159_5_ESH', 'Y_3020_5_ESH',
 ].join(',');
 
 /** Priority CUSTOMERS fields — spec Section 18.3 */
