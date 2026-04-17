@@ -27,6 +27,19 @@ export interface EntityListItem {
   prevYearRevenue: number | null;
   /** Full previous-year revenue (all 12 months). Null when prev data not loaded. */
   prevYearRevenueFull: number | null;
+  // WHY per-metric prev-year: per-customer KPI modal (PerCustomerKPITable)
+  // renders YTD value + LY same-period + LY full year for every card type.
+  // All produced by groupByDimension, not data-aggregator.
+  prevYearOrderCount: number | null;
+  prevYearOrderCountFull: number | null;
+  prevYearAvgOrder: number | null;
+  prevYearAvgOrderFull: number | null;
+  prevYearMarginPercent: number | null;
+  prevYearMarginPercentFull: number | null;
+  prevYearMarginAmount: number | null;
+  prevYearMarginAmountFull: number | null;
+  prevYearFrequency: number | null;
+  prevYearFrequencyFull: number | null;
 }
 
 /** Per-metric breakdown for KPI cards — mirrors the hero card sub-items pattern */
