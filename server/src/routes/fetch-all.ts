@@ -201,11 +201,16 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     const scope = entityIdList && entityIdList.length > 0
       ? { dimension: groupBy as Dimension, entityIds: entityIdList }
       : undefined;
+    // WHY preserveEntityIdentity: consolidated Orders tab renders a Customer column,
+    // so every OrderRow must carry customerName regardless of the groupBy dimension.
+    // Task 11 fixed the single-entity dashboard route; this fixes the fetch-all path.
     const aggregate = aggregateOrders(
       subsetOrders,
       subsetPrev,
       period,
-      scope ? { scope, customers: customers.data } : undefined,
+      scope
+        ? { scope, customers: customers.data, preserveEntityIdentity: true }
+        : { preserveEntityIdentity: true, customers: customers.data },
     );
 
     // WHY: yearsAvailable is derived from filteredOrders (not subsetOrders) so the year picker

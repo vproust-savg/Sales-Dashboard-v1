@@ -149,6 +149,63 @@ const sampleCustomers = [
   { CUSTNAME: 'C003', CUSTDES: 'Gamma', ZONECODE: 'ZS', ZONEDES: 'Southeast', AGENTCODE: 'A', AGENTNAME: 'Agent', CREATEDDATE: '2025-01-01', CTYPECODE: 'X', CTYPENAME: 'X' },
 ];
 
+// WHY: Codex post-deploy finding — aggregateOrders in fetch-all was called without
+// preserveEntityIdentity:true, so custMap was null and customerName never annotated on
+// OrderRow. The consolidated Orders tab renders a Customer column so every row must carry it.
+describe('customerName populated on OrderRows for non-customer dimensions (Codex fix)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (redis.set as ReturnType<typeof vi.fn>).mockResolvedValue('OK');
+    (redis.del as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    vi.mocked(fetchOrders).mockResolvedValue(sampleOrders as never);
+    vi.mocked(fetchCustomers).mockResolvedValue(sampleCustomers as never);
+  });
+
+  it('every OrderRow in orders-batch has customerName for zone dimension', async () => {
+    const response = await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=zone&period=ytd')
+      .expect(200);
+
+    // Parse the SSE stream for orders-batch events
+    const blocks = response.text.split('\n\n').filter(Boolean);
+    const ordersBatches = blocks
+      .filter(b => b.startsWith('event: orders-batch'))
+      .map(b => JSON.parse(b.split('\ndata: ')[1]) as { orderNumber: string; customerName?: string }[]);
+
+    // Flatten all order rows across batches
+    const allRows = ordersBatches.flat();
+
+    // At least one order must be present (non-empty fixture)
+    expect(allRows.length).toBeGreaterThan(0);
+
+    // Every row must have a non-empty customerName
+    for (const row of allRows) {
+      expect(row.customerName).toBeTruthy();
+    }
+
+    // Spot-check: order from C001 should resolve to 'Alpha'
+    const row1 = allRows.find(r => r.orderNumber === '1');
+    expect(row1?.customerName).toBe('Alpha');
+  });
+
+  it('customerName also populated for customer dimension (baseline)', async () => {
+    const response = await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=customer&period=ytd')
+      .expect(200);
+
+    const blocks = response.text.split('\n\n').filter(Boolean);
+    const ordersBatches = blocks
+      .filter(b => b.startsWith('event: orders-batch'))
+      .map(b => JSON.parse(b.split('\ndata: ')[1]) as { orderNumber: string; customerName?: string }[]);
+    const allRows = ordersBatches.flat();
+    expect(allRows.length).toBeGreaterThan(0);
+    for (const row of allRows) {
+      expect(row.customerName).toBeTruthy();
+    }
+  });
+});
+
 describe('D3 — entityIds filter on /fetch-all', () => {
   beforeEach(() => {
     vi.clearAllMocks();
