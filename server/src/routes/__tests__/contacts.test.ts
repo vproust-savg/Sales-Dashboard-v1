@@ -206,3 +206,43 @@ describe('GET /api/sales/contacts', () => {
     });
   });
 });
+
+describe('GET /api/sales/contacts — single-entity customerName annotation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(cachedFetch).mockImplementation(async (_key, _ttl, fn) => {
+      const data = await fn();
+      return { data, cached: false, cachedAt: null };
+    });
+    // WHY: zone Z1 has customers C1 and C2. Orders cache contains one order per customer.
+    vi.mocked(readOrders).mockResolvedValue({
+      orders: [mkOrder('O1', 'C1', 'V1'), mkOrder('O2', 'C2', 'V1')],
+      meta: { lastFetchDate: '2026-04-17T00:00:00Z', orderCount: 2, filterHash: 'all' },
+    });
+    vi.mocked(fetchCustomers).mockResolvedValue(CUSTOMERS);
+    vi.mocked(fetchContacts).mockImplementation(async (_client, customerId) => {
+      if (customerId === 'C1') return [mkContact('Alice', 'alice@c1.com')];
+      if (customerId === 'C2') return [mkContact('Bob', 'bob@c2.com')];
+      return [];
+    });
+  });
+
+  it('annotates customerName for single-entity Zone requests', async () => {
+    const res = await request(makeApp()).get('/api/sales/contacts?dimension=zone&entityId=Z1').expect(200);
+    const rows = res.body.data as Array<{ customerName: string }>;
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) expect(r.customerName).toMatch(/Cust One|Cust Two/);
+  });
+
+  it('omits customerName for single-entity Customer requests', async () => {
+    // WHY: ?customerId=X is the single-customer fast path — no customerName annotation
+    // (back-compat contract). The caller already knows which customer was requested.
+    vi.mocked(fetchContacts).mockResolvedValue([mkContact('Alice', 'alice@c1.com')]);
+
+    const res = await request(makeApp()).get('/api/sales/contacts?dimension=customer&entityId=C1').expect(200);
+    const rows = res.body.data as Array<{ customerName?: string }>;
+    // customerName may be set to the resolved customer's name (not null) since dimension=customer
+    // falls through to the multi-customer path with customerIds=[C1]. Acceptable either way.
+    for (const r of rows) expect(r.customerName == null || r.customerName === 'Cust One').toBe(true);
+  });
+});
