@@ -9,7 +9,7 @@ import { OrdersTab } from './OrdersTab';
 import { ItemsExplorer } from './ItemsExplorer';
 import { ContactsTable } from './ContactsTable';
 import { GroupedContactsTable } from './GroupedContactsTable';
-import { ConsolidatedOrdersTable } from './ConsolidatedOrdersTable';
+import { ConsolidatedOrdersTab } from './ConsolidatedOrdersTab';
 import type { DetailTab } from './detail-tab-types';
 
 interface TabsSectionProps {
@@ -123,7 +123,7 @@ export function TabsSection({ activeTab, onTabChange, orders, items, contacts, c
         >
           {activeTab === 'orders' && (
             consolidatedMode
-              ? <ConsolidatedOrdersTable orders={orders} />
+              ? <ConsolidatedOrdersTab orders={orders} />
               : <OrdersTab orders={orders} dimension={dimension} />
           )}
           {activeTab === 'items' && <ItemsExplorer items={items} />}
