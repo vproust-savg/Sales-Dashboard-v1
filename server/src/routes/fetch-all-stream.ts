@@ -12,14 +12,18 @@ import { readOrders } from '../cache/order-cache.js';
 // reused same-day raw cache (didFetch=false → skip the two redis.set calls). Local to this route.
 export interface FetchedOrders { orders: RawOrder[]; didFetch: boolean; }
 
-// WHY: No extraFilter — always fetches ALL orders for the universal "all" cache.
-// Agent/zone/customerType filtering happens post-fetch in the main handler.
+// WHY extraFilter: cold-cache View Consolidated for a small customer/zone subset should
+// narrow the Priority query instead of pulling the full universal set. When `extraFilter`
+// is provided, the caller is responsible for skipping the universal-cache write (the
+// fetched rows are a subset and would poison `readOrders(period, 'all')` for other users).
+// When undefined (the default), behaviour is unchanged — full agent-agnostic fetch.
 export async function fullFetch(startDate: string, endDate: string,
-  sendEvent: (event: string, data: unknown) => void, signal?: AbortSignal): Promise<FetchedOrders> {
+  sendEvent: (event: string, data: unknown) => void, signal?: AbortSignal,
+  extraFilter?: string): Promise<FetchedOrders> {
   sendEvent('progress', { phase: 'fetching', rowsFetched: 0, estimatedTotal: 0 });
   // WHY: onProgress sends SSE events as each page arrives, preventing Railway proxy timeout
   // during the 1–5 min it takes to paginate 50,000 orders from Priority API.
-  const orders = await fetchOrders(priorityClient, startDate, endDate, true, undefined,
+  const orders = await fetchOrders(priorityClient, startDate, endDate, true, extraFilter,
     (rowsFetched, estimatedTotal) => {
       sendEvent('progress', { phase: 'fetching', rowsFetched, estimatedTotal });
     },
