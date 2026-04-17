@@ -178,6 +178,78 @@ describe('groupByDimension — per-metric prev-year fields', () => {
   });
 });
 
+// WHY: Codex post-deploy finding — prevYearFrequency was divided by day count (~107 days YTD),
+// prevYearFrequencyFull by 365 days, while current-period frequency uses months. Both values
+// must now use months so all three frequency values are comparable on the /mo scale.
+describe('prevYearFrequency uses months — Codex post-deploy fix', () => {
+  it('YTD same-period and full-year frequencies are DIFFERENT (1 vs 3 orders over different windows)', () => {
+    const today = new Date('2026-04-17');
+    // same-period window: ~3.5 months (Jan–Apr 17). 1 order → ~1/3.5 ≈ 0.286/mo
+    // full-year window: 12 months. 3 orders → 3/12 = 0.25/mo
+    const ordersPrevSame = [mkOrder('OP1', '2025-02-15', 500, 300)];
+    const ordersPrevFull = [
+      mkOrder('OP1', '2025-02-15', 500, 300),
+      mkOrder('OP2', '2025-06-10', 800, 500),
+      mkOrder('OP3', '2025-11-20', 700, 400),
+    ];
+    const ordersCurrent = [mkOrder('OC1', '2026-02-01', 1000, 600)];
+
+    const result = groupByDimension(
+      'customer', ordersCurrent, CUSTOMERS, 12,
+      { today, prevSame: ordersPrevSame, prevFull: ordersPrevFull },
+    );
+
+    const row = result[0];
+    expect(row.prevYearFrequency).not.toBeNull();
+    expect(row.prevYearFrequencyFull).not.toBeNull();
+
+    // They must not be equal — same data divided by different month windows
+    expect(row.prevYearFrequency).not.toBeCloseTo(row.prevYearFrequencyFull!, 5);
+
+    // Both must be in orders/month range (not orders/day).
+    // 1 order / ~3.5 months ≈ 0.286; 3 orders / 12 months = 0.25
+    // The day-based bug would yield 1/107 ≈ 0.009 and 3/365 ≈ 0.008 — both < 0.05.
+    expect(row.prevYearFrequency!).toBeGreaterThan(0.05);
+    expect(row.prevYearFrequencyFull!).toBeGreaterThan(0.05);
+
+    // full-year: exactly 3 orders / 12 months = 0.25
+    expect(row.prevYearFrequencyFull).toBeCloseTo(3 / 12, 4);
+
+    // same-period: 1 order / months-elapsed (Jan 1 → Apr 17 = ~3.55 months)
+    // months = (today - Jan 1) / avg days per month. Verify it's close to 1/3.55
+    const monthsElapsed = (today.getTime() - new Date(Date.UTC(2026, 0, 1)).getTime()) / (1000 * 60 * 60 * 24 * 30.4375);
+    expect(row.prevYearFrequency).toBeCloseTo(1 / monthsElapsed, 3);
+  });
+
+  it('current-period frequency and prevYearFrequency are on the same /month scale', () => {
+    const today = new Date('2026-04-17');
+    const periodMonths = today.getUTCMonth() + 1; // 4 months YTD
+
+    // Current: 2 orders in 4 months → 0.5/mo
+    const ordersCurrent = [
+      mkOrder('OC1', '2026-02-01', 1000, 600),
+      mkOrder('OC2', '2026-03-01', 2000, 1200),
+    ];
+    // Prev same-period (Jan–Apr): 1 order → ~1/3.55 months
+    const ordersPrevSame = [mkOrder('OP1', '2025-02-15', 500, 300)];
+
+    const result = groupByDimension(
+      'customer', ordersCurrent, CUSTOMERS, periodMonths,
+      { today, prevSame: ordersPrevSame, prevFull: ordersPrevSame },
+    );
+    const row = result[0];
+
+    // Current frequency: 2 / 4 = 0.5/mo — the reference unit
+    expect(row.frequency).toBeCloseTo(2 / 4, 5);
+
+    // prevYearFrequency must be in the same ballpark (both /mo), not 30x smaller
+    // prev: 1 / ~3.55 months ≈ 0.282. Current: 2/4 = 0.5. Ratio should be < 3, not ~30.
+    const ratio = row.frequency! / row.prevYearFrequency!;
+    expect(ratio).toBeLessThan(3);
+    expect(ratio).toBeGreaterThan(0.1);
+  });
+});
+
 describe('per-item groupers — prev-year metrics', () => {
   const today = new Date('2026-04-17');
   const mkOrdersForKey = (dim: string, key: string): RawOrder[] =>

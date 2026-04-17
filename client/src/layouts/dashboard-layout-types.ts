@@ -38,6 +38,7 @@ export interface DashboardLayoutProps {
   setActiveTab: (tab: DetailTab) => void;
   toggleCheckbox: (id: string) => void;
   clearSelection: () => void;
+  resetSelection: () => void;
   setSearchTerm: (term: string) => void;
   addCondition: () => void;
   updateCondition: (id: string, updates: Partial<FilterCondition>) => void;
