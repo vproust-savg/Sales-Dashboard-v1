@@ -25,9 +25,11 @@ interface KPIModalContentProps {
   perCustomer?: {
     entities: EntityListItem[];
     getValue: (e: EntityListItem) => number | null;
-    formatValue: (v: number) => string;
-    getPrevValue?: (e: EntityListItem) => number | null;
+    getPrevPeriodValue: (e: EntityListItem) => number | null;
+    getPrevFullValue: (e: EntityListItem) => number | null;
+    formatValue: (v: number | null) => string;
     valueLabel: string;
+    invertedTrend?: boolean;
   };
 }
 
@@ -49,10 +51,12 @@ export function KPIModalContent({
         <PerCustomerKPITable
           entities={perCustomer.entities}
           getValue={perCustomer.getValue}
+          getPrevPeriodValue={perCustomer.getPrevPeriodValue}
+          getPrevFullValue={perCustomer.getPrevFullValue}
           formatValue={perCustomer.formatValue}
-          getPrevValue={perCustomer.getPrevValue}
           valueLabel={perCustomer.valueLabel}
           entityLabel={entityLabel}
+          invertedTrend={perCustomer.invertedTrend}
         />
       ) : (
         <>
@@ -105,8 +109,9 @@ interface HeroRevenueModalContentProps {
   perCustomer?: {
     entities: EntityListItem[];
     getValue: (e: EntityListItem) => number | null;
-    formatValue: (v: number) => string;
-    getPrevValue?: (e: EntityListItem) => number | null;
+    getPrevPeriodValue: (e: EntityListItem) => number | null;
+    getPrevFullValue: (e: EntityListItem) => number | null;
+    formatValue: (v: number | null) => string;
   };
 }
 
@@ -127,8 +132,9 @@ export function HeroRevenueModalContent({ kpis, monthlyRevenue, entityLabel, per
         <PerCustomerKPITable
           entities={perCustomer.entities}
           getValue={perCustomer.getValue}
+          getPrevPeriodValue={perCustomer.getPrevPeriodValue}
+          getPrevFullValue={perCustomer.getPrevFullValue}
           formatValue={perCustomer.formatValue}
-          getPrevValue={perCustomer.getPrevValue}
           valueLabel="Revenue"
           entityLabel={entityLabel}
         />

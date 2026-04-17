@@ -168,7 +168,9 @@ export function KPISection({
               perCustomer={consolidatedEntities ? {
                 entities: consolidatedEntities,
                 getValue: (e) => e.revenue,
-                formatValue: (v) => roundCurrency(v),
+                getPrevPeriodValue: (e) => e.prevYearRevenue,
+                getPrevFullValue: (e) => e.prevYearRevenueFull,
+                formatValue: (v) => v == null ? '\u2014' : roundCurrency(v),
               } : undefined}
             />
           ))}
@@ -224,7 +226,23 @@ export function KPISection({
                         if (cfg.label === 'Frequency') return e.frequency;
                         return null;
                       },
-                      formatValue: cfg.formatter,
+                      getPrevPeriodValue: (e) => {
+                        if (cfg.label === 'Orders') return e.prevYearOrderCount;
+                        if (cfg.label === 'Avg. Order') return e.prevYearAvgOrder;
+                        if (cfg.label === 'Margin %') return e.prevYearMarginPercent;
+                        if (cfg.label === 'Margin $') return e.prevYearMarginAmount;
+                        if (cfg.label === 'Frequency') return e.prevYearFrequency;
+                        return null;
+                      },
+                      getPrevFullValue: (e) => {
+                        if (cfg.label === 'Orders') return e.prevYearOrderCountFull;
+                        if (cfg.label === 'Avg. Order') return e.prevYearAvgOrderFull;
+                        if (cfg.label === 'Margin %') return e.prevYearMarginPercentFull;
+                        if (cfg.label === 'Margin $') return e.prevYearMarginAmountFull;
+                        if (cfg.label === 'Frequency') return e.prevYearFrequencyFull;
+                        return null;
+                      },
+                      formatValue: (v) => v == null ? '\u2014' : cfg.formatter(v),
                       valueLabel: cfg.label,
                     } : undefined}
                   />
@@ -253,8 +271,12 @@ export function KPISection({
                     const diff = (Date.now() - new Date(e.lastOrderDate).getTime()) / (1000 * 60 * 60 * 24);
                     return Math.round(diff);
                   },
-                  formatValue: (d) => `${d}d`,
+                  /** WHY: No prev-year last-order date on EntityListItem — these columns show —. */
+                  getPrevPeriodValue: () => null,
+                  getPrevFullValue: () => null,
+                  formatValue: (d) => d == null ? '\u2014' : `${d}d`,
                   valueLabel: 'Days ago',
+                  invertedTrend: true,
                 } : undefined}
               />
             ))}

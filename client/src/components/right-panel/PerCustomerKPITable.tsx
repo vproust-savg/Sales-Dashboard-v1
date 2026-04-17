@@ -1,51 +1,63 @@
 // FILE: client/src/components/right-panel/PerCustomerKPITable.tsx
-// PURPOSE: Sortable per-entity KPI table rendered inside KPI modals when toggled to Per Customer mode
+// PURPOSE: Sortable 4-column per-entity KPI table: Customer | YTD(+arrow) | LY same period | LY full year
 // USED BY: kpi-modal-content.tsx
 // EXPORTS: PerCustomerKPITable
 
 import { useMemo, useState } from 'react';
 import type { EntityListItem } from '@shared/types/dashboard';
-import { formatPercent } from '@shared/utils/formatting';
+import { TrendArrow } from '../shared/TrendArrow';
 
-type SortKey = 'name' | 'value' | 'yoy';
+type SortKey = 'name' | 'value' | 'prevPeriod' | 'prevFull';
 type SortDir = 'asc' | 'desc';
 
 interface PerCustomerKPITableProps {
   entities: EntityListItem[];
-  /** Extract the metric value shown in the Value column */
+  /** Extract the YTD metric value */
   getValue: (e: EntityListItem) => number | null;
-  /** Format the metric value */
-  formatValue: (v: number) => string;
-  /** Optional per-entity previous-year value for YoY calculation */
-  getPrevValue?: (e: EntityListItem) => number | null;
+  /** Extract the same-period previous year value */
+  getPrevPeriodValue: (e: EntityListItem) => number | null;
+  /** Extract the full previous year value */
+  getPrevFullValue: (e: EntityListItem) => number | null;
+  /** Format any metric value for display */
+  formatValue: (v: number | null) => string;
+  /** Column header for the YTD value column */
   valueLabel: string;
   entityLabel?: string;
+  /** WHY: inverted for metrics where lower is better (e.g., days-since-order) */
+  invertedTrend?: boolean;
 }
 
-function yoy(current: number | null, prev: number | null | undefined): number | null {
-  if (current === null || prev == null || prev === 0) return null;
-  return ((current - prev) / prev) * 100;
-}
-
-export function PerCustomerKPITable({ entities, getValue, formatValue, getPrevValue, valueLabel, entityLabel }: PerCustomerKPITableProps) {
+export function PerCustomerKPITable({
+  entities,
+  getValue,
+  getPrevPeriodValue,
+  getPrevFullValue,
+  formatValue,
+  valueLabel,
+  entityLabel,
+  invertedTrend = false,
+}: PerCustomerKPITableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const rows = useMemo(() => {
-    const mapped = entities.map(e => {
-      const v = getValue(e);
-      const prev = getPrevValue?.(e) ?? null;
-      return { id: e.id, name: e.name, value: v, yoy: yoy(v, prev) };
-    });
+    const mapped = entities.map(e => ({
+      id: e.id,
+      name: e.name,
+      value: getValue(e),
+      prevPeriod: getPrevPeriodValue(e),
+      prevFull: getPrevFullValue(e),
+    }));
     mapped.sort((a, b) => {
       let cmp = 0;
       if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
       else if (sortKey === 'value') cmp = (a.value ?? -Infinity) - (b.value ?? -Infinity);
-      else cmp = (a.yoy ?? -Infinity) - (b.yoy ?? -Infinity);
+      else if (sortKey === 'prevPeriod') cmp = (a.prevPeriod ?? -Infinity) - (b.prevPeriod ?? -Infinity);
+      else cmp = (a.prevFull ?? -Infinity) - (b.prevFull ?? -Infinity);
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return mapped;
-  }, [entities, getValue, getPrevValue, sortKey, sortDir]);
+  }, [entities, getValue, getPrevPeriodValue, getPrevFullValue, sortKey, sortDir]);
 
   const onHeaderClick = (key: SortKey) => {
     if (sortKey === key) {
@@ -63,7 +75,8 @@ export function PerCustomerKPITable({ entities, getValue, formatValue, getPrevVa
           <tr className="border-b border-[var(--color-gold-subtle)]">
             <Th label={entityLabel ?? 'Customer'} sortKey="name" active={sortKey} dir={sortDir} onClick={onHeaderClick} />
             <Th label={valueLabel} sortKey="value" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
-            <Th label="YoY" sortKey="yoy" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
+            <Th label="LY same period" sortKey="prevPeriod" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
+            <Th label="LY full year" sortKey="prevFull" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
           </tr>
         </thead>
         <tbody>
@@ -71,21 +84,21 @@ export function PerCustomerKPITable({ entities, getValue, formatValue, getPrevVa
             <tr key={r.id} className="border-b border-[var(--color-gold-subtle)] last:border-b-0 hover:bg-[var(--color-gold-subtle)]">
               <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-[var(--color-text-primary)]">{r.name}</td>
               <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right tabular-nums text-[var(--color-text-secondary)]">
+                <span className="mr-[var(--spacing-xs)]">
+                  <TrendArrow current={r.value} prev={r.prevPeriod} inverted={invertedTrend} />
+                </span>
                 {r.value == null ? '\u2014' : formatValue(r.value)}
               </td>
-              <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right tabular-nums">
-                {r.yoy == null ? (
-                  <span className="text-[var(--color-text-faint)]">\u2014</span>
-                ) : (
-                  <span style={{ color: r.yoy >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
-                    {formatPercent(r.yoy, { showSign: true })}
-                  </span>
-                )}
+              <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right tabular-nums text-[var(--color-text-muted)]">
+                {r.prevPeriod == null ? '\u2014' : formatValue(r.prevPeriod)}
+              </td>
+              <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right tabular-nums text-[var(--color-text-muted)]">
+                {r.prevFull == null ? '\u2014' : formatValue(r.prevFull)}
               </td>
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={3} className="p-[var(--spacing-2xl)] text-center text-[var(--color-text-muted)]">No entities</td></tr>
+            <tr><td colSpan={4} className="p-[var(--spacing-2xl)] text-center text-[var(--color-text-muted)]">No entities</td></tr>
           )}
         </tbody>
       </table>
