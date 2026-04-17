@@ -24,11 +24,11 @@ export type { DashboardLayoutProps };
 export function DashboardLayout(props: DashboardLayoutProps) {
   const {
     dashboard, entities, allEntities, contacts, isLoading, isDetailLoading, loadingStage, error,
-    activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds, yearsAvailable,
+    activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection,
     report,
-    switchDimension, switchPeriod, selectEntity, toggleCheckbox,
+    switchDimension, selectEntity, toggleCheckbox,
     setActiveTab,
     clearSelection, setSearchTerm,
     addCondition, updateCondition, removeCondition, clearFilters, toggleFilterPanel,
@@ -166,9 +166,6 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                   entityCount={consolidatedPayload.entities.length}
                   dimensionLabel={DIMENSION_CONFIG[activeDimension].pluralLabel}
                   filters={report.filters}
-                  yearsAvailable={consolidatedPayload.yearsAvailable}
-                  activePeriod={activePeriod}
-                  onPeriodChange={switchPeriod}
                   onExport={exportCsv}
                 />
                 <RightPanel
@@ -182,10 +179,8 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                   orders={consolidatedPayload.orders}
                   items={consolidatedPayload.items}
                   contacts={contacts}
-                  yearsAvailable={consolidatedPayload.yearsAvailable}
                   activePeriod={activePeriod}
                   activeTab={activeTab}
-                  onPeriodChange={switchPeriod}
                   onTabChange={setActiveTab}
                   onExport={exportCsv}
                   consolidatedMode={true}
@@ -205,8 +200,8 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                     monthlyRevenue={dashboard.monthlyRevenue} productMixes={dashboard.productMixes}
                     topSellers={dashboard.topSellers} sparklines={dashboard.sparklines}
                     orders={dashboard.orders} items={dashboard.items} contacts={contacts}
-                    yearsAvailable={yearsAvailable} activePeriod={activePeriod} activeTab={activeTab}
-                    onPeriodChange={switchPeriod} onTabChange={setActiveTab} onExport={exportCsv}
+                    activePeriod={activePeriod} activeTab={activeTab}
+                    onTabChange={setActiveTab} onExport={exportCsv}
                   />
                 </motion.div>
               ) : (

@@ -3,8 +3,7 @@
 // USED BY: client/src/components/right-panel/RightPanel.tsx
 // EXPORTS: ConsolidatedHeader
 
-import type { Period, FetchAllFilters } from '@shared/types/dashboard';
-import { PeriodSelector } from './PeriodSelector';
+import type { FetchAllFilters } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
 
 interface ConsolidatedHeaderProps {
@@ -12,9 +11,6 @@ interface ConsolidatedHeaderProps {
   entityCount: number;
   dimensionLabel: string;          // Singular or plural; caller chooses
   filters: FetchAllFilters | null; // null for consolidated mode
-  yearsAvailable: string[];
-  activePeriod: Period;
-  onPeriodChange: (p: Period) => void;
   onExport: () => void;
 }
 
@@ -37,7 +33,7 @@ function formatFilters(filters: FetchAllFilters | null): string | null {
 }
 
 export function ConsolidatedHeader({
-  mode, entityCount, dimensionLabel, filters, yearsAvailable, activePeriod, onPeriodChange, onExport,
+  mode, entityCount, dimensionLabel, filters, onExport,
 }: ConsolidatedHeaderProps) {
   const prefix = mode === 'report' ? 'Report' : 'Consolidated';
   const title = `${prefix}: ${formatInteger(entityCount)} ${dimensionLabel}`;
@@ -52,7 +48,9 @@ export function ConsolidatedHeader({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-[var(--spacing-lg)]">
-        <PeriodSelector yearsAvailable={yearsAvailable} activePeriod={activePeriod} onChange={onPeriodChange} />
+        {/* Period selector hidden 2026-04-17 — activePeriod state still flows through
+            to KPISection and HeroRevenueCard for labelling. Restore when multi-year
+            comparison is reintroduced. */}
         <button
           type="button"
           onClick={onExport}
