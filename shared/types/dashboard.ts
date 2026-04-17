@@ -193,12 +193,15 @@ export interface RawProductType {
   FTNAME: string;
 }
 
-/** Priority ERP raw shape for a product (LOGPART filtered by STATDES='In Use'). */
+/** Priority ERP raw shape for a product (LOGPART filtered by STATDES='In Use').
+ *  WHY no brand field: Y_9952_5_ESH is an ORDERITEMS custom field; it does NOT exist on LOGPART
+ *  (verified live — Priority returns 400 "Could not find a property named 'Y_9952_5_ESH'").
+ *  Brand per-product is derived from order items (Y_9952_5_ESH on ORDERITEMS_SUBFORM) at
+ *  aggregation time, not from a master column on LOGPART. */
 export interface RawProduct {
   PARTNAME: string;
   PARTDES: string;
   FAMILYNAME: string;
-  Y_9952_5_ESH: string | null;  // brand on part
   STATDES: string;
 }
 
