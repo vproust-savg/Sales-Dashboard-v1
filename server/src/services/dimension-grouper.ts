@@ -33,21 +33,22 @@ function orderToMetricItems(o: RawOrder): MetricItem[] {
   }));
 }
 
-/** Shared: convert a MetricItem bucket to a MetricsSnapshot map with the given window. */
-function toMetricsMap(bucket: Map<string, MetricItem[]>, windowDays: number): Map<string, MetricsSnapshot> {
+/** Shared: convert a MetricItem bucket to a MetricsSnapshot map with the given window in months. */
+function toMetricsMap(bucket: Map<string, MetricItem[]>, windowMonths: number): Map<string, MetricsSnapshot> {
   const out = new Map<string, MetricsSnapshot>();
-  for (const [k, items] of bucket) out.set(k, computeMetrics(items, windowDays));
+  for (const [k, items] of bucket) out.set(k, computeMetrics(items, windowMonths));
   return out;
 }
 
 /**
  * Build per-entity MetricsSnapshot maps from prev-year order slices.
  * keyFn maps each order to the entity id it belongs to (CUSTNAME, ZONECODE, etc.).
+ * WHY samePeriodMonths: must match the current-period unit (periodMonths) for /mo comparisons.
  */
 function buildPrevYearMetrics(
   input: PrevYearInput,
   keyFn: (o: RawOrder) => string,
-  samePeriodDays: number,
+  samePeriodMonths: number,
 ): PrevYearMetricsMaps {
   const groupItems = (orders: RawOrder[]): Map<string, MetricItem[]> => {
     const bucket = new Map<string, MetricItem[]>();
@@ -60,19 +61,21 @@ function buildPrevYearMetrics(
     return bucket;
   };
   return {
-    samePeriod: toMetricsMap(groupItems(input.prevSame), samePeriodDays),
-    full: toMetricsMap(groupItems(input.prevFull), 365),
+    samePeriod: toMetricsMap(groupItems(input.prevSame), samePeriodMonths),
+    // WHY 12: full calendar year = 12 months, matching the non-YTD periodMonths convention.
+    full: toMetricsMap(groupItems(input.prevFull), 12),
   };
 }
 
 /**
  * WHY: Per-item dims bucket by item field not order field — must walk ORDERITEMS_SUBFORM.
  * keyFn maps each order item to the entity id for its dimension.
+ * WHY samePeriodMonths: must match the current-period unit (periodMonths) for /mo comparisons.
  */
 function buildPrevYearMetricsByItem(
   input: PrevYearInput,
   keyFn: (item: RawOrderItem) => string,
-  samePeriodDays: number,
+  samePeriodMonths: number,
 ): ItemPrevYearMaps {
   const groupItems = (orders: RawOrder[]): Map<string, MetricItem[]> => {
     const bucket = new Map<string, MetricItem[]>();
@@ -87,8 +90,9 @@ function buildPrevYearMetricsByItem(
     return bucket;
   };
   return {
-    samePeriod: toMetricsMap(groupItems(input.prevSame), samePeriodDays),
-    full: toMetricsMap(groupItems(input.prevFull), 365),
+    samePeriod: toMetricsMap(groupItems(input.prevSame), samePeriodMonths),
+    // WHY 12: full calendar year = 12 months.
+    full: toMetricsMap(groupItems(input.prevFull), 12),
   };
 }
 
@@ -146,13 +150,15 @@ function snapshotToFields(
 /** WHY: Compute per-item prev maps once before dispatch. Returns undefined maps when prevInput absent. */
 function buildItemPrevMaps(prevInput: PrevYearInput | undefined): Record<'vendor' | 'brand' | 'product_type' | 'product', ItemPrevYearMaps | undefined> {
   if (!prevInput) return { vendor: undefined, brand: undefined, product_type: undefined, product: undefined };
+  // WHY fractional months: same-period window in months so prevYearFrequency is on the /mo scale.
   const start = new Date(Date.UTC(prevInput.today.getUTCFullYear(), 0, 1));
-  const days = Math.max(1, Math.round((prevInput.today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  const elapsedDays = (prevInput.today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
+  const samePeriodMonths = Math.max(1 / 30.4375, elapsedDays / 30.4375);
   return {
-    vendor: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_1159_5_ESH || 'UNKNOWN', days),
-    brand: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_9952_5_ESH || 'Other', days),
-    product_type: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_3020_5_ESH || it.Y_3021_5_ESH || 'Other', days),
-    product: buildPrevYearMetricsByItem(prevInput, (it) => it.PARTNAME, days),
+    vendor: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_1159_5_ESH || 'UNKNOWN', samePeriodMonths),
+    brand: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_9952_5_ESH || 'Other', samePeriodMonths),
+    product_type: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_3020_5_ESH || it.Y_3021_5_ESH || 'Other', samePeriodMonths),
+    product: buildPrevYearMetricsByItem(prevInput, (it) => it.PARTNAME, samePeriodMonths),
   };
 }
 
@@ -200,15 +206,17 @@ function groupByCustomer(
     groups.set(o.CUSTNAME, g);
   });
 
-  // WHY: Compute samePeriodDays from today's YTD window (Jan 1 → today), matching the
-  // window over which prevSame orders were filtered. Used as windowDays for frequency.
+  // WHY: Compute samePeriodMonths from today's YTD window (Jan 1 → today), matching the
+  // window over which prevSame orders were filtered. Used as windowMonths for frequency so
+  // prevYearFrequency stays on the same /mo scale as the current-period frequency.
   let prevMaps: PrevYearMetricsMaps | null = null;
   if (prevInput) {
+    // WHY fractional months: Jan 1 → Apr 17 = 3 complete months + 17/30.4375 ≈ 3.56 months.
+    // This matches the precision of the current-period periodMonths (e.g. 4 for Apr).
     const startOfYear = new Date(Date.UTC(prevInput.today.getUTCFullYear(), 0, 1));
-    const samePeriodDays = Math.max(1,
-      Math.round((prevInput.today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)),
-    );
-    prevMaps = buildPrevYearMetrics(prevInput, o => o.CUSTNAME, samePeriodDays);
+    const elapsedDays = (prevInput.today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24);
+    const samePeriodMonths = Math.max(1 / 30.4375, elapsedDays / 30.4375);
+    prevMaps = buildPrevYearMetrics(prevInput, o => o.CUSTNAME, samePeriodMonths);
   }
 
   return [...groups.entries()].map(([id, g]) => {
@@ -266,13 +274,13 @@ function groupByZone(
   // WHY: prevInput orders are keyed by CUSTNAME; re-aggregate to zone via custZone lookup.
   let prevMaps: PrevYearMetricsMaps | null = null;
   if (prevInput) {
+    // WHY fractional months: matches current-period periodMonths unit for /mo frequency display.
     const startOfYear = new Date(Date.UTC(prevInput.today.getUTCFullYear(), 0, 1));
-    const samePeriodDays = Math.max(1,
-      Math.round((prevInput.today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)),
-    );
+    const elapsedDays = (prevInput.today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24);
+    const samePeriodMonths = Math.max(1 / 30.4375, elapsedDays / 30.4375);
     // WHY: keyFn maps order → ZONECODE via custZone lookup; falls back to 'UNKNOWN'.
     const keyFn = (o: RawOrder): string => custZone.get(o.CUSTNAME)?.zone ?? 'UNKNOWN';
-    prevMaps = buildPrevYearMetrics(prevInput, keyFn, samePeriodDays);
+    prevMaps = buildPrevYearMetrics(prevInput, keyFn, samePeriodMonths);
   }
 
   return [...groups.entries()].map(([id, g]) => {

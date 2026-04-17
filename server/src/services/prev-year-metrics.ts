@@ -21,8 +21,13 @@ export interface MetricsSnapshot {
   frequency: number | null;
 }
 
-/** WHY null-valued fields for empty windows: distinguishes "no activity" from "zero". */
-export function computeMetrics(items: MetricItem[], windowDays: number): MetricsSnapshot {
+/**
+ * WHY null-valued fields for empty windows: distinguishes "no activity" from "zero".
+ * WHY windowMonths (not windowDays): current-period frequency = orderCount / periodMonths,
+ * so prev-year frequency must use the same unit (months) to be comparable in the UI (/mo label).
+ * Passing days here would make prevYearFrequency ~30x too small (Codex post-deploy finding).
+ */
+export function computeMetrics(items: MetricItem[], windowMonths: number): MetricsSnapshot {
   if (items.length === 0) {
     return {
       revenue: null, orderCount: null, avgOrder: null,
@@ -36,6 +41,6 @@ export function computeMetrics(items: MetricItem[], windowDays: number): Metrics
   const avgOrder = orderCount > 0 ? revenue / orderCount : null;
   const marginAmount = revenue - totalCost;
   const marginPercent = revenue > 0 ? (marginAmount / revenue) * 100 : null;
-  const frequency = windowDays > 0 ? orderCount / windowDays : null;
+  const frequency = windowMonths > 0 ? orderCount / windowMonths : null;
   return { revenue, orderCount, avgOrder, marginAmount, marginPercent, frequency };
 }
