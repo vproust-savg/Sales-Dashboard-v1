@@ -62,11 +62,17 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
       ? { dimension: groupBy as Dimension, entityIds: ids }
       : undefined;
 
+    // WHY preserveEntityIdentity: non-customer dims show an Orders tab where each row must
+    // carry customerName so the UI can display which customer placed the order. For customer
+    // dim it is redundant (entity IS the customer) but harmless — always set so the rows are
+    // enriched regardless of dim. customers is already fetched above in Promise.all.
     const aggregate = aggregateOrders(
       ordersCached.orders,
       prevOrdersCached.orders,
       period,
-      scope ? { scope, customers: customersResult.data } : undefined,
+      scope
+        ? { scope, customers: customersResult.data, preserveEntityIdentity: true }
+        : { preserveEntityIdentity: true, customers: customersResult.data },
     );
 
     // WHY: entity list is derived from the FULL period orders (not scoped) — the left panel
