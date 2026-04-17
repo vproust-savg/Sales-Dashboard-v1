@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
 import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders, fetchCustomers, fetchProducts } from '../services/priority-queries.js';
-import type { RawOrder } from '../services/priority-queries.js';
+import type { RawOrder, RawCustomer } from '../services/priority-queries.js';
 import type { RawProduct } from '@shared/types/dashboard';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
@@ -50,11 +50,22 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     // caused silent corruption for non-customer dims).
     const cacheEntityType = period === 'ytd' ? 'orders_ytd' : 'orders_year';
 
-    const [ordersCached, prevOrdersCached, customersResult] = await Promise.all([
-      readOrdersOrFallback(period, cacheEntityType, startDate, endDate, true),
-      readOrdersOrFallback(String(year - 1), 'orders_year', prevStartDate, prevEndDate, false),
-      cachedFetch(cacheKey('customers', 'all'), getTTL('customers'),
-        () => fetchCustomers(priorityClient)),
+    // WHY: Customers are needed both for aggregation and for computing the zone→CUSTNAME
+    // narrow filter used on cold cache. Fetch them first (cheap: 1s when cached) so the
+    // filter builder sees the full customer list.
+    const customersResult = await cachedFetch(cacheKey('customers', 'all'), getTTL('customers'),
+      () => fetchCustomers(priorityClient));
+
+    // WHY narrow-fetch fallback: before Plan A's universal-cache refactor, single-entity
+    // dashboard loads filtered Priority ORDERS by CUSTNAME. The refactor removed that fast
+    // path so every cold-cache load pulled ~22K YTD orders (6+ min, often timing out at
+    // Priority's per-page cap). Restoring the narrow filter for dims where it's possible
+    // makes the cold path fast again without compromising the consolidated/Report flow.
+    const narrowFilter = buildNarrowOrderFilter(groupBy as Dimension, ids, customersResult.data);
+
+    const [ordersCached, prevOrdersCached] = await Promise.all([
+      readOrdersOrFallback(period, cacheEntityType, startDate, endDate, true, narrowFilter),
+      readOrdersOrFallback(String(year - 1), 'orders_year', prevStartDate, prevEndDate, false, narrowFilter),
     ]);
 
     // Build scope if entity subset requested
@@ -146,21 +157,84 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
  *      by warm-cache.ts on server startup. Covers the cold-boot case when no Report has
  *      ever run. 15-minute TTL (orders_ytd) means a fresh deploy without Report runs will
  *      re-fetch every 15 minutes.
- *  A future task could update warm-cache.ts to write the per-order cache instead, unifying
- *  these paths — but that migration is out of scope for the dimension-parity rollout. */
+ *  WHY extraFilter: When the universal cache is cold AND the request is scoped to one or
+ *  a few entities (customer or zone dim), narrow the Priority fetch by a CUSTNAME filter.
+ *  This restores the pre-Plan A fast path: instead of pulling 22K YTD orders (6+ min,
+ *  timeout-prone), we pull only ~10-200 orders for the selected entity (~2-5s). The
+ *  narrowed result lives under a per-entity cache key so it can't corrupt the universal
+ *  'all' cache key. If `extraFilter` is undefined (per-item dims, boot, multi-dim
+ *  consolidated), behaviour is unchanged. */
 async function readOrdersOrFallback(
   period: string,
   cacheEntity: 'orders_ytd' | 'orders_year',
   startDate: string,
   endDate: string,
   isCurrentPeriod: boolean,
+  extraFilter?: string,
 ): Promise<{ orders: RawOrder[]; fromCache: boolean; cachedAt: string | null }> {
   const cached = await readOrders(period, 'all');
   if (cached) {
     return { orders: cached.orders, fromCache: true, cachedAt: cached.meta.lastFetchDate };
   }
+  if (extraFilter) {
+    // WHY hash-suffixed cache key: the narrow-fetch result is entity-scoped; never mix it
+    // with the universal cache's 'all' bucket. Uses 'entity_detail' TTL (10 min) — stale
+    // enough to reuse across rapid clicks but fresh enough to pick up new orders soon.
+    const narrowKey = cacheKey('entity_detail', period, `narrow:${hashFilter(extraFilter)}`);
+    const result = await cachedFetch(narrowKey, getTTL('entity_detail'),
+      () => fetchOrders(priorityClient, startDate, endDate, isCurrentPeriod, extraFilter));
+    return { orders: result.data, fromCache: result.cached, cachedAt: result.cachedAt };
+  }
   // Fallback: use legacy bulk cache (still populated by warm-cache for cold boot).
   const result = await cachedFetch(cacheKey(cacheEntity, period), getTTL(cacheEntity),
     () => fetchOrders(priorityClient, startDate, endDate, isCurrentPeriod));
   return { orders: result.data, fromCache: result.cached, cachedAt: result.cachedAt };
+}
+
+/** Build an OData `$filter` clause that narrows Priority ORDERS to the requested entities.
+ *  - customer: direct CUSTNAME filter (OR-chained for multi-select).
+ *  - zone: look up all CUSTNAMEs in the zone, then OR-chain.
+ *  - vendor/brand/product_type/product: per-item fields live on ORDERITEMS_SUBFORM; Priority
+ *    has no ORDERS-level filter for them, so no narrow is possible. Returns undefined and
+ *    falls back to the universal/legacy cache path. */
+function buildNarrowOrderFilter(
+  dimension: Dimension,
+  ids: string[],
+  customers: RawCustomer[],
+): string | undefined {
+  if (ids.length === 0) return undefined;
+
+  if (dimension === 'customer') {
+    return custnameOrFilter(ids);
+  }
+
+  if (dimension === 'zone') {
+    const zoneSet = new Set(ids);
+    const custIds = customers.filter(c => zoneSet.has(c.ZONECODE)).map(c => c.CUSTNAME);
+    // WHY empty check: zone lookup can legitimately return zero customers (e.g., unknown
+    // ZONECODE). An empty filter clause would be syntactically invalid; fall through to
+    // the universal cache path instead.
+    if (custIds.length === 0) return undefined;
+    return custnameOrFilter(custIds);
+  }
+
+  // Per-item dims (vendor/brand/product_type/product): no ORDERS-level filter available.
+  return undefined;
+}
+
+/** OR-chain a list of CUSTNAMEs into an OData filter, with single-quote escaping. */
+function custnameOrFilter(ids: string[]): string {
+  return ids.map(id => `CUSTNAME eq '${id.replace(/'/g, "''")}'`).join(' or ');
+}
+
+/** Tiny stable hash for a filter string — used as a cache key qualifier so two different
+ *  narrow-fetch filters don't collide. Not cryptographic; FNV-1a 32-bit is plenty here
+ *  since collision only causes a re-fetch (same safety property as any cache key). */
+function hashFilter(filter: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < filter.length; i++) {
+    hash ^= filter.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16);
 }

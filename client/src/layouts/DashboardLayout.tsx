@@ -24,6 +24,7 @@ export type { DashboardLayoutProps };
 export function DashboardLayout(props: DashboardLayoutProps) {
   const {
     dashboard, entities, allEntities, contacts, isLoading, isDetailLoading, loadingStage, error,
+    detailError, retryDetail,
     activeDimension, activePeriod, activeEntityId, activeTab, selectedEntityIds,
     searchTerm, filterConditions, filterOpen, filterCount,
     sortField, sortDirection,
@@ -204,6 +205,28 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                     activePeriod={activePeriod} activeTab={activeTab}
                     onTabChange={setActiveTab} onExport={exportCsv}
                   />
+                </motion.div>
+              ) : activeEntityId && detailError ? (
+                /* WHY: An entity IS selected but the detail query failed. Without this branch
+                 * the user saw the "Select a ..." placeholder while a 500 sat silently in the
+                 * Query cache — no feedback, no retry path. Most common trigger: cold cache
+                 * on per-item dims (vendor/brand/product_type/product) where Priority can't be
+                 * narrowed and the full-YTD fetch exceeds the 170s per-request cap. */
+                <motion.div key="detail-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-1 items-center justify-center">
+                  <div className="max-w-[440px] rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-4xl)] py-[var(--spacing-3xl)] text-center shadow-[var(--shadow-card)]">
+                    <p className="text-[16px] font-semibold text-[var(--color-red)]">Unable to load dashboard</p>
+                    <p className="mt-[var(--spacing-md)] text-[13px] text-[var(--color-text-muted)]">{detailError}</p>
+                    <p className="mt-[var(--spacing-sm)] text-[12px] text-[var(--color-text-muted)]">
+                      The data cache is warming up. This can take a few minutes on the first load after a cache flush or deploy — please retry in a moment.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retryDetail}
+                      className="mt-[var(--spacing-md)] cursor-pointer rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] px-[var(--spacing-md)] py-[var(--spacing-sm)] text-[13px] font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-gold-medium)]"
+                    >
+                      Retry
+                    </button>
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div key="placeholder" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-1 items-center justify-center">
