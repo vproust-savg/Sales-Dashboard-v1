@@ -13,6 +13,7 @@ import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
 import { filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItemCriteria } from '../services/customer-filter.js';
 import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
+import { buildNarrowOrderFilter } from '../services/narrow-order-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { writeOrders, readOrders, deleteOrderIndex } from '../cache/order-cache.js';
 import { cacheKey, getTTL, buildFilterQualifier, buildFilterHash } from '../cache/cache-keys.js';
@@ -82,6 +83,24 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     const prevStartDate = `${year - 1}-01-01T00:00:00Z`;
     const prevEndDate = `${year}-01-01T00:00:00Z`;
 
+    // WHY: Fetch customers first (cheap; cached in Redis) so the narrow-filter builder has
+    // the full customer master for zone→CUSTNAME lookups. Customers are also needed for
+    // scope-aware aggregation below, so this also consolidates two fetches into one.
+    const customers = await cachedFetch(
+      cacheKey('customers', 'all'), getTTL('customers'),
+      () => fetchCustomers(priorityClient, abortController.signal),
+    );
+
+    // WHY: entityIds narrows filteredOrders to the pre-selected entity subset (View Consolidated D3).
+    // Hoisted BEFORE the orders fetch so we can pass a narrow filter down to Priority when
+    // the subset is small (customer/zone dims). Without this, a 2-customer "View Consolidated"
+    // on cold cache would still pull the full ~50K-order universe (6+ min, timeouts), then
+    // discard 99.5% in-memory. Parity fix with the single-entity dashboard.ts narrow fallback.
+    const entityIdList = entityIds ? entityIds.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+    const narrowFilter = entityIdList && entityIdList.length > 0
+      ? buildNarrowOrderFilter(groupBy as Dimension, entityIdList, customers.data)
+      : undefined;
+
     // WHY: D2 — parallelise current + prev fetch. Benchmark measured 23.5% wall-clock speedup
     // (18m02s sequential → 13m48s parallel) for a ~46K-order uncached Report. Both branches
     // share abortController.signal so user cancel cascades to both streams.
@@ -99,10 +118,15 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // WHY: Universal "all" cache — always read/write with filterHash='all'. Agent/zone/customerType
     // filtering happens post-cache in-memory. This means one painful initial load caches everything,
     // then all filtered views are instant reads from the same cache.
+    // WHY skip universal-cache READ when narrowFilter is set: the narrowed subset is
+    // intentionally scoped to a few entities, but readOrders(period, 'all') would return
+    // either nothing (cold) or the full agent-agnostic set (warm). Neither is useful here.
+    // We also SKIP the universal-cache WRITE below so the narrowed subset doesn't poison
+    // `readOrders(period, 'all')` for other users — other users would see only our subset.
     const [ordersWrapped, prevOrdersResult] = await Promise.all([
       (async (): Promise<FetchedOrders> => {
-        if (forceRefresh) {
-          return fullFetch(startDate, endDate, sendEvent, abortController.signal);
+        if (forceRefresh || narrowFilter) {
+          return fullFetch(startDate, endDate, sendEvent, abortController.signal, narrowFilter);
         }
         const cached = await tryIncrementalRefresh(period, startDate, endDate, sendEvent, abortController.signal);
         return cached ?? fullFetch(startDate, endDate, sendEvent, abortController.signal);
@@ -112,12 +136,13 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       // Same readOrders/writeOrders pattern as current-year, keyed by prev-year period.
       (async (): Promise<FetchedOrders> => {
         const prevPeriod = String(year - 1);
-        if (!forceRefresh) {
+        if (!forceRefresh && !narrowFilter) {
           const cached = await readOrders(prevPeriod, 'all');
           if (cached) return { orders: cached.orders, didFetch: false };
         }
-        // WHY: No extraFilter — always fetch ALL prev-year orders for the universal cache.
-        const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, undefined, undefined, abortController.signal);
+        // WHY: When narrowFilter is set, fetch only the narrowed subset from Priority.
+        //   Otherwise (default path), fetch ALL prev-year orders for the universal cache.
+        const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, narrowFilter, undefined, abortController.signal);
         return { orders: prevData, didFetch: true };
       })(),
     ]);
@@ -126,20 +151,20 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 
     // Cache raw orders + metadata (sequential after Promise.all — depends on orders result)
     sendEvent('progress', { phase: 'processing', message: 'Computing metrics...' });
-    if (ordersWrapped.didFetch) {
+    // WHY skip writes when narrowFilter: the fetched set is a narrow subset; writing it
+    // under the universal 'all' scope would corrupt `readOrders(period, 'all')` for other
+    // users / other requests. The narrow subset is request-scoped and discarded after
+    // aggregation, matching the dashboard.ts narrow-fetch policy.
+    if (ordersWrapped.didFetch && !narrowFilter) {
       // WHY: Per-order keys with all-or-nothing semantics. Always write under 'all' scope.
       // Every order gets its own `order:{ORDNAME}` key (365-day TTL) so it's available
       // for any future read regardless of filter. Index rebuilt authoritatively from full set.
       await writeOrders(orders, period, 'all', getTTL('orders_raw'));
     }
-    if (prevOrders.didFetch) {
+    if (prevOrders.didFetch && !narrowFilter) {
       // WHY: Prev-year also written under 'all' scope — same pattern, same 10 MB limit applies.
       await writeOrders(prevOrders.orders, String(year - 1), 'all', getTTL('orders_year'));
     }
-    const customers = await cachedFetch(
-      cacheKey('customers', 'all'), getTTL('customers'),
-      () => fetchCustomers(priorityClient, abortController.signal),
-    );
 
     // WHY: All filters are post-cache in-memory. Agent filtering is ORDER-level (AGENTNAME),
     // zone/customerType are CUSTOMER-level (require customer lookup). Applied in sequence.
@@ -162,7 +187,7 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 
     // WHY: entityIds narrows filteredOrders to the pre-selected entity subset (View Consolidated D3).
     // Applied AFTER customer-criteria so both filters compose correctly (AND semantics).
-    const entityIdList = entityIds ? entityIds.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+    // NOTE: `entityIdList` is hoisted above (next to the narrow-filter builder).
     const subsetOrders = entityIdList && entityIdList.length > 0
       ? filterOrdersByEntityIds(filteredOrders, new Set(entityIdList), groupBy as Dimension, customers.data)
       : filteredOrders;

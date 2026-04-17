@@ -8,10 +8,11 @@ import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
 import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders, fetchCustomers, fetchProducts } from '../services/priority-queries.js';
-import type { RawOrder, RawCustomer } from '../services/priority-queries.js';
+import type { RawOrder } from '../services/priority-queries.js';
 import type { RawProduct } from '@shared/types/dashboard';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
+import { buildNarrowOrderFilter } from '../services/narrow-order-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { readOrders } from '../cache/order-cache.js';
@@ -189,42 +190,6 @@ async function readOrdersOrFallback(
   const result = await cachedFetch(cacheKey(cacheEntity, period), getTTL(cacheEntity),
     () => fetchOrders(priorityClient, startDate, endDate, isCurrentPeriod));
   return { orders: result.data, fromCache: result.cached, cachedAt: result.cachedAt };
-}
-
-/** Build an OData `$filter` clause that narrows Priority ORDERS to the requested entities.
- *  - customer: direct CUSTNAME filter (OR-chained for multi-select).
- *  - zone: look up all CUSTNAMEs in the zone, then OR-chain.
- *  - vendor/brand/product_type/product: per-item fields live on ORDERITEMS_SUBFORM; Priority
- *    has no ORDERS-level filter for them, so no narrow is possible. Returns undefined and
- *    falls back to the universal/legacy cache path. */
-function buildNarrowOrderFilter(
-  dimension: Dimension,
-  ids: string[],
-  customers: RawCustomer[],
-): string | undefined {
-  if (ids.length === 0) return undefined;
-
-  if (dimension === 'customer') {
-    return custnameOrFilter(ids);
-  }
-
-  if (dimension === 'zone') {
-    const zoneSet = new Set(ids);
-    const custIds = customers.filter(c => zoneSet.has(c.ZONECODE)).map(c => c.CUSTNAME);
-    // WHY empty check: zone lookup can legitimately return zero customers (e.g., unknown
-    // ZONECODE). An empty filter clause would be syntactically invalid; fall through to
-    // the universal cache path instead.
-    if (custIds.length === 0) return undefined;
-    return custnameOrFilter(custIds);
-  }
-
-  // Per-item dims (vendor/brand/product_type/product): no ORDERS-level filter available.
-  return undefined;
-}
-
-/** OR-chain a list of CUSTNAMEs into an OData filter, with single-quote escaping. */
-function custnameOrFilter(ids: string[]): string {
-  return ids.map(id => `CUSTNAME eq '${id.replace(/'/g, "''")}'`).join(' or ');
 }
 
 /** Tiny stable hash for a filter string — used as a cache key qualifier so two different

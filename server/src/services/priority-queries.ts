@@ -101,8 +101,13 @@ export async function fetchOrders(
   const statusExclude = EXCLUDED_STATUSES.map(s => `ORDSTATUSDES ne '${s}'`).join(' and ');
   // WHY: extraFilter lets callers narrow by entity (e.g., CUSTNAME eq 'C7826') without
   // duplicating the entire query construction logic.
+  // WHY wrap in parens: OData's `and` binds tighter than `or`. An OR-chain extraFilter
+  // like `CUSTNAME eq 'A' or CUSTNAME eq 'B'` would otherwise associate as
+  // `(dateFilter and CUSTNAME eq 'A') or CUSTNAME eq 'B'` — the second disjunct would
+  // escape the date filter and pull the customer's entire historical order set. Wrapping
+  // the whole clause in parens keeps `extraFilter` an atomic sub-expression.
   const dateFilter = `CURDATE ge ${startDate} and CURDATE lt ${endDate} and ${statusExclude}`
-    + (extraFilter ? ` and ${extraFilter}` : '');
+    + (extraFilter ? ` and (${extraFilter})` : '');
   const itemFields = isCurrentPeriod ? ORDERITEM_SELECT : ORDERITEM_SELECT_PREV;
 
   return client.fetchAllPages<RawOrder>('ORDERS', {
