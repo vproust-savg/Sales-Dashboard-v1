@@ -1,17 +1,12 @@
 // FILE: server/src/services/dimension-grouper.ts
 // PURPOSE: Group orders into entity lists by dimension (customer, zone, vendor, brand, product_type, product)
 // USED BY: server/src/routes/dashboard.ts, server/src/routes/fetch-all.ts
-// EXPORTS: groupByDimension, PrevYearTotals, PrevYearInput
+// EXPORTS: groupByDimension, PrevYearInput
 
 import type { EntityListItem, Dimension } from '@shared/types/dashboard';
-import type { RawOrder, RawCustomer } from './priority-queries.js';
+import type { RawOrder, RawCustomer, RawOrderItem } from './priority-queries.js';
 import { computeMetrics, type MetricsSnapshot, type MetricItem } from './prev-year-metrics.js';
-import { groupByVendor, groupByBrand, groupByProductType, groupByProduct } from './dimension-grouper-items.js';
-
-// WHY: Exported so item-level groupers in dimension-grouper-items.ts can type their
-// prevMap parameter against the same shape. Item-based dims use simple revenue totals;
-// Task 4 will upgrade them to MetricsSnapshot. Keep this export stable for now.
-export interface PrevYearTotals { samePeriod: number; full: number; }
+import { groupByVendor, groupByBrand, groupByProductType, groupByProduct, type ItemPrevYearMaps } from './dimension-grouper-items.js';
 
 // WHY: Callers pass pre-split order slices (same-period vs full year) so each
 // dimension can reuse the same cached slices without re-slicing internally.
@@ -38,6 +33,13 @@ function orderToMetricItems(o: RawOrder): MetricItem[] {
   }));
 }
 
+/** Shared: convert a MetricItem bucket to a MetricsSnapshot map with the given window. */
+function toMetricsMap(bucket: Map<string, MetricItem[]>, windowDays: number): Map<string, MetricsSnapshot> {
+  const out = new Map<string, MetricsSnapshot>();
+  for (const [k, items] of bucket) out.set(k, computeMetrics(items, windowDays));
+  return out;
+}
+
 /**
  * Build per-entity MetricsSnapshot maps from prev-year order slices.
  * keyFn maps each order to the entity id it belongs to (CUSTNAME, ZONECODE, etc.).
@@ -57,13 +59,33 @@ function buildPrevYearMetrics(
     }
     return bucket;
   };
-
-  const toMetricsMap = (bucket: Map<string, MetricItem[]>, windowDays: number): Map<string, MetricsSnapshot> => {
-    const out = new Map<string, MetricsSnapshot>();
-    for (const [k, items] of bucket) out.set(k, computeMetrics(items, windowDays));
-    return out;
+  return {
+    samePeriod: toMetricsMap(groupItems(input.prevSame), samePeriodDays),
+    full: toMetricsMap(groupItems(input.prevFull), 365),
   };
+}
 
+/**
+ * WHY: Per-item dims bucket by item field not order field — must walk ORDERITEMS_SUBFORM.
+ * keyFn maps each order item to the entity id for its dimension.
+ */
+function buildPrevYearMetricsByItem(
+  input: PrevYearInput,
+  keyFn: (item: RawOrderItem) => string,
+  samePeriodDays: number,
+): ItemPrevYearMaps {
+  const groupItems = (orders: RawOrder[]): Map<string, MetricItem[]> => {
+    const bucket = new Map<string, MetricItem[]>();
+    for (const o of orders) {
+      for (const item of o.ORDERITEMS_SUBFORM ?? []) {
+        const key = keyFn(item);
+        const arr = bucket.get(key) ?? [];
+        arr.push({ orderId: o.ORDNAME, amount: item.QPRICE, cost: item.QPRICE - item.QPROFIT });
+        bucket.set(key, arr);
+      }
+    }
+    return bucket;
+  };
   return {
     samePeriod: toMetricsMap(groupItems(input.prevSame), samePeriodDays),
     full: toMetricsMap(groupItems(input.prevFull), 365),
@@ -121,6 +143,19 @@ function snapshotToFields(
   };
 }
 
+/** WHY: Compute per-item prev maps once before dispatch. Returns undefined maps when prevInput absent. */
+function buildItemPrevMaps(prevInput: PrevYearInput | undefined): Record<'vendor' | 'brand' | 'product_type' | 'product', ItemPrevYearMaps | undefined> {
+  if (!prevInput) return { vendor: undefined, brand: undefined, product_type: undefined, product: undefined };
+  const start = new Date(Date.UTC(prevInput.today.getUTCFullYear(), 0, 1));
+  const days = Math.max(1, Math.round((prevInput.today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  return {
+    vendor: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_1159_5_ESH || 'UNKNOWN', days),
+    brand: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_9952_5_ESH || 'Other', days),
+    product_type: buildPrevYearMetricsByItem(prevInput, (it) => it.Y_3020_5_ESH || it.Y_3021_5_ESH || 'Other', days),
+    product: buildPrevYearMetricsByItem(prevInput, (it) => it.PARTNAME, days),
+  };
+}
+
 export function groupByDimension(
   dimension: Dimension,
   orders: RawOrder[],
@@ -128,15 +163,16 @@ export function groupByDimension(
   periodMonths: number = 12,
   prevInput?: PrevYearInput,
 ): EntityListItem[] {
+  // WHY: Build item-level prev maps only if prevInput is provided; undefined = no prev data.
+  const itemPrevMaps = buildItemPrevMaps(prevInput);
+
   const groupers: Record<Dimension, () => EntityListItem[]> = {
     customer: () => groupByCustomer(orders, customers, periodMonths, prevInput),
     zone: () => groupByZone(orders, customers, periodMonths, prevInput),
-    // WHY: vendor/brand/product_type/product use old PrevYearTotals path (Task 4 target).
-    // Pass undefined for prevMap until Task 4 upgrades those branches.
-    vendor: () => groupByVendor(orders, periodMonths, undefined),
-    brand: () => groupByBrand(orders, periodMonths, undefined),
-    product_type: () => groupByProductType(orders, periodMonths, undefined),
-    product: () => groupByProduct(orders, periodMonths, undefined),
+    vendor: () => groupByVendor(orders, periodMonths, itemPrevMaps.vendor),
+    brand: () => groupByBrand(orders, periodMonths, itemPrevMaps.brand),
+    product_type: () => groupByProductType(orders, periodMonths, itemPrevMaps.product_type),
+    product: () => groupByProduct(orders, periodMonths, itemPrevMaps.product),
   };
 
   return (groupers[dimension] ?? groupers.customer)()

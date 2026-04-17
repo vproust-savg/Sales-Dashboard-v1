@@ -1,5 +1,5 @@
 // FILE: server/src/services/__tests__/dimension-grouper-prev-year.test.ts
-// PURPOSE: TDD guard for the 18 prev-year metric fields wired in groupByDimension (customer + zone)
+// PURPOSE: TDD guard for the 18 prev-year metric fields wired in groupByDimension (customer + zone + per-item dims)
 // USED BY: vitest test suite
 // EXPORTS: (test file, no exports)
 
@@ -176,4 +176,37 @@ describe('groupByDimension — per-metric prev-year fields', () => {
     expect(row.prevYearRevenueFull).toBe(1000);
     expect(row.prevYearOrderCountFull).toBe(2);
   });
+});
+
+describe('per-item groupers — prev-year metrics', () => {
+  const today = new Date('2026-04-17');
+  const mkOrdersForKey = (dim: string, key: string): RawOrder[] =>
+    [mkOrder('OC1', '2026-02-01', 1000, 600)].map(o => ({
+      ...o,
+      ORDERITEMS_SUBFORM: (o.ORDERITEMS_SUBFORM ?? []).map(it => ({
+        ...it,
+        ...(dim === 'vendor' ? { Y_1159_5_ESH: key } : {}),
+        ...(dim === 'brand' ? { Y_9952_5_ESH: key } : {}),
+        ...(dim === 'product_type' ? { Y_3020_5_ESH: key } : {}),
+        ...(dim === 'product' ? { PARTNAME: key } : {}),
+      })),
+    }));
+
+  it.each(['vendor', 'brand', 'product_type', 'product'] as const)(
+    'populates all 10 new prev-year fields for %s',
+    (dim) => {
+      const current = mkOrdersForKey(dim, 'K1');
+      const prevSame = mkOrdersForKey(dim, 'K1').map(o => ({ ...o, CURDATE: '2025-02-15' }));
+      const result = groupByDimension(dim, current, CUSTOMERS, 12,
+        { today, prevSame, prevFull: prevSame });
+      const row = result.find(r => r.id === 'K1');
+      expect(row).toBeDefined();
+      expect(row!.prevYearOrderCount).not.toBeNull();
+      expect(row!.prevYearAvgOrder).not.toBeNull();
+      expect(row!.prevYearMarginAmount).not.toBeNull();
+      expect(row!.prevYearMarginPercent).not.toBeNull();
+      expect(row!.prevYearFrequency).not.toBeNull();
+      expect(row!.prevYearRevenueFull).not.toBeNull();
+    },
+  );
 });

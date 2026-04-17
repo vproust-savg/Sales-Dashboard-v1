@@ -164,9 +164,9 @@ describe('groupByDimension prev-year fields (B)', () => {
     expect(totalEntities).toBeCloseTo(totalPrev, 2);
   });
 
-  it('vendor dimension: prevYearRevenueFull is null (Task 4 pending — item dims not yet wired) (B-T7)', () => {
-    // WHY: Task 3 wires customer+zone only. Item-based dims (vendor/brand/product_type/product)
-    // return null for all prev-year metric fields until Task 4 upgrades them.
+  it('vendor dimension: prevYearRevenueFull is populated by Task 4 (B-T7)', () => {
+    // WHY: Task 4 wires item-based dims (vendor/brand/product_type/product).
+    // prevYearRevenueFull should now be the sum of prev-year item QPRICE for that vendor.
     const prevWithItems: RawOrder[] = [
       {
         ORDNAME: 'PV1', CUSTNAME: 'C001', CURDATE: '2025-06-01T00:00:00Z',
@@ -189,8 +189,10 @@ describe('groupByDimension prev-year fields (B)', () => {
     };
     const entities = groupByDimension('vendor', orders, customers, 6, prevInput);
     const v01 = entities.find(e => e.id === 'V01');
-    // Task 4 will wire vendor prev-year. Until then, null is correct sentinel.
-    expect(v01?.prevYearRevenueFull).toBeNull();
+    // Task 4: prevYearRevenueFull = sum of prev-year item QPRICE for vendor V01.
+    expect(v01?.prevYearRevenueFull).toBe(50);
+    expect(v01?.prevYearOrderCountFull).toBe(1);
+    expect(v01?.prevYearMarginAmountFull).toBe(20);
   });
 
   // B-T8: Structural guard on the entity-list-builder caller contract — the lightweight path

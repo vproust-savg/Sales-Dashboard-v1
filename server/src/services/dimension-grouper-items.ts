@@ -5,7 +5,7 @@
 
 import type { EntityListItem } from '@shared/types/dashboard';
 import type { RawOrder } from './priority-queries.js';
-import type { PrevYearTotals } from './dimension-grouper.js';
+import type { MetricsSnapshot } from './prev-year-metrics.js';
 
 /** WHY: Item-based dimensions compute profit from QPROFIT, order counts from distinct ORDNAME */
 interface ItemGroup {
@@ -15,6 +15,12 @@ interface ItemGroup {
   productIds: Set<string>;
   orderIds: Set<string>;
   dates: string[];
+}
+
+/** WHY: Same shape as PrevYearMetricsMaps in dimension-grouper.ts — maps entity id → MetricsSnapshot */
+export interface ItemPrevYearMaps {
+  samePeriod: Map<string, MetricsSnapshot>;
+  full: Map<string, MetricsSnapshot>;
 }
 
 function buildEnrichment(g: ItemGroup, periodMonths: number): Pick<
@@ -32,10 +38,39 @@ function buildEnrichment(g: ItemGroup, periodMonths: number): Pick<
   };
 }
 
+/** WHY: Populates all 12 prev-year fields from MetricsSnapshot maps; falls back to null if absent. */
+function applyPrevYearFields(
+  id: string,
+  prevMaps: ItemPrevYearMaps | undefined,
+): Pick<
+  EntityListItem,
+  | 'prevYearRevenue' | 'prevYearOrderCount' | 'prevYearAvgOrder'
+  | 'prevYearMarginPercent' | 'prevYearMarginAmount' | 'prevYearFrequency'
+  | 'prevYearRevenueFull' | 'prevYearOrderCountFull' | 'prevYearAvgOrderFull'
+  | 'prevYearMarginPercentFull' | 'prevYearMarginAmountFull' | 'prevYearFrequencyFull'
+> {
+  const same = prevMaps?.samePeriod.get(id) ?? null;
+  const full = prevMaps?.full.get(id) ?? null;
+  return {
+    prevYearRevenue: same?.revenue ?? null,
+    prevYearOrderCount: same?.orderCount ?? null,
+    prevYearAvgOrder: same?.avgOrder ?? null,
+    prevYearMarginPercent: same?.marginPercent ?? null,
+    prevYearMarginAmount: same?.marginAmount ?? null,
+    prevYearFrequency: same?.frequency ?? null,
+    prevYearRevenueFull: full?.revenue ?? null,
+    prevYearOrderCountFull: full?.orderCount ?? null,
+    prevYearAvgOrderFull: full?.avgOrder ?? null,
+    prevYearMarginPercentFull: full?.marginPercent ?? null,
+    prevYearMarginAmountFull: full?.marginAmount ?? null,
+    prevYearFrequencyFull: full?.frequency ?? null,
+  };
+}
+
 export function groupByVendor(
   orders: RawOrder[],
   periodMonths: number,
-  prevMap?: Map<string, PrevYearTotals>,
+  prevMaps?: ItemPrevYearMaps,
 ): EntityListItem[] {
   const groups = new Map<string, ItemGroup>();
 
@@ -50,31 +85,20 @@ export function groupByVendor(
     groups.set(id, g);
   }));
 
-  return [...groups.entries()].map(([id, g]) => {
-    const prev = prevMap?.get(id);
-    return {
-      id, name: g.name,
-      meta1: `${g.productIds.size} products`,
-      meta2: `${g.orderIds.size} orders`,
-      revenue: g.revenue, orderCount: g.orderIds.size,
-      ...buildEnrichment(g, periodMonths),
-      prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
-      prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
-      // WHY null: per-metric prev-year fields are populated by Task 4 upgrade.
-      // Null is the correct "not-yet-computed" sentinel per EntityListItem contract.
-      prevYearOrderCount: null, prevYearOrderCountFull: null,
-      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
-      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
-      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
-      prevYearFrequency: null, prevYearFrequencyFull: null,
-    };
-  });
+  return [...groups.entries()].map(([id, g]) => ({
+    id, name: g.name,
+    meta1: `${g.productIds.size} products`,
+    meta2: `${g.orderIds.size} orders`,
+    revenue: g.revenue, orderCount: g.orderIds.size,
+    ...buildEnrichment(g, periodMonths),
+    ...applyPrevYearFields(id, prevMaps),
+  }));
 }
 
 export function groupByBrand(
   orders: RawOrder[],
   periodMonths: number,
-  prevMap?: Map<string, PrevYearTotals>,
+  prevMaps?: ItemPrevYearMaps,
 ): EntityListItem[] {
   const groups = new Map<string, ItemGroup>();
 
@@ -89,29 +113,20 @@ export function groupByBrand(
     groups.set(brand, g);
   }));
 
-  return [...groups.entries()].map(([name, g]) => {
-    const prev = prevMap?.get(name);
-    return {
-      id: name, name,
-      meta1: `${g.productIds.size} products`,
-      meta2: `${g.orderIds.size} orders`,
-      revenue: g.revenue, orderCount: g.orderIds.size,
-      ...buildEnrichment(g, periodMonths),
-      prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
-      prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
-      prevYearOrderCount: null, prevYearOrderCountFull: null,
-      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
-      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
-      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
-      prevYearFrequency: null, prevYearFrequencyFull: null,
-    };
-  });
+  return [...groups.entries()].map(([name, g]) => ({
+    id: name, name,
+    meta1: `${g.productIds.size} products`,
+    meta2: `${g.orderIds.size} orders`,
+    revenue: g.revenue, orderCount: g.orderIds.size,
+    ...buildEnrichment(g, periodMonths),
+    ...applyPrevYearFields(name, prevMaps),
+  }));
 }
 
 export function groupByProductType(
   orders: RawOrder[],
   periodMonths: number,
-  prevMap?: Map<string, PrevYearTotals>,
+  prevMaps?: ItemPrevYearMaps,
 ): EntityListItem[] {
   const groups = new Map<string, ItemGroup & { code: string }>();
 
@@ -127,22 +142,15 @@ export function groupByProductType(
   }));
 
   return [...groups.entries()].map(([name, g]) => {
-    // WHY: product_type prevMap is keyed by Y_3020_5_ESH || Y_3021_5_ESH (same logic as computePrevYearByEntity)
+    // WHY: product_type id is Y_3020_5_ESH (code) or falls back to name, matching prevMaps key
     const entityId = g.code || name;
-    const prev = prevMap?.get(entityId);
     return {
       id: entityId, name,
       meta1: `${g.productIds.size} products`,
       meta2: `${g.orderIds.size} orders`,
       revenue: g.revenue, orderCount: g.orderIds.size,
       ...buildEnrichment(g, periodMonths),
-      prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
-      prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
-      prevYearOrderCount: null, prevYearOrderCountFull: null,
-      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
-      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
-      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
-      prevYearFrequency: null, prevYearFrequencyFull: null,
+      ...applyPrevYearFields(entityId, prevMaps),
     };
   });
 }
@@ -150,7 +158,7 @@ export function groupByProductType(
 export function groupByProduct(
   orders: RawOrder[],
   periodMonths: number,
-  prevMap?: Map<string, PrevYearTotals>,
+  prevMaps?: ItemPrevYearMaps,
 ): EntityListItem[] {
   const groups = new Map<string, ItemGroup & { brand: string }>();
 
@@ -164,21 +172,12 @@ export function groupByProduct(
     groups.set(item.PARTNAME, g);
   }));
 
-  return [...groups.entries()].map(([sku, g]) => {
-    const prev = prevMap?.get(sku);
-    return {
-      id: sku, name: g.name,
-      meta1: [sku, g.brand].filter(Boolean).join(' \u00B7 '),
-      meta2: `${g.orderIds.size} orders`,
-      revenue: g.revenue, orderCount: g.orderIds.size,
-      ...buildEnrichment(g, periodMonths),
-      prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
-      prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
-      prevYearOrderCount: null, prevYearOrderCountFull: null,
-      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
-      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
-      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
-      prevYearFrequency: null, prevYearFrequencyFull: null,
-    };
-  });
+  return [...groups.entries()].map(([sku, g]) => ({
+    id: sku, name: g.name,
+    meta1: [sku, g.brand].filter(Boolean).join(' \u00B7 '),
+    meta2: `${g.orderIds.size} orders`,
+    revenue: g.revenue, orderCount: g.orderIds.size,
+    ...buildEnrichment(g, periodMonths),
+    ...applyPrevYearFields(sku, prevMaps),
+  }));
 }
