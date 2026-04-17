@@ -86,6 +86,7 @@ export interface RawAgent {
 export interface RawVendor {
   SUPNAME: string;
   SUPDES: string;
+  COUNTRYNAME: string;
 }
 
 /** Fetch orders with expanded line items for a date range — spec Section 17.2 */
@@ -152,7 +153,7 @@ export async function fetchAgents(client: PriorityClient): Promise<RawAgent[]> {
 /** Fetch vendors — spec Section 17.3 */
 export async function fetchVendors(client: PriorityClient): Promise<RawVendor[]> {
   return client.fetchAllPages<RawVendor>('SUPPLIERS', {
-    select: 'SUPNAME,SUPDES',
+    select: 'SUPNAME,SUPDES,COUNTRYNAME',
     orderby: 'SUPNAME asc',
   });
 }

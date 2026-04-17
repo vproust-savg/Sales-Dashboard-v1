@@ -44,9 +44,10 @@ const mkOrder = (custname: string) => ({
   ORDERITEMS_SUBFORM: [],
 });
 
-const mkVendor = (code: string, name: string) => ({
+const mkVendor = (code: string, name: string, country = '') => ({
   SUPNAME: code,
   SUPDES: name,
+  COUNTRYNAME: country,
 });
 
 const mkProductType = (code: string, name: string) => ({
@@ -219,6 +220,47 @@ describe('buildEntityList — item-based dims', () => {
     expect(result.entities[1].id).toBe('V2');
     expect(result.entities[1].name).toBe('Vendor Two');
     expectStubMetrics(result.entities[1]);
+  });
+
+  it('vendor meta1 joins SUPNAME and COUNTRYNAME with middle dot', async () => {
+    vi.mocked(readOrders).mockResolvedValue(null);
+    vi.mocked(cachedFetch).mockResolvedValueOnce({
+      data: [mkVendor('V1', 'Vendor One', 'France'), mkVendor('V2', 'Vendor Two')],
+      cached: true,
+      cachedAt: '2026-04-16T00:00:00Z',
+    });
+
+    const result = await buildEntityList('vendor', 'ytd');
+    expect(result.entities[0].meta1).toBe('V1 \u00B7 France');
+    // WHY: empty COUNTRYNAME collapses via filter(Boolean) — show SUPNAME alone.
+    expect(result.entities[1].meta1).toBe('V2');
+  });
+
+  it('warm cache: vendor row keeps SUPPLIERS name + meta1, inherits orders metrics', async () => {
+    vi.mocked(readOrders).mockResolvedValue({
+      orders: [
+        mkOrderWithItems('C1', [
+          mkOrderItem({
+            Y_1159_5_ESH: 'V1',
+            Y_1530_5_ESH: 'Old Vendor Name From Order',
+          }),
+        ]),
+      ],
+      meta: { lastFetchDate: '2026-04-16T00:00:00Z', orderCount: 1, filterHash: 'all' },
+    });
+    vi.mocked(cachedFetch).mockResolvedValueOnce({
+      data: [mkVendor('V1', 'Vendor One', 'France')],
+      cached: true,
+      cachedAt: '2026-04-16T00:00:00Z',
+    });
+
+    const result = await buildEntityList('vendor', 'ytd');
+    expect(result.enriched).toBe(true);
+    const v1 = result.entities.find(entity => entity.id === 'V1');
+    expect(v1?.name).toBe('Vendor One');
+    expect(v1?.meta1).toBe('V1 \u00B7 France');
+    expect(v1?.revenue).toBe(100);
+    expect(v1?.orderCount).toBe(1);
   });
 
   it('cold cache: returns product-type master-data stubs with null metrics', async () => {

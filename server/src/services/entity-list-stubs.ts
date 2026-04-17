@@ -34,7 +34,7 @@ export function vendorStub(vendor: RawVendor): EntityListItem {
   return {
     id: vendor.SUPNAME,
     name: vendor.SUPDES,
-    meta1: '',
+    meta1: [vendor.SUPNAME, vendor.COUNTRYNAME].filter(Boolean).join(' \u00B7 '),
     ...NULL_METRIC_FIELDS,
     rep: null,
     zone: null,

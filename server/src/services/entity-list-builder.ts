@@ -100,16 +100,20 @@ export async function buildEntityList(dimension: Dimension, period: string): Pro
     if (!enriched) {
       return { entities: vendorsResult.data.map(vendorStub), yearsAvailable, enriched: false };
     }
-    return {
-      entities: mergeMasterEntities(
-        vendorsResult.data,
-        (vendor) => vendor.SUPNAME,
-        vendorStub,
-        groupByDimension('vendor', orders, [], periodMonths),
-      ),
-      yearsAvailable,
-      enriched: true,
-    };
+    // WHY inline merge (vs mergeMasterEntities): for vendor we keep enriched metrics but
+    // pull name + meta1 from the SUPPLIERS master (SUPDES / SUPNAME · COUNTRYNAME), not
+    // from ORDERITEMS (Y_1530_5_ESH / "N products"). Master wins for display fields;
+    // orders win for revenue/metrics.
+    const enrichedById = new Map(
+      groupByDimension('vendor', orders, [], periodMonths).map(entity => [entity.id, entity]),
+    );
+    const merged = vendorsResult.data.map(vendor => {
+      const stub = vendorStub(vendor);
+      const enrichedRow = enrichedById.get(vendor.SUPNAME);
+      if (!enrichedRow) return stub;
+      return { ...enrichedRow, name: stub.name, meta1: stub.meta1 };
+    });
+    return { entities: merged, yearsAvailable, enriched: true };
   }
 
   if (dimension === 'product_type') {
