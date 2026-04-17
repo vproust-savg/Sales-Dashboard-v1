@@ -202,7 +202,7 @@ export async function fetchProductTypes(client: PriorityClient, signal?: AbortSi
  *  master can drive a brand filter dropdown that joins cleanly with order-item brand. */
 export async function fetchProducts(client: PriorityClient, signal?: AbortSignal): Promise<RawProduct[]> {
   return client.fetchAllPages<RawProduct>('LOGPART', {
-    select: 'PARTNAME,PARTDES,FAMILYNAME,SPEC4,STATDES',
+    select: 'PARTNAME,PARTDES,FAMILYNAME,SPEC4,Y_5380_5_ESH,STATDES',
     filter: "STATDES eq 'In Use' and PARTNAME ne '000'",
     orderby: 'PARTNAME asc',
     signal,

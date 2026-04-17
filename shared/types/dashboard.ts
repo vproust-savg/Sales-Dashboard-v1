@@ -211,12 +211,15 @@ export interface RawProductType {
  *  NOT as Y_9952_5_ESH (that's the order-item-level brand code on ORDERITEMS_SUBFORM).
  *  The two fields hold identical values for the same PARTNAME — verified live — so SPEC4 joins
  *  cleanly with ORDERITEMS.Y_9952_5_ESH without normalization.
- *  WHY nullable: some LOGPART rows legitimately have no brand (e.g., "general part", fee SKUs). */
+ *  WHY nullable: some LOGPART rows legitimately have no brand (e.g., "general part", fee SKUs).
+ *  WHY Y_5380_5_ESH: country of origin lives in LOGPART (master data), not order items. ~50% of
+ *  rows have non-null values. Verified live: HTTP 200, returns strings like "China", "France". */
 export interface RawProduct {
   PARTNAME: string;
   PARTDES: string;
   FAMILYNAME: string;
-  SPEC4: string | null;  // brand
+  SPEC4: string | null;          // brand
+  Y_5380_5_ESH: string | null;  // country of origin
   STATDES: string;
 }
 
