@@ -40,7 +40,7 @@ export function useDashboardState() {
   } = useDashboardShellState();
   const {
     activeEntityId, selectedIds,
-    selectEntity, toggleCheckbox, clearSelection,
+    selectEntity, toggleCheckbox, clearSelection, resetSelection,
   } = useEntitySelection({ activeEntityId: shellActiveEntityId, onActiveEntityChange: setActiveEntityId });
   const {
     conditions, isOpen: filterOpen, activeCount: filterCount,
@@ -163,6 +163,7 @@ export function useDashboardState() {
     setActiveTab,
     toggleCheckbox,
     clearSelection,
+    resetSelection,
     setSearchTerm,
     addCondition,
     updateCondition,

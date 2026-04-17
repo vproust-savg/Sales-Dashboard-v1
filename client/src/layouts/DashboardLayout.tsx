@@ -30,7 +30,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
     report,
     switchDimension, selectEntity, toggleCheckbox,
     setActiveTab,
-    clearSelection, setSearchTerm,
+    clearSelection, resetSelection, setSearchTerm,
     addCondition, updateCondition, removeCondition, clearFilters, toggleFilterPanel,
     setSort,
     panelCollapsed,
@@ -167,7 +167,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                   dimensionLabel={DIMENSION_CONFIG[activeDimension].pluralLabel}
                   filters={report.filters}
                   onExport={exportCsv}
-                  onClose={() => { report.reset(); clearSelection(); }}
+                  onClose={() => { report.reset(); resetSelection(); }}
                 />
                 <RightPanel
                   entity={null}
