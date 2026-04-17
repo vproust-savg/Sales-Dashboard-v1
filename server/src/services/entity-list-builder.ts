@@ -10,7 +10,8 @@ import { readOrders } from '../cache/order-cache.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { priorityClient } from './priority-instance.js';
-import { fetchCustomers, fetchZones } from './priority-queries.js';
+import { fetchCustomers, fetchZones, fetchProducts } from './priority-queries.js';
+import type { RawProduct } from '@shared/types/dashboard';
 import { groupByDimension } from './dimension-grouper.js';
 
 export interface EntityListResult {
@@ -94,8 +95,21 @@ export async function buildEntityList(dimension: Dimension, period: string): Pro
     getTTL('customers'),
     () => fetchCustomers(priorityClient),
   );
+
+  // WHY: Fetch products for the product dimension to populate country of origin in meta1.
+  // Other dimensions do not need LOGPART data, so we only fetch when needed.
+  let productsByPartname: Map<string, RawProduct> | undefined;
+  if (dimension === 'product') {
+    const productsResult = await cachedFetch(
+      cacheKey('products', 'all'),
+      getTTL('products'),
+      () => fetchProducts(priorityClient),
+    );
+    productsByPartname = new Map(productsResult.data.map(p => [p.PARTNAME, p]));
+  }
+
   return {
-    entities: groupByDimension(dimension, orders, customersResult.data, periodMonths),
+    entities: groupByDimension(dimension, orders, customersResult.data, periodMonths, undefined, productsByPartname),
     yearsAvailable,
     enriched: true,
   };

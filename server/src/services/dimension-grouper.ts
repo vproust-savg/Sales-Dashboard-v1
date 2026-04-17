@@ -3,7 +3,7 @@
 // USED BY: server/src/routes/dashboard.ts, server/src/routes/fetch-all.ts
 // EXPORTS: groupByDimension, PrevYearInput
 
-import type { EntityListItem, Dimension } from '@shared/types/dashboard';
+import type { EntityListItem, Dimension, RawProduct } from '@shared/types/dashboard';
 import type { RawOrder, RawCustomer, RawOrderItem } from './priority-queries.js';
 import { computeMetrics, type MetricsSnapshot, type MetricItem } from './prev-year-metrics.js';
 import { groupByVendor, groupByBrand, groupByProductType, groupByProduct, type ItemPrevYearMaps } from './dimension-grouper-items.js';
@@ -162,6 +162,7 @@ export function groupByDimension(
   customers: RawCustomer[],
   periodMonths: number = 12,
   prevInput?: PrevYearInput,
+  productsByPartname?: Map<string, RawProduct>,
 ): EntityListItem[] {
   // WHY: Build item-level prev maps only if prevInput is provided; undefined = no prev data.
   const itemPrevMaps = buildItemPrevMaps(prevInput);
@@ -172,7 +173,8 @@ export function groupByDimension(
     vendor: () => groupByVendor(orders, periodMonths, itemPrevMaps.vendor),
     brand: () => groupByBrand(orders, periodMonths, itemPrevMaps.brand),
     product_type: () => groupByProductType(orders, periodMonths, itemPrevMaps.product_type),
-    product: () => groupByProduct(orders, periodMonths, itemPrevMaps.product),
+    // WHY: productsByPartname passes LOGPART data (country of origin) for the sub-line display.
+    product: () => groupByProduct(orders, periodMonths, itemPrevMaps.product, productsByPartname),
   };
 
   return (groupers[dimension] ?? groupers.customer)()

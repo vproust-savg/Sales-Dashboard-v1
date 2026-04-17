@@ -3,7 +3,7 @@
 // USED BY: server/src/services/dimension-grouper.ts
 // EXPORTS: groupByVendor, groupByBrand, groupByProductType, groupByProduct
 
-import type { EntityListItem } from '@shared/types/dashboard';
+import type { EntityListItem, RawProduct } from '@shared/types/dashboard';
 import type { RawOrder } from './priority-queries.js';
 import type { MetricsSnapshot } from './prev-year-metrics.js';
 
@@ -159,11 +159,12 @@ export function groupByProduct(
   orders: RawOrder[],
   periodMonths: number,
   prevMaps?: ItemPrevYearMaps,
+  productsByPartname?: Map<string, RawProduct>,
 ): EntityListItem[] {
-  const groups = new Map<string, ItemGroup & { brand: string }>();
+  const groups = new Map<string, ItemGroup>();
 
   orders.forEach(o => (o.ORDERITEMS_SUBFORM ?? []).forEach(item => {
-    const g = groups.get(item.PARTNAME) ?? { name: item.PDES, brand: item.Y_9952_5_ESH, revenue: 0, profit: 0, productIds: new Set(), orderIds: new Set(), dates: [] };
+    const g = groups.get(item.PARTNAME) ?? { name: item.PDES, revenue: 0, profit: 0, productIds: new Set(), orderIds: new Set(), dates: [] };
     g.revenue += item.QPRICE;
     g.profit += item.QPROFIT;
     g.productIds.add(item.PARTNAME);
@@ -172,12 +173,17 @@ export function groupByProduct(
     groups.set(item.PARTNAME, g);
   }));
 
-  return [...groups.entries()].map(([sku, g]) => ({
-    id: sku, name: g.name,
-    meta1: [sku, g.brand].filter(Boolean).join(' \u00B7 '),
-    meta2: `${g.orderIds.size} orders`,
-    revenue: g.revenue, orderCount: g.orderIds.size,
-    ...buildEnrichment(g, periodMonths),
-    ...applyPrevYearFields(sku, prevMaps),
-  }));
+  return [...groups.entries()].map(([sku, g]) => {
+    // WHY swap brand → country: per spec §5.6.2, product sub-line shows country of origin,
+    // not brand. Country is the canonical LOGPART value (Y_5380_5_ESH), not the order-item field.
+    const country = productsByPartname?.get(sku)?.Y_5380_5_ESH ?? null;
+    return {
+      id: sku, name: g.name,
+      meta1: [sku, country].filter(Boolean).join(' \u00B7 '),
+      meta2: `${g.orderIds.size} orders`,
+      revenue: g.revenue, orderCount: g.orderIds.size,
+      ...buildEnrichment(g, periodMonths),
+      ...applyPrevYearFields(sku, prevMaps),
+    };
+  });
 }

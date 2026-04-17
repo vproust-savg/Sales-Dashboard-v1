@@ -196,18 +196,24 @@ describe('groupByDimension prev-year fields (B)', () => {
   });
 
   // B-T8: Structural guard on the entity-list-builder caller contract — the lightweight path
-  // MUST NOT pass prevInput to groupByDimension (that would defeat the "no prev fetch" promise).
+  // MUST NOT pass a real prevInput to groupByDimension (that would defeat the "no prev fetch" promise).
+  // WHY ≤6 args now: Task 10 added productsByPartname as 6th optional arg. The 5th arg (prevInput)
+  // MUST remain undefined in entity-list-builder — enforced by checking the 5th arg token is 'undefined'.
   it('entity-list-builder invokes groupByDimension without prev-year args (B-T8)', async () => {
     const { readFileSync } = await import('node:fs');
     const { resolve } = await import('node:path');
     const src = readFileSync(resolve(__dirname, '../../src/services/entity-list-builder.ts'), 'utf8');
-    // Match any groupByDimension(...) call; then ensure it has ≤4 positional args (no prev data).
+    // Match any groupByDimension(...) call; then ensure it has ≤6 positional args.
     const calls = src.matchAll(/groupByDimension\s*\(([^)]*)\)/g);
     const found = [...calls];
     expect(found.length).toBeGreaterThan(0);
     found.forEach(m => {
-      const argCount = m[1].split(',').filter(s => s.trim().length > 0).length;
-      expect(argCount).toBeLessThanOrEqual(4);
+      const args = m[1].split(',').map(s => s.trim()).filter(s => s.length > 0);
+      expect(args.length).toBeLessThanOrEqual(6);
+      // 5th arg must be undefined (no prevInput) when present
+      if (args.length >= 5) {
+        expect(args[4]).toBe('undefined');
+      }
     });
   });
 });

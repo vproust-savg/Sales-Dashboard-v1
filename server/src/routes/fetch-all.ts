@@ -7,8 +7,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
 import { priorityClient } from '../services/priority-instance.js';
-import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
+import { fetchOrders, fetchCustomers, fetchProducts } from '../services/priority-queries.js';
 import type { RawOrder } from '../services/priority-queries.js';
+import type { RawProduct } from '@shared/types/dashboard';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
 import { filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItemCriteria } from '../services/customer-filter.js';
@@ -183,7 +184,15 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       prevSame: prevSameOrders,
       prevFull: subsetPrev,
     };
-    const entities = groupByDimension(groupBy as Dimension, subsetOrders, customers.data, periodMonths, fetchAllPrevInput);
+    // WHY: Fetch products only for the product dimension — LOGPART lookup for country of origin.
+    let productsByPartname: Map<string, RawProduct> | undefined;
+    if (groupBy === 'product') {
+      const productsResult = await cachedFetch(cacheKey('products', 'all'), getTTL('products'),
+        () => fetchProducts(priorityClient, abortController.signal));
+      productsByPartname = new Map(productsResult.data.map(p => [p.PARTNAME, p]));
+    }
+
+    const entities = groupByDimension(groupBy as Dimension, subsetOrders, customers.data, periodMonths, fetchAllPrevInput, productsByPartname);
 
     // WHY: Build scope for aggregateOrders so item-based dims get per-entity rescoping in
     // consolidated mode (Task 3.3 fix). filterOrdersByEntityIds above is predicate-only

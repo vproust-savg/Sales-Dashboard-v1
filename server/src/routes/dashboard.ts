@@ -7,8 +7,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
 import { priorityClient } from '../services/priority-instance.js';
-import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
+import { fetchOrders, fetchCustomers, fetchProducts } from '../services/priority-queries.js';
 import type { RawOrder } from '../services/priority-queries.js';
+import type { RawProduct } from '@shared/types/dashboard';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
 import { cachedFetch } from '../cache/cache-layer.js';
@@ -87,12 +88,21 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
       prevSame: prevSameOrders,
       prevFull: prevOrdersCached.orders,
     };
+    // WHY: Fetch products only for the product dimension — LOGPART lookup for country of origin.
+    let productsByPartname: Map<string, RawProduct> | undefined;
+    if (groupBy === 'product') {
+      const productsResult = await cachedFetch(cacheKey('products', 'all'), getTTL('products'),
+        () => fetchProducts(priorityClient));
+      productsByPartname = new Map(productsResult.data.map(p => [p.PARTNAME, p]));
+    }
+
     const entities = groupByDimension(
       groupBy as Dimension,
       ordersCached.orders,
       customersResult.data,
       periodMonths,
       prevYearInput,
+      productsByPartname,
     );
 
     const years = new Set(ordersCached.orders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
