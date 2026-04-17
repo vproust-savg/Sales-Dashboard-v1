@@ -8,8 +8,8 @@ import type { OrderRow, FlatItem, Contact, Dimension } from '@shared/types/dashb
 import { OrdersTab } from './OrdersTab';
 import { ItemsExplorer } from './ItemsExplorer';
 import { ContactsTable } from './ContactsTable';
+import { GroupedContactsTable } from './GroupedContactsTable';
 import { ConsolidatedOrdersTable } from './ConsolidatedOrdersTable';
-import { ConsolidatedContactsTable } from './ConsolidatedContactsTable';
 import type { DetailTab } from './detail-tab-types';
 
 interface TabsSectionProps {
@@ -127,11 +127,15 @@ export function TabsSection({ activeTab, onTabChange, orders, items, contacts, c
               : <OrdersTab orders={orders} dimension={dimension} />
           )}
           {activeTab === 'items' && <ItemsExplorer items={items} />}
-          {activeTab === 'contacts' && (
-            consolidatedMode
-              ? <ConsolidatedContactsTable contacts={contacts} />
-              : <ContactsTable contacts={contacts} />
-          )}
+          {activeTab === 'contacts' && (() => {
+            // WHY data-shape check instead of consolidatedMode flag: contacts in single-entity
+            // Zone/Vendor/Brand views ALSO carry customerName (per server enrichment).
+            // Grouping should be driven by the data, not the mode.
+            const hasCustomerName = contacts.length > 0 && contacts.every(c => !!c.customerName);
+            return hasCustomerName
+              ? <GroupedContactsTable contacts={contacts} />
+              : <ContactsTable contacts={contacts} />;
+          })()}
         </div>
       </div>
     </div>
