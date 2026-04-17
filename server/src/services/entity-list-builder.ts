@@ -1,18 +1,26 @@
 // FILE: server/src/services/entity-list-builder.ts
-// PURPOSE: Build the left-panel entity list for any dimension. Customer/zone merge master
-//   data (full universe) with orders-derived metrics; item-based dims are orders-derived only.
+// PURPOSE: Build the left-panel entity list for any dimension. Every dimension merges master
+//   data (full universe) with orders-derived metrics, returning stubs when orders are cold.
 // USED BY: server/src/routes/entities.ts (wired in Task 4.3)
 // EXPORTS: buildEntityList, EntityListResult
 
 import type { EntityListItem, Dimension } from '@shared/types/dashboard';
-import type { RawCustomer, RawZone } from './priority-queries.js';
+import type { RawZone } from './priority-queries.js';
 import { readOrders } from '../cache/order-cache.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { priorityClient } from './priority-instance.js';
-import { fetchCustomers, fetchZones, fetchProducts } from './priority-queries.js';
-import type { RawProduct } from '@shared/types/dashboard';
+import { fetchCustomers, fetchZones, fetchVendors, fetchProductTypes, fetchProducts } from './priority-queries.js';
 import { groupByDimension } from './dimension-grouper.js';
+import {
+  customerStub,
+  zoneStub,
+  vendorStub,
+  productTypeStub,
+  productStub,
+  brandStub,
+  brandMasters,
+} from './entity-list-stubs.js';
 
 export interface EntityListResult {
   entities: EntityListItem[];
@@ -24,7 +32,7 @@ export interface EntityListResult {
 /** Build the entity list for a dimension.
  *  - customer: union of master CUSTOMERS with orders-derived metrics (zero-metric stubs when no orders).
  *  - zone: union of master DISTRLINES with orders-derived metrics keyed by ZONECODE.
- *  - vendor/product_type/product: orders-derived only (names come from order items). */
+ *  - vendor/brand/product_type/product: union of warmed master data with orders-derived metrics. */
 export async function buildEntityList(dimension: Dimension, period: string): Promise<EntityListResult> {
   const cached = await readOrders(period, 'all');
   const orders = cached?.orders ?? [];
@@ -83,103 +91,95 @@ export async function buildEntityList(dimension: Dimension, period: string): Pro
     return { entities: merged, yearsAvailable, enriched: true };
   }
 
-  // Vendor / product_type / product — entity list is orders-derived only.
-  // WHY no master-data merge: names come from order items (Y_1530_5_ESH vendor,
-  // Y_3021_5_ESH product_type, PDES product, Y_9952_5_ESH brand on items / SPEC4 on LOGPART).
-  // Master data is consumed elsewhere for filter dropdowns.
-  if (!enriched) {
-    return { entities: [], yearsAvailable, enriched: false };
+  if (dimension === 'vendor') {
+    const vendorsResult = await cachedFetch(
+      cacheKey('vendors', 'all'),
+      getTTL('vendors'),
+      () => fetchVendors(priorityClient),
+    );
+    if (!enriched) {
+      return { entities: vendorsResult.data.map(vendorStub), yearsAvailable, enriched: false };
+    }
+    return {
+      entities: mergeMasterEntities(
+        vendorsResult.data,
+        (vendor) => vendor.SUPNAME,
+        vendorStub,
+        groupByDimension('vendor', orders, [], periodMonths),
+      ),
+      yearsAvailable,
+      enriched: true,
+    };
   }
-  const customersResult = await cachedFetch(
-    cacheKey('customers', 'all'),
-    getTTL('customers'),
-    () => fetchCustomers(priorityClient),
-  );
 
-  // WHY: Fetch products for the product dimension to populate country of origin in meta1.
-  // Other dimensions do not need LOGPART data, so we only fetch when needed.
-  let productsByPartname: Map<string, RawProduct> | undefined;
-  if (dimension === 'product') {
+  if (dimension === 'product_type') {
+    const productTypesResult = await cachedFetch(
+      cacheKey('product_types', 'all'),
+      getTTL('product_types'),
+      () => fetchProductTypes(priorityClient),
+    );
+    if (!enriched) {
+      return { entities: productTypesResult.data.map(productTypeStub), yearsAvailable, enriched: false };
+    }
+    return {
+      entities: mergeMasterEntities(
+        productTypesResult.data,
+        (productType) => productType.FTCODE,
+        productTypeStub,
+        groupByDimension('product_type', orders, [], periodMonths),
+      ),
+      yearsAvailable,
+      enriched: true,
+    };
+  }
+
+  if (dimension === 'product' || dimension === 'brand') {
     const productsResult = await cachedFetch(
       cacheKey('products', 'all'),
       getTTL('products'),
       () => fetchProducts(priorityClient),
     );
-    productsByPartname = new Map(productsResult.data.map(p => [p.PARTNAME, p]));
+    if (dimension === 'brand') {
+      const brands = brandMasters(productsResult.data);
+      if (!enriched) {
+        return { entities: brands.map(brandStub), yearsAvailable, enriched: false };
+      }
+      return {
+        entities: mergeMasterEntities(
+          brands,
+          (brand) => brand,
+          brandStub,
+          groupByDimension('brand', orders, [], periodMonths),
+        ),
+        yearsAvailable,
+        enriched: true,
+      };
+    }
+
+    const productsByPartname = new Map(productsResult.data.map(product => [product.PARTNAME, product]));
+    if (!enriched) {
+      return { entities: productsResult.data.map(productStub), yearsAvailable, enriched: false };
+    }
+    return {
+      entities: mergeMasterEntities(
+        productsResult.data,
+        (product) => product.PARTNAME,
+        productStub,
+        groupByDimension('product', orders, [], periodMonths, undefined, productsByPartname),
+      ),
+      yearsAvailable,
+      enriched: true,
+    };
   }
 
-  return {
-    entities: groupByDimension(dimension, orders, customersResult.data, periodMonths, undefined, productsByPartname),
-    yearsAvailable,
-    enriched: true,
-  };
+  return { entities: [], yearsAvailable, enriched };
 }
-
-/** Customer with null metrics (orders not loaded, or customer has zero orders this period).
- *  WHY null vs zero: spec §8 contract — null signals "not loaded," zero means "loaded but no orders."
- *  For the stub path (enriched=false), metrics are genuinely not loaded. For the merge path's
- *  fallback, this is used when the customer exists in master but has no orders this period —
- *  in that case semantics should be zero, but the spec allows null here because a master-only
- *  customer has not been observed in orders. */
-function customerStub(c: RawCustomer): EntityListItem {
-  return {
-    id: c.CUSTNAME,
-    name: c.CUSTDES,
-    meta1: [c.ZONEDES, c.AGENTNAME].filter(Boolean).join(' \u00B7 '),
-    meta2: null,
-    revenue: null,
-    orderCount: null,
-    avgOrder: null,
-    marginPercent: null,
-    marginAmount: null,
-    frequency: null,
-    lastOrderDate: null,
-    rep: c.AGENTNAME || null,
-    zone: c.ZONEDES || null,
-    customerType: c.CTYPENAME || null,
-    prevYearRevenue: null,
-    prevYearRevenueFull: null,
-    prevYearOrderCount: null,
-    prevYearOrderCountFull: null,
-    prevYearAvgOrder: null,
-    prevYearAvgOrderFull: null,
-    prevYearMarginPercent: null,
-    prevYearMarginPercentFull: null,
-    prevYearMarginAmount: null,
-    prevYearMarginAmountFull: null,
-    prevYearFrequency: null,
-    prevYearFrequencyFull: null,
-  };
-}
-
-/** Zone master with null metrics — same semantics as customerStub. */
-function zoneStub(z: RawZone): EntityListItem {
-  return {
-    id: z.ZONECODE,
-    name: z.ZONEDES || z.ZONECODE,
-    meta1: '',
-    meta2: null,
-    revenue: null,
-    orderCount: null,
-    avgOrder: null,
-    marginPercent: null,
-    marginAmount: null,
-    frequency: null,
-    lastOrderDate: null,
-    rep: null,
-    zone: null,
-    customerType: null,
-    prevYearRevenue: null,
-    prevYearRevenueFull: null,
-    prevYearOrderCount: null,
-    prevYearOrderCountFull: null,
-    prevYearAvgOrder: null,
-    prevYearAvgOrderFull: null,
-    prevYearMarginPercent: null,
-    prevYearMarginPercentFull: null,
-    prevYearMarginAmount: null,
-    prevYearMarginAmountFull: null,
-    prevYearFrequency: null,
-    prevYearFrequencyFull: null,
-  };
+function mergeMasterEntities<T>(
+  masters: T[],
+  idOf: (raw: T) => string,
+  stubOf: (raw: T) => EntityListItem,
+  enrichedEntities: EntityListItem[],
+): EntityListItem[] {
+  const enrichedById = new Map(enrichedEntities.map(entity => [entity.id, entity]));
+  return masters.map(master => enrichedById.get(idOf(master)) ?? stubOf(master));
 }
