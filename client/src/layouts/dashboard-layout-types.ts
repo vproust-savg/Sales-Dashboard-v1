@@ -19,6 +19,8 @@ export interface DashboardLayoutProps {
   isDetailLoading: boolean;
   loadingStage: string | null;
   error: string | null;
+  detailError: string | null;
+  retryDetail: () => void;
   meta: ApiResponse<unknown>['meta'] | null;
   yearsAvailable: string[];
   activeDimension: Dimension;

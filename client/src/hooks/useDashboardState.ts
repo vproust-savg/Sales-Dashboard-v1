@@ -138,6 +138,12 @@ export function useDashboardState() {
     isDetailLoading: detailQuery.isLoading,
     loadingStage,
     error: entitiesQuery.error?.message ?? detailQuery.error?.message ?? null,
+    // WHY: Split detail errors from combined `error` so the right panel can surface a
+    // failed detail fetch inline instead of falling back to the "Select an entity"
+    // placeholder. Before this, a 500 on /api/sales/dashboard (e.g., cold-cache Priority
+    // timeout) left the user staring at a blank placeholder with no feedback or retry path.
+    detailError: detailQuery.error?.message ?? null,
+    retryDetail: () => { void detailQuery.refetch(); },
     meta,
     yearsAvailable: entitiesData?.yearsAvailable ?? dashboard?.yearsAvailable ?? [],
 
