@@ -69,6 +69,7 @@ export function RightPanel({
         activeTab={activeTab} onTabChange={onTabChange}
         orders={orders} items={items} contacts={contacts}
         consolidatedMode={consolidatedMode}
+        dimension={activeDimension}
       />
     </>
   );

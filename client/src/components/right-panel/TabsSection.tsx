@@ -4,7 +4,7 @@
 // EXPORTS: TabsSection
 
 import { useRef, useCallback } from 'react';
-import type { OrderRow, FlatItem, Contact } from '@shared/types/dashboard';
+import type { OrderRow, FlatItem, Contact, Dimension } from '@shared/types/dashboard';
 import { OrdersTab } from './OrdersTab';
 import { ItemsExplorer } from './ItemsExplorer';
 import { ContactsTable } from './ContactsTable';
@@ -19,6 +19,7 @@ interface TabsSectionProps {
   items: FlatItem[];
   contacts: Contact[];
   consolidatedMode?: boolean;
+  dimension?: Dimension;
 }
 
 interface TabDef {
@@ -27,7 +28,7 @@ interface TabDef {
   count: number;
 }
 
-export function TabsSection({ activeTab, onTabChange, orders, items, contacts, consolidatedMode }: TabsSectionProps) {
+export function TabsSection({ activeTab, onTabChange, orders, items, contacts, consolidatedMode, dimension }: TabsSectionProps) {
   const tabListRef = useRef<HTMLDivElement>(null);
 
   const tabs: TabDef[] = [
@@ -123,7 +124,7 @@ export function TabsSection({ activeTab, onTabChange, orders, items, contacts, c
           {activeTab === 'orders' && (
             consolidatedMode
               ? <ConsolidatedOrdersTable orders={orders} />
-              : <OrdersTab orders={orders} />
+              : <OrdersTab orders={orders} dimension={dimension} />
           )}
           {activeTab === 'items' && <ItemsExplorer items={items} />}
           {activeTab === 'contacts' && (

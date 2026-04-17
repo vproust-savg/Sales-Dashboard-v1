@@ -13,9 +13,11 @@ import { OrderLineItems } from './OrderLineItems';
 
 interface OrdersTableProps {
   orders: OrderRow[];
+  includeCustomer?: boolean;
 }
 
-const COLUMNS = ['', 'Date', 'Order #', 'Items', 'Amount', 'Margin %', 'Margin $', 'Status'] as const;
+const COLUMNS_BASE = ['', 'Date', 'Order #', 'Items', 'Amount', 'Margin %', 'Margin $', 'Status'] as const;
+const COLUMNS_WITH_CUSTOMER = ['', 'Date', 'Order #', 'Customer', 'Items', 'Amount', 'Margin %', 'Margin $', 'Status'] as const;
 
 /** WHY: Raw Priority status names — spec Section 10.4 */
 const STATUS_STYLES: Record<string, string> = {
@@ -25,7 +27,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 const DEFAULT_STATUS_STYLE = 'bg-[var(--color-gold-subtle)] text-[var(--color-text-muted)]';
 
-export function OrdersTable({ orders }: OrdersTableProps) {
+export function OrdersTable({ orders, includeCustomer = false }: OrdersTableProps) {
   /** WHY: string | null not Set — only one row open at a time (accordion behavior) */
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
@@ -45,6 +47,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
   const sorted = [...orders].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
+
+  const COLUMNS = includeCustomer ? COLUMNS_WITH_CUSTOMER : COLUMNS_BASE;
 
   return (
     <div className="overflow-x-auto">
@@ -72,6 +76,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                 order={order}
                 isExpanded={isExpanded}
                 onToggle={() => toggleRow(order.orderNumber)}
+                includeCustomer={includeCustomer}
               />
             );
           })}
@@ -87,9 +92,10 @@ interface OrderRowGroupProps {
   order: OrderRow;
   isExpanded: boolean;
   onToggle: () => void;
+  includeCustomer?: boolean;
 }
 
-function OrderRowGroup({ order, isExpanded, onToggle }: OrderRowGroupProps) {
+function OrderRowGroup({ order, isExpanded, onToggle, includeCustomer = false }: OrderRowGroupProps) {
   const detailId = `order-detail-${order.orderNumber.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 
   return (
@@ -122,6 +128,11 @@ function OrderRowGroup({ order, isExpanded, onToggle }: OrderRowGroupProps) {
         <td className="px-[var(--spacing-lg)] py-[var(--spacing-base)] text-[14px] font-medium text-[var(--color-text-primary)]">
           <CopyableId value={order.orderNumber} label="Order #" />
         </td>
+        {includeCustomer && (
+          <td className="px-[var(--spacing-lg)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-primary)]">
+            {order.customerName ?? '\u2014'}
+          </td>
+        )}
         <td className="px-[var(--spacing-lg)] py-[var(--spacing-base)] text-[14px] text-[var(--color-text-secondary)] text-center">
           {order.itemCount}
         </td>
@@ -145,7 +156,7 @@ function OrderRowGroup({ order, isExpanded, onToggle }: OrderRowGroupProps) {
       <AnimatePresence initial={false}>
         {isExpanded && (
           <tr key={`${order.orderNumber}-detail`} id={detailId}>
-            <td colSpan={8} className="p-0">
+            <td colSpan={includeCustomer ? 9 : 8} className="p-0">
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
