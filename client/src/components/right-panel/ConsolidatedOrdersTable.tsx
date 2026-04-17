@@ -47,8 +47,8 @@ export function ConsolidatedOrdersTable({ orders }: ConsolidatedOrdersTableProps
         <thead className="sticky top-0 bg-[var(--color-bg-card)]">
           <tr className="border-b border-[var(--color-gold-subtle)]">
             <Th label="Date" k="date" active={sortKey} dir={sortDir} onClick={onHeaderClick} />
-            <Th label="Customer" k="customer" active={sortKey} dir={sortDir} onClick={onHeaderClick} />
             <Th label="Order #" k="orderNumber" active={sortKey} dir={sortDir} onClick={onHeaderClick} />
+            <Th label="Customer" k="customer" active={sortKey} dir={sortDir} onClick={onHeaderClick} />
             <Th label="Items" k="itemCount" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
             <Th label="Amount" k="amount" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
             <Th label="Margin %" k="marginPercent" active={sortKey} dir={sortDir} onClick={onHeaderClick} align="right" />
@@ -59,8 +59,8 @@ export function ConsolidatedOrdersTable({ orders }: ConsolidatedOrdersTableProps
           {sorted.map(o => (
             <tr key={o.orderNumber} className="border-b border-[var(--color-gold-subtle)] last:border-b-0 hover:bg-[var(--color-gold-subtle)]">
               <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-[var(--color-text-secondary)]">{o.date.slice(0, 10)}</td>
-              <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-[var(--color-text-primary)]">{o.customerName ?? '\u2014'}</td>
               <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] font-mono text-[var(--color-text-secondary)]">{o.orderNumber}</td>
+              <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-[var(--color-text-primary)]">{o.customerName ?? '\u2014'}</td>
               <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right tabular-nums text-[var(--color-text-secondary)]">{o.itemCount}</td>
               <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right tabular-nums text-[var(--color-text-secondary)]">{formatCurrency(o.amount)}</td>
               <td className="px-[var(--spacing-md)] py-[var(--spacing-sm)] text-right tabular-nums text-[var(--color-text-secondary)]">{formatPercent(o.marginPercent)}</td>
