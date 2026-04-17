@@ -194,14 +194,16 @@ export interface RawProductType {
 }
 
 /** Priority ERP raw shape for a product (LOGPART filtered by STATDES='In Use').
- *  WHY no brand field: Y_9952_5_ESH is an ORDERITEMS custom field; it does NOT exist on LOGPART
- *  (verified live — Priority returns 400 "Could not find a property named 'Y_9952_5_ESH'").
- *  Brand per-product is derived from order items (Y_9952_5_ESH on ORDERITEMS_SUBFORM) at
- *  aggregation time, not from a master column on LOGPART. */
+ *  WHY SPEC4 for brand: Priority stores the brand as LOGPART.SPEC4 (a string like "BLACK PEARL"),
+ *  NOT as Y_9952_5_ESH (that's the order-item-level brand code on ORDERITEMS_SUBFORM).
+ *  The two fields hold identical values for the same PARTNAME — verified live — so SPEC4 joins
+ *  cleanly with ORDERITEMS.Y_9952_5_ESH without normalization.
+ *  WHY nullable: some LOGPART rows legitimately have no brand (e.g., "general part", fee SKUs). */
 export interface RawProduct {
   PARTNAME: string;
   PARTDES: string;
   FAMILYNAME: string;
+  SPEC4: string | null;  // brand
   STATDES: string;
 }
 

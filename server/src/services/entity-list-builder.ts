@@ -84,8 +84,8 @@ export async function buildEntityList(dimension: Dimension, period: string): Pro
 
   // Vendor / product_type / product — entity list is orders-derived only.
   // WHY no master-data merge: names come from order items (Y_1530_5_ESH vendor,
-  // Y_3021_5_ESH product_type, PDES product). Brand (Y_9952_5_ESH) is also order-item-only
-  // — not on LOGPART master. Master data is consumed elsewhere for filter dropdowns.
+  // Y_3021_5_ESH product_type, PDES product, Y_9952_5_ESH brand on items / SPEC4 on LOGPART).
+  // Master data is consumed elsewhere for filter dropdowns.
   if (!enriched) {
     return { entities: [], yearsAvailable, enriched: false };
   }

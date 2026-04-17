@@ -196,12 +196,13 @@ export async function fetchProductTypes(client: PriorityClient, signal?: AbortSi
 /** Fetch all in-use products from LOGPART.
  *  WHY: PARTNAME matches order items' PARTNAME field for the Product dim.
  *  STATDES='In Use' filter excludes discontinued/archived parts at the API level.
- *  WHY no brand field: Y_9952_5_ESH is an ORDERITEMS custom field; it does NOT exist on
- *  LOGPART (Priority returns 400 — verified live). Brand per-product is derived from
- *  order items at aggregation time, not from LOGPART master data. */
+ *  WHY SPEC4 (not Y_9952_5_ESH): on LOGPART the brand lives in SPEC4 (Priority's custom string
+ *  slot); Y_9952_5_ESH is the same brand value but only exists on ORDERITEMS_SUBFORM. Verified
+ *  live that SPEC4 and Y_9952_5_ESH return identical strings for the same PARTNAME, so this
+ *  master can drive a brand filter dropdown that joins cleanly with order-item brand. */
 export async function fetchProducts(client: PriorityClient, signal?: AbortSignal): Promise<RawProduct[]> {
   return client.fetchAllPages<RawProduct>('LOGPART', {
-    select: 'PARTNAME,PARTDES,FAMILYNAME,STATDES',
+    select: 'PARTNAME,PARTDES,FAMILYNAME,SPEC4,STATDES',
     filter: "STATDES eq 'In Use'",
     orderby: 'PARTNAME asc',
     signal,
