@@ -4,21 +4,21 @@
 // EXPORTS: KPISection
 
 import { useState } from 'react';
-import type { KPIs, KPIMetricBreakdown, MonthlyRevenue, SparklineData, Period, EntityListItem, Dimension } from '@shared/types/dashboard';
+import type { KPIs, MonthlyRevenue, SparklineData, Period, EntityListItem, Dimension } from '@shared/types/dashboard';
 import { DIMENSION_SINGULAR_LABELS } from '@shared/types/dashboard';
-import {
-  formatCurrency,
-  formatDays,
-  formatFrequency,
-  formatInteger,
-  formatPercent,
-} from '@shared/utils/formatting';
+import { formatDays } from '@shared/utils/formatting';
 import { HeroRevenueCard } from './HeroRevenueCard';
 import { KPICard } from './KPICard';
-import type { KPISubItem } from './KPICard';
 import { useModal } from '../shared/ModalProvider';
 import { KPIModalContent, HeroRevenueModalContent } from './kpi-modal-content';
 import { useCardNavigation } from '../../hooks/useCardNavigation';
+import {
+  KPI_CONFIGS,
+  nullableFmt,
+  roundCurrency,
+  getActivityStatus,
+  yoyChange,
+} from './ConsolidatedKPISection';
 
 interface KPISectionProps {
   kpis: KPIs;
@@ -30,109 +30,6 @@ interface KPISectionProps {
   consolidatedEntities?: EntityListItem[];
 }
 
-// ---------------------------------------------------------------------------
-// KPI card config — drives the 5 standard cards via .map()
-// ---------------------------------------------------------------------------
-
-interface KPICardConfig {
-  label: string;
-  cardIndex: number;
-  getValue: (k: KPIs) => number;
-  /** WHY: nullable cards show em-dash when raw KPI is null */
-  getRawValue: (k: KPIs) => number | null;
-  isNullable: boolean;
-  formatter: (n: number) => string;
-  getBreakdown: (k: KPIs) => KPIMetricBreakdown;
-  /** WHY: Frequency sub-items use formatInteger for lastMonth/bestMonth, not formatFrequency */
-  buildSubItems: (bd: KPIMetricBreakdown) => KPISubItem[];
-}
-
-/** WHY: nullable breakdowns show em-dash when value is 0 (no data for that period) */
-function nullableFmt(value: number, fmt: (n: number) => string): string {
-  return value > 0 ? fmt(value) : '\u2014';
-}
-
-function standardSubItems(bd: KPIMetricBreakdown, fmt: (n: number) => string, nullable: boolean): KPISubItem[] {
-  const f = nullable ? (n: number) => nullableFmt(n, fmt) : fmt;
-  return [
-    { label: bd.quarterLabel, value: f(bd.thisQuarter) },
-    { label: 'Last Month', value: f(bd.lastMonth), suffix: bd.lastMonthName },
-    { label: 'Best Month', value: f(bd.bestMonth.value), suffix: bd.bestMonth.name },
-  ];
-}
-
-const roundCurrency = (n: number) => formatCurrency(Math.round(n));
-
-const KPI_CONFIGS: KPICardConfig[] = [
-  {
-    label: 'Orders',
-    cardIndex: 1,
-    getValue: (k) => k.orders,
-    getRawValue: (k) => k.orders,
-    isNullable: false,
-    formatter: formatInteger,
-    getBreakdown: (k) => k.ordersBreakdown,
-    buildSubItems: (bd) => standardSubItems(bd, formatInteger, false),
-  },
-  {
-    label: 'Avg. Order',
-    cardIndex: 2,
-    getValue: (k) => k.avgOrder ?? 0,
-    getRawValue: (k) => k.avgOrder,
-    isNullable: true,
-    formatter: roundCurrency,
-    getBreakdown: (k) => k.avgOrderBreakdown,
-    buildSubItems: (bd) => standardSubItems(bd, roundCurrency, true),
-  },
-  {
-    label: 'Margin %',
-    cardIndex: 3,
-    getValue: (k) => k.marginPercent ?? 0,
-    getRawValue: (k) => k.marginPercent,
-    isNullable: true,
-    formatter: formatPercent,
-    getBreakdown: (k) => k.marginPercentBreakdown,
-    buildSubItems: (bd) => standardSubItems(bd, formatPercent, true),
-  },
-  {
-    label: 'Margin $',
-    cardIndex: 4,
-    getValue: (k) => k.marginAmount,
-    getRawValue: (k) => k.marginAmount,
-    isNullable: false,
-    formatter: roundCurrency,
-    getBreakdown: (k) => k.marginAmountBreakdown,
-    buildSubItems: (bd) => standardSubItems(bd, roundCurrency, false),
-  },
-  {
-    label: 'Frequency',
-    cardIndex: 5,
-    getValue: (k) => k.frequency ?? 0,
-    getRawValue: (k) => k.frequency,
-    isNullable: true,
-    formatter: formatFrequency,
-    getBreakdown: (k) => k.frequencyBreakdown,
-    buildSubItems: (bd) => [
-      { label: bd.quarterLabel, value: nullableFmt(bd.thisQuarter, formatFrequency) },
-      { label: 'Last Month', value: formatInteger(bd.lastMonth), suffix: bd.lastMonthName },
-      { label: 'Best Month', value: formatInteger(bd.bestMonth.value), suffix: bd.bestMonth.name },
-    ],
-  },
-];
-
-/** WHY activity status here: spec 10.3 defines dot color thresholds by days since last order */
-function getActivityStatus(days: number | null): { color: string; label: string } {
-  if (days === null) return { color: 'var(--color-text-muted)', label: 'No orders' };
-  if (days <= 14) return { color: 'var(--color-green)', label: 'Active buyer' };
-  if (days <= 45) return { color: 'var(--color-gold-primary)', label: 'Regular' };
-  if (days <= 90) return { color: 'var(--color-yellow)', label: 'Slowing' };
-  return { color: 'var(--color-red)', label: 'At risk' };
-}
-
-/** WHY: YoY percent change — null when no prev year data to avoid division by zero */
-function yoyChange(current: number, prevYear: number): number | null {
-  return prevYear > 0 ? ((current - prevYear) / prevYear) * 100 : null;
-}
 
 export function KPISection({
   kpis,
