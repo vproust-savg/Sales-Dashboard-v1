@@ -203,7 +203,7 @@ export async function fetchProductTypes(client: PriorityClient, signal?: AbortSi
 export async function fetchProducts(client: PriorityClient, signal?: AbortSignal): Promise<RawProduct[]> {
   return client.fetchAllPages<RawProduct>('LOGPART', {
     select: 'PARTNAME,PARTDES,FAMILYNAME,SPEC4,STATDES',
-    filter: "STATDES eq 'In Use'",
+    filter: "STATDES eq 'In Use' and PARTNAME ne '000'",
     orderby: 'PARTNAME asc',
     signal,
   });
