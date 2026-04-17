@@ -1,89 +1,142 @@
 // FILE: server/src/services/dimension-grouper.ts
 // PURPOSE: Group orders into entity lists by dimension (customer, zone, vendor, brand, product_type, product)
 // USED BY: server/src/routes/dashboard.ts, server/src/routes/fetch-all.ts
-// EXPORTS: groupByDimension, PrevYearTotals
+// EXPORTS: groupByDimension, PrevYearTotals, PrevYearInput
 
 import type { EntityListItem, Dimension } from '@shared/types/dashboard';
 import type { RawOrder, RawCustomer } from './priority-queries.js';
+import { computeMetrics, type MetricsSnapshot, type MetricItem } from './prev-year-metrics.js';
 import { groupByVendor, groupByBrand, groupByProductType, groupByProduct } from './dimension-grouper-items.js';
 
 // WHY: Exported so item-level groupers in dimension-grouper-items.ts can type their
-// prevMap parameter against the same shape.
+// prevMap parameter against the same shape. Item-based dims use simple revenue totals;
+// Task 4 will upgrade them to MetricsSnapshot. Keep this export stable for now.
 export interface PrevYearTotals { samePeriod: number; full: number; }
 
-/** Sum prev-year revenue per entity, splitting by same-period (day-precise YTD cutoff) vs full year.
- *  Cutoff semantics MUST match computeKPIs() in kpi-aggregator.ts exactly (UTC, inclusive date). */
-function computePrevYearByEntity(
-  prevOrders: RawOrder[],
-  dimension: Dimension,
-  period: string,
-): Map<string, PrevYearTotals> {
-  const map = new Map<string, PrevYearTotals>();
-  const now = new Date();
-  const isYtd = period === 'ytd';
+// WHY: Callers pass pre-split order slices (same-period vs full year) so each
+// dimension can reuse the same cached slices without re-slicing internally.
+export interface PrevYearInput {
+  today: Date;
+  prevSame: RawOrder[];   // orders from prev-year same-period window
+  prevFull: RawOrder[];   // orders from the full prev calendar year
+}
 
-  // WHY: Matches computeKPIs() in kpi-aggregator.ts exactly — UTC month comparison, inclusive date.
-  function isSamePeriod(orderDate: Date): boolean {
-    if (!isYtd) return true;
-    return orderDate.getUTCMonth() < now.getUTCMonth()
-      || (orderDate.getUTCMonth() === now.getUTCMonth() && orderDate.getUTCDate() <= now.getUTCDate());
-  }
+/** Internal per-entity metrics maps — keyed by entity id. */
+interface PrevYearMetricsMaps {
+  samePeriod: Map<string, MetricsSnapshot>;
+  full: Map<string, MetricsSnapshot>;
+}
 
-  function add(id: string, amount: number, samePeriod: boolean): void {
-    const existing = map.get(id) ?? { samePeriod: 0, full: 0 };
-    existing.full += amount;
-    if (samePeriod) existing.samePeriod += amount;
-    map.set(id, existing);
-  }
+/** Build MetricItems from a single order's line items. */
+function orderToMetricItems(o: RawOrder): MetricItem[] {
+  return (o.ORDERITEMS_SUBFORM ?? []).map(it => ({
+    orderId: o.ORDNAME,
+    amount: it.QPRICE,
+    // WHY QPRICE - QPROFIT: cost per line = revenue - profit. Avoids adding QUANTCOST
+    // to RawOrderItem since QPRICE and QPROFIT are already present for all orders.
+    cost: it.QPRICE - it.QPROFIT,
+  }));
+}
 
-  prevOrders.forEach(o => {
-    const orderDate = new Date(o.CURDATE);
-    const sp = isSamePeriod(orderDate);
-    if (dimension === 'customer' || dimension === 'zone') {
-      // WHY: For zone, prevMap is keyed by CUSTNAME; groupByZone re-aggregates per zone.
-      add(o.CUSTNAME, o.TOTPRICE, sp);
-    } else {
-      const items = o.ORDERITEMS_SUBFORM ?? [];
-      items.forEach(item => {
-        let key: string | undefined;
-        switch (dimension) {
-          case 'vendor':       key = item.Y_1159_5_ESH; break;
-          case 'brand':        key = item.Y_9952_5_ESH; break;
-          // WHY: Must match groupByProductType's entityId (code first, name as fallback) in
-          // dimension-grouper-items.ts — otherwise prevMap.get(entityId) silently misses.
-          // Edge case: if Priority populates Y_3020_5_ESH in prev rows but leaves it empty in
-          // current rows (or vice versa), the same conceptual product_type entity keys
-          // differently across years and YoY reads null. Unlikely in practice; acknowledged
-          // limitation — Priority is READ-ONLY, we cannot enforce field population at source.
-          case 'product_type': key = item.Y_3020_5_ESH || item.Y_3021_5_ESH; break;
-          case 'product':      key = item.PARTNAME; break;
-        }
-        if (!key) return;
-        add(key, item.QPRICE, sp);
-      });
+/**
+ * Build per-entity MetricsSnapshot maps from prev-year order slices.
+ * keyFn maps each order to the entity id it belongs to (CUSTNAME, ZONECODE, etc.).
+ */
+function buildPrevYearMetrics(
+  input: PrevYearInput,
+  keyFn: (o: RawOrder) => string,
+  samePeriodDays: number,
+): PrevYearMetricsMaps {
+  const groupItems = (orders: RawOrder[]): Map<string, MetricItem[]> => {
+    const bucket = new Map<string, MetricItem[]>();
+    for (const o of orders) {
+      const key = keyFn(o);
+      const arr = bucket.get(key) ?? [];
+      arr.push(...orderToMetricItems(o));
+      bucket.set(key, arr);
     }
-  });
+    return bucket;
+  };
 
-  return map;
+  const toMetricsMap = (bucket: Map<string, MetricItem[]>, windowDays: number): Map<string, MetricsSnapshot> => {
+    const out = new Map<string, MetricsSnapshot>();
+    for (const [k, items] of bucket) out.set(k, computeMetrics(items, windowDays));
+    return out;
+  };
+
+  return {
+    samePeriod: toMetricsMap(groupItems(input.prevSame), samePeriodDays),
+    full: toMetricsMap(groupItems(input.prevFull), 365),
+  };
+}
+
+/** Extract null prev-year fields when no PrevYearInput is provided or entity has no prev activity. */
+function nullPrevYearFields(): Pick<
+  EntityListItem,
+  | 'prevYearRevenue' | 'prevYearOrderCount' | 'prevYearAvgOrder'
+  | 'prevYearMarginPercent' | 'prevYearMarginAmount' | 'prevYearFrequency'
+  | 'prevYearRevenueFull' | 'prevYearOrderCountFull' | 'prevYearAvgOrderFull'
+  | 'prevYearMarginPercentFull' | 'prevYearMarginAmountFull' | 'prevYearFrequencyFull'
+> {
+  return {
+    prevYearRevenue: null,
+    prevYearOrderCount: null,
+    prevYearAvgOrder: null,
+    prevYearMarginPercent: null,
+    prevYearMarginAmount: null,
+    prevYearFrequency: null,
+    prevYearRevenueFull: null,
+    prevYearOrderCountFull: null,
+    prevYearAvgOrderFull: null,
+    prevYearMarginPercentFull: null,
+    prevYearMarginAmountFull: null,
+    prevYearFrequencyFull: null,
+  };
+}
+
+/** Map a MetricsSnapshot to the prev-year EntityListItem fields for a single window. */
+function snapshotToFields(
+  same: MetricsSnapshot | null,
+  full: MetricsSnapshot | null,
+): Pick<
+  EntityListItem,
+  | 'prevYearRevenue' | 'prevYearOrderCount' | 'prevYearAvgOrder'
+  | 'prevYearMarginPercent' | 'prevYearMarginAmount' | 'prevYearFrequency'
+  | 'prevYearRevenueFull' | 'prevYearOrderCountFull' | 'prevYearAvgOrderFull'
+  | 'prevYearMarginPercentFull' | 'prevYearMarginAmountFull' | 'prevYearFrequencyFull'
+> {
+  return {
+    prevYearRevenue: same?.revenue ?? null,
+    prevYearOrderCount: same?.orderCount ?? null,
+    prevYearAvgOrder: same?.avgOrder ?? null,
+    prevYearMarginPercent: same?.marginPercent ?? null,
+    prevYearMarginAmount: same?.marginAmount ?? null,
+    prevYearFrequency: same?.frequency ?? null,
+    prevYearRevenueFull: full?.revenue ?? null,
+    prevYearOrderCountFull: full?.orderCount ?? null,
+    prevYearAvgOrderFull: full?.avgOrder ?? null,
+    prevYearMarginPercentFull: full?.marginPercent ?? null,
+    prevYearMarginAmountFull: full?.marginAmount ?? null,
+    prevYearFrequencyFull: full?.frequency ?? null,
+  };
 }
 
 export function groupByDimension(
   dimension: Dimension,
   orders: RawOrder[],
   customers: RawCustomer[],
-  periodMonths: number,
-  prevOrders?: RawOrder[],
-  period?: string,
+  periodMonths: number = 12,
+  prevInput?: PrevYearInput,
 ): EntityListItem[] {
-  const prevMap = (prevOrders && period) ? computePrevYearByEntity(prevOrders, dimension, period) : undefined;
-
   const groupers: Record<Dimension, () => EntityListItem[]> = {
-    customer: () => groupByCustomer(orders, customers, periodMonths, prevMap),
-    zone: () => groupByZone(orders, customers, periodMonths, prevMap),
-    vendor: () => groupByVendor(orders, periodMonths, prevMap),
-    brand: () => groupByBrand(orders, periodMonths, prevMap),
-    product_type: () => groupByProductType(orders, periodMonths, prevMap),
-    product: () => groupByProduct(orders, periodMonths, prevMap),
+    customer: () => groupByCustomer(orders, customers, periodMonths, prevInput),
+    zone: () => groupByZone(orders, customers, periodMonths, prevInput),
+    // WHY: vendor/brand/product_type/product use old PrevYearTotals path (Task 4 target).
+    // Pass undefined for prevMap until Task 4 upgrades those branches.
+    vendor: () => groupByVendor(orders, periodMonths, undefined),
+    brand: () => groupByBrand(orders, periodMonths, undefined),
+    product_type: () => groupByProductType(orders, periodMonths, undefined),
+    product: () => groupByProduct(orders, periodMonths, undefined),
   };
 
   return (groupers[dimension] ?? groupers.customer)()
@@ -94,7 +147,7 @@ function groupByCustomer(
   orders: RawOrder[],
   customers: RawCustomer[],
   periodMonths: number,
-  prevMap?: Map<string, PrevYearTotals>,
+  prevInput?: PrevYearInput,
 ): EntityListItem[] {
   const custMap = new Map(customers.map(c => [c.CUSTNAME, c]));
   const groups = new Map<string, { revenue: number; orderCount: number; profit: number; dates: string[] }>();
@@ -109,12 +162,27 @@ function groupByCustomer(
     groups.set(o.CUSTNAME, g);
   });
 
+  // WHY: Compute samePeriodDays from today's YTD window (Jan 1 → today), matching the
+  // window over which prevSame orders were filtered. Used as windowDays for frequency.
+  let prevMaps: PrevYearMetricsMaps | null = null;
+  if (prevInput) {
+    const startOfYear = new Date(Date.UTC(prevInput.today.getUTCFullYear(), 0, 1));
+    const samePeriodDays = Math.max(1,
+      Math.round((prevInput.today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)),
+    );
+    prevMaps = buildPrevYearMetrics(prevInput, o => o.CUSTNAME, samePeriodDays);
+  }
+
   return [...groups.entries()].map(([id, g]) => {
     const cust = custMap.get(id);
     const lastDate = g.dates.length > 0
       ? g.dates.reduce((a, b) => a > b ? a : b)
       : null;
-    const prev = prevMap?.get(id);
+
+    const prevFields = prevMaps
+      ? snapshotToFields(prevMaps.samePeriod.get(id) ?? null, prevMaps.full.get(id) ?? null)
+      : nullPrevYearFields();
+
     return {
       id,
       name: cust?.CUSTDES ?? id,
@@ -130,10 +198,7 @@ function groupByCustomer(
       rep: cust?.AGENTNAME ?? null,
       zone: cust?.ZONEDES ?? null,
       customerType: cust?.CTYPENAME ?? null,
-      // WHY: prevMap present but entity not in it → 0 (entity had no prev-year orders).
-      // prevMap absent → null (prev data not loaded at all).
-      prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
-      prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
+      ...prevFields,
     };
   });
 }
@@ -142,7 +207,7 @@ function groupByZone(
   orders: RawOrder[],
   customers: RawCustomer[],
   periodMonths: number,
-  prevMap?: Map<string, PrevYearTotals>,
+  prevInput?: PrevYearInput,
 ): EntityListItem[] {
   const custZone = new Map(customers.map(c => [c.CUSTNAME, { zone: c.ZONECODE, zoneName: c.ZONEDES }]));
   const groups = new Map<string, { name: string; revenue: number; orderCount: number; profit: number; customerIds: Set<string>; dates: string[] }>();
@@ -160,22 +225,25 @@ function groupByZone(
     groups.set(zoneId, g);
   });
 
-  // WHY: prevMap is keyed by CUSTNAME. Re-aggregate per zone using custZone lookup.
-  const prevByZone = new Map<string, PrevYearTotals>();
-  if (prevMap) {
-    const custZoneMap = new Map(customers.map(c => [c.CUSTNAME, c.ZONECODE]));
-    prevMap.forEach((totals, custname) => {
-      const zoneId = custZoneMap.get(custname) ?? 'UNKNOWN';
-      const existing = prevByZone.get(zoneId) ?? { samePeriod: 0, full: 0 };
-      existing.samePeriod += totals.samePeriod;
-      existing.full += totals.full;
-      prevByZone.set(zoneId, existing);
-    });
+  // WHY: prevInput orders are keyed by CUSTNAME; re-aggregate to zone via custZone lookup.
+  let prevMaps: PrevYearMetricsMaps | null = null;
+  if (prevInput) {
+    const startOfYear = new Date(Date.UTC(prevInput.today.getUTCFullYear(), 0, 1));
+    const samePeriodDays = Math.max(1,
+      Math.round((prevInput.today.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)),
+    );
+    // WHY: keyFn maps order → ZONECODE via custZone lookup; falls back to 'UNKNOWN'.
+    const keyFn = (o: RawOrder): string => custZone.get(o.CUSTNAME)?.zone ?? 'UNKNOWN';
+    prevMaps = buildPrevYearMetrics(prevInput, keyFn, samePeriodDays);
   }
 
   return [...groups.entries()].map(([id, g]) => {
     const lastDate = g.dates.length > 0 ? g.dates.reduce((a, b) => a > b ? a : b) : null;
-    const prev = prevByZone.get(id);
+
+    const prevFields = prevMaps
+      ? snapshotToFields(prevMaps.samePeriod.get(id) ?? null, prevMaps.full.get(id) ?? null)
+      : nullPrevYearFields();
+
     return {
       id, name: g.name,
       meta1: `${g.customerIds.size} customers`,
@@ -187,8 +255,7 @@ function groupByZone(
       frequency: periodMonths >= 1 ? g.orderCount / periodMonths : null,
       lastOrderDate: lastDate,
       rep: null, zone: null, customerType: null,
-      prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
-      prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
+      ...prevFields,
     };
   });
 }

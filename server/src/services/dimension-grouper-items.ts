@@ -60,6 +60,13 @@ export function groupByVendor(
       ...buildEnrichment(g, periodMonths),
       prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
       prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
+      // WHY null: per-metric prev-year fields are populated by Task 4 upgrade.
+      // Null is the correct "not-yet-computed" sentinel per EntityListItem contract.
+      prevYearOrderCount: null, prevYearOrderCountFull: null,
+      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
+      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
+      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
+      prevYearFrequency: null, prevYearFrequencyFull: null,
     };
   });
 }
@@ -92,6 +99,11 @@ export function groupByBrand(
       ...buildEnrichment(g, periodMonths),
       prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
       prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
+      prevYearOrderCount: null, prevYearOrderCountFull: null,
+      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
+      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
+      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
+      prevYearFrequency: null, prevYearFrequencyFull: null,
     };
   });
 }
@@ -126,6 +138,11 @@ export function groupByProductType(
       ...buildEnrichment(g, periodMonths),
       prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
       prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
+      prevYearOrderCount: null, prevYearOrderCountFull: null,
+      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
+      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
+      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
+      prevYearFrequency: null, prevYearFrequencyFull: null,
     };
   });
 }
@@ -157,6 +174,11 @@ export function groupByProduct(
       ...buildEnrichment(g, periodMonths),
       prevYearRevenue: prev?.samePeriod ?? (prevMap ? 0 : null),
       prevYearRevenueFull: prev?.full ?? (prevMap ? 0 : null),
+      prevYearOrderCount: null, prevYearOrderCountFull: null,
+      prevYearAvgOrder: null, prevYearAvgOrderFull: null,
+      prevYearMarginPercent: null, prevYearMarginPercentFull: null,
+      prevYearMarginAmount: null, prevYearMarginAmountFull: null,
+      prevYearFrequency: null, prevYearFrequencyFull: null,
     };
   });
 }

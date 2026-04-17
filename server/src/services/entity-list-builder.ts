@@ -125,6 +125,16 @@ function customerStub(c: RawCustomer): EntityListItem {
     customerType: c.CTYPENAME || null,
     prevYearRevenue: null,
     prevYearRevenueFull: null,
+    prevYearOrderCount: null,
+    prevYearOrderCountFull: null,
+    prevYearAvgOrder: null,
+    prevYearAvgOrderFull: null,
+    prevYearMarginPercent: null,
+    prevYearMarginPercentFull: null,
+    prevYearMarginAmount: null,
+    prevYearMarginAmountFull: null,
+    prevYearFrequency: null,
+    prevYearFrequencyFull: null,
   };
 }
 
@@ -147,5 +157,15 @@ function zoneStub(z: RawZone): EntityListItem {
     customerType: null,
     prevYearRevenue: null,
     prevYearRevenueFull: null,
+    prevYearOrderCount: null,
+    prevYearOrderCountFull: null,
+    prevYearAvgOrder: null,
+    prevYearAvgOrderFull: null,
+    prevYearMarginPercent: null,
+    prevYearMarginPercentFull: null,
+    prevYearMarginAmount: null,
+    prevYearMarginAmountFull: null,
+    prevYearFrequency: null,
+    prevYearFrequencyFull: null,
   };
 }

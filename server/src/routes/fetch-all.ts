@@ -10,7 +10,7 @@ import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
-import { groupByDimension } from '../services/dimension-grouper.js';
+import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
 import { filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItemCriteria } from '../services/customer-filter.js';
 import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
 import { cachedFetch } from '../cache/cache-layer.js';
@@ -169,7 +169,21 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       : filteredPrev;
 
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
-    const entities = groupByDimension(groupBy as Dimension, subsetOrders, customers.data, periodMonths, subsetPrev, period);
+    // WHY: Pre-split prev-year orders into same-period vs full-year slices — matches the
+    // semantics in dashboard.ts. For YTD, same-period = prev orders up to same month+day.
+    const prevSameOrders = period === 'ytd'
+      ? subsetPrev.filter(o => {
+          const d = new Date(o.CURDATE);
+          return d.getUTCMonth() < now.getUTCMonth()
+            || (d.getUTCMonth() === now.getUTCMonth() && d.getUTCDate() <= now.getUTCDate());
+        })
+      : subsetPrev;
+    const fetchAllPrevInput: PrevYearInput = {
+      today: now,
+      prevSame: prevSameOrders,
+      prevFull: subsetPrev,
+    };
+    const entities = groupByDimension(groupBy as Dimension, subsetOrders, customers.data, periodMonths, fetchAllPrevInput);
 
     // WHY: Build scope for aggregateOrders so item-based dims get per-entity rescoping in
     // consolidated mode (Task 3.3 fix). filterOrdersByEntityIds above is predicate-only

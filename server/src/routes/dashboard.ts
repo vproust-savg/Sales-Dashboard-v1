@@ -10,7 +10,7 @@ import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders, fetchCustomers } from '../services/priority-queries.js';
 import type { RawOrder } from '../services/priority-queries.js';
 import { aggregateOrders } from '../services/data-aggregator.js';
-import { groupByDimension } from '../services/dimension-grouper.js';
+import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { readOrders } from '../cache/order-cache.js';
@@ -71,13 +71,28 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     // WHY: entity list is derived from the FULL period orders (not scoped) — the left panel
     // shows every entity in the dimension, not just the selected subset.
     const periodMonths = period === 'ytd' ? now.getUTCMonth() + 1 : 12;
+    // WHY: Pre-split prev-year orders into same-period vs full-year slices before passing to
+    // groupByDimension. For YTD periods, "same period" means prev-year orders up to the same
+    // month+day as today (apples-to-apples comparison). For full-year periods (e.g. "2025"),
+    // all prev-year orders count as same-period. prevFull always covers the full prev calendar year.
+    const prevSameOrders = period === 'ytd'
+      ? prevOrdersCached.orders.filter(o => {
+          const d = new Date(o.CURDATE);
+          return d.getUTCMonth() < now.getUTCMonth()
+            || (d.getUTCMonth() === now.getUTCMonth() && d.getUTCDate() <= now.getUTCDate());
+        })
+      : prevOrdersCached.orders;
+    const prevYearInput: PrevYearInput = {
+      today: now,
+      prevSame: prevSameOrders,
+      prevFull: prevOrdersCached.orders,
+    };
     const entities = groupByDimension(
       groupBy as Dimension,
       ordersCached.orders,
       customersResult.data,
       periodMonths,
-      prevOrdersCached.orders,
-      period,
+      prevYearInput,
     );
 
     const years = new Set(ordersCached.orders.map(o => new Date(o.CURDATE).getUTCFullYear().toString()));
