@@ -39,10 +39,16 @@ vi.mock('../../services/priority-queries.js', () => ({
   fetchProducts: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock('../../services/resolve-customers-for-entity.js', () => ({
+  resolveCustomersForEntity: vi.fn(),
+  MAX_CUSTNAMES_PER_NARROW: 500,
+}));
+
 import { fetchAllRouter } from '../fetch-all.js';
 import { redis } from '../../cache/redis-client.js';
 import { fetchOrders, fetchCustomers } from '../../services/priority-queries.js';
 import { writeOrders } from '../../cache/order-cache.js';
+import { resolveCustomersForEntity } from '../../services/resolve-customers-for-entity.js';
 import type { RawCustomer } from '../../services/priority-queries.js';
 
 const CUSTOMERS: RawCustomer[] = [
@@ -70,6 +76,8 @@ describe('GET /api/sales/fetch-all — cold-cache narrow fetch (View Consolidate
     (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
     (redis.set as ReturnType<typeof vi.fn>).mockResolvedValue('OK');
     (redis.del as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    // Default: reverse index not yet built — per-item requests fall through to universal.
+    vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'no-index' });
   });
 
   it('with entityIds (multi-customer): narrows Priority fetchOrders with CUSTNAME OR-chain', async () => {
@@ -142,10 +150,9 @@ describe('GET /api/sales/fetch-all — cold-cache narrow fetch (View Consolidate
     expect(writeOrders).toHaveBeenCalled();
   });
 
-  it('with entityIds (per-item dim, e.g. vendor): does NOT narrow (no ORDERS-level filter)', async () => {
-    // Per-item dimensions (vendor/brand/product_type/product) cannot be narrowed at the
-    // ORDERS level in Priority's OData surface. The fetch-all handler falls back to the
-    // full-universe path; in-memory filtering kicks in later.
+  it('per-item dim with resolver kind:no-index → falls through to universal (no narrow)', async () => {
+    // Default mock already returns no-index. Verifies the pre-warm-cache fallback path:
+    // per-item requests before warm-cache completes revert to universal behavior.
     await request(makeApp())
       .get('/api/sales/fetch-all?groupBy=vendor&entityIds=V123&period=ytd')
       .buffer(true)
@@ -153,6 +160,50 @@ describe('GET /api/sales/fetch-all — cold-cache narrow fetch (View Consolidate
 
     const calls = vi.mocked(fetchOrders).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
+    for (const args of calls) {
+      expect(filterArg(args)).toBeUndefined();
+    }
+  });
+
+  it('per-item dim with resolver kind:ok → narrows fetchOrders with resolved CUSTNAME OR-chain', async () => {
+    vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'ok', custnames: ['C7826', 'C2303'] });
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=vendor&entityIds=V123&period=ytd')
+      .buffer(true)
+      .parse((res, cb) => { res.on('data', () => {}); res.on('end', () => cb(null, Buffer.from(''))); });
+
+    expect(resolveCustomersForEntity).toHaveBeenCalledWith('vendor', ['V123'], 'ytd');
+    const calls = vi.mocked(fetchOrders).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const args of calls) {
+      expect(filterArg(args)).toBe("CUSTNAME eq 'C7826' or CUSTNAME eq 'C2303'");
+    }
+    // Poisoning defense: narrowed subset must NOT be written to the universal cache.
+    expect(writeOrders).not.toHaveBeenCalled();
+  });
+
+  it('per-item dim with resolver kind:empty → short-circuits: fetchOrders NOT called', async () => {
+    vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'empty' });
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=brand&entityIds=BRAND_UNSOLD&period=ytd')
+      .buffer(true)
+      .parse((res, cb) => { res.on('data', () => {}); res.on('end', () => cb(null, Buffer.from(''))); });
+
+    expect(fetchOrders).not.toHaveBeenCalled();
+    expect(writeOrders).not.toHaveBeenCalled();
+  });
+
+  it('per-item dim with resolver kind:over-cap → falls through to universal (narrowFilter undefined)', async () => {
+    vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'over-cap', count: 1234 });
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=product&entityIds=SKU_POPULAR&period=ytd')
+      .buffer(true)
+      .parse((res, cb) => { res.on('data', () => {}); res.on('end', () => cb(null, Buffer.from(''))); });
+
+    const calls = vi.mocked(fetchOrders).mock.calls;
     for (const args of calls) {
       expect(filterArg(args)).toBeUndefined();
     }

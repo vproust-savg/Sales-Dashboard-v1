@@ -16,6 +16,7 @@ import {
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL, orderMetaKey } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
+import { buildReverseIndex, writeReverseIndex } from './reverse-index.js';
 
 /**
  * Warm master-data caches on every server boot (customers, zones, vendors, product_types, products).
@@ -67,6 +68,13 @@ export async function warmEntityCache(): Promise<void> {
 
   const ordersResult = await cachedFetch(cacheKey('orders_ytd', 'ytd'), getTTL('orders_ytd'),
     () => fetchOrders(priorityClient, startDate, endDate, true));
+
+  // WHY reverse index here: per-item narrow requests (vendor/brand/product_type/product) need
+  // to resolve dim+id → CUSTNAMEs so they can reuse the existing CUSTNAME OR-chain narrow path.
+  // We can't derive this from Priority's OData (any() is unsupported, ORDERITEMS is not
+  // queryable standalone — see learnings/odata-any-lambda-support.md). So we build the index
+  // in-memory from the warm-cache'd orders once per refresh.
+  await writeReverseIndex('ytd', buildReverseIndex(ordersResult.data), getTTL('orders_ytd'));
 
   console.log(`[warm-cache] Done. Orders: ${ordersResult.cached ? 'cache hit' : 'fetched fresh'}.`);
 }

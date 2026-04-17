@@ -13,7 +13,7 @@ import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
 import { filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItemCriteria } from '../services/customer-filter.js';
 import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
-import { buildNarrowOrderFilter } from '../services/narrow-order-filter.js';
+import { decideNarrowFilter } from '../services/narrow-filter-decision.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { writeOrders, readOrders, deleteOrderIndex } from '../cache/order-cache.js';
 import { cacheKey, getTTL, buildFilterQualifier, buildFilterHash } from '../cache/cache-keys.js';
@@ -93,13 +93,17 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
 
     // WHY: entityIds narrows filteredOrders to the pre-selected entity subset (View Consolidated D3).
     // Hoisted BEFORE the orders fetch so we can pass a narrow filter down to Priority when
-    // the subset is small (customer/zone dims). Without this, a 2-customer "View Consolidated"
-    // on cold cache would still pull the full ~50K-order universe (6+ min, timeouts), then
-    // discard 99.5% in-memory. Parity fix with the single-entity dashboard.ts narrow fallback.
+    // the subset is small (customer/zone dims) or resolvable via the warm-cache reverse index
+    // (per-item dims). Without this, a 2-customer "View Consolidated" on cold cache would
+    // still pull the full ~50K-order universe (6+ min, timeouts), then discard 99.5% in-memory.
+    // Parity with the single-entity dashboard.ts narrow fallback.
     const entityIdList = entityIds ? entityIds.split(',').map(s => s.trim()).filter(Boolean) : undefined;
-    const narrowFilter = entityIdList && entityIdList.length > 0
-      ? buildNarrowOrderFilter(groupBy as Dimension, entityIdList, customers.data)
-      : undefined;
+    const { narrowFilter, shortCircuitEmpty } = await decideNarrowFilter(
+      groupBy as Dimension,
+      entityIdList ?? [],
+      customers.data,
+      period,
+    );
 
     // WHY: D2 — parallelise current + prev fetch. Benchmark measured 23.5% wall-clock speedup
     // (18m02s sequential → 13m48s parallel) for a ~46K-order uncached Report. Both branches
@@ -123,29 +127,37 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // either nothing (cold) or the full agent-agnostic set (warm). Neither is useful here.
     // We also SKIP the universal-cache WRITE below so the narrowed subset doesn't poison
     // `readOrders(period, 'all')` for other users — other users would see only our subset.
-    const [ordersWrapped, prevOrdersResult] = await Promise.all([
-      (async (): Promise<FetchedOrders> => {
-        if (forceRefresh || narrowFilter) {
-          return fullFetch(startDate, endDate, sendEvent, abortController.signal, narrowFilter);
-        }
-        const cached = await tryIncrementalRefresh(period, startDate, endDate, sendEvent, abortController.signal);
-        return cached ?? fullFetch(startDate, endDate, sendEvent, abortController.signal);
-      })(),
-      // WHY: Prev-year also uses per-order caching — with 50K+ orders the bulk cachedFetch
-      // payload exceeds Upstash's 10 MB limit (production failure: 20 MB for 2025 orders).
-      // Same readOrders/writeOrders pattern as current-year, keyed by prev-year period.
-      (async (): Promise<FetchedOrders> => {
-        const prevPeriod = String(year - 1);
-        if (!forceRefresh && !narrowFilter) {
-          const cached = await readOrders(prevPeriod, 'all');
-          if (cached) return { orders: cached.orders, didFetch: false };
-        }
-        // WHY: When narrowFilter is set, fetch only the narrowed subset from Priority.
-        //   Otherwise (default path), fetch ALL prev-year orders for the universal cache.
-        const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, narrowFilter, undefined, abortController.signal);
-        return { orders: prevData, didFetch: true };
-      })(),
-    ]);
+    const [ordersWrapped, prevOrdersResult] = shortCircuitEmpty
+      ? [
+          // WHY: resolver proved zero matching orders for this per-item selection — skip the
+          // Priority fetch and return an empty-but-well-structured payload. Prevents paying
+          // the full ~6-min cold-cache cost just to compute the same empty result.
+          { orders: [], didFetch: false } as FetchedOrders,
+          { orders: [], didFetch: false } as FetchedOrders,
+        ]
+      : await Promise.all([
+          (async (): Promise<FetchedOrders> => {
+            if (forceRefresh || narrowFilter) {
+              return fullFetch(startDate, endDate, sendEvent, abortController.signal, narrowFilter);
+            }
+            const cached = await tryIncrementalRefresh(period, startDate, endDate, sendEvent, abortController.signal);
+            return cached ?? fullFetch(startDate, endDate, sendEvent, abortController.signal);
+          })(),
+          // WHY: Prev-year also uses per-order caching — with 50K+ orders the bulk cachedFetch
+          // payload exceeds Upstash's 10 MB limit (production failure: 20 MB for 2025 orders).
+          // Same readOrders/writeOrders pattern as current-year, keyed by prev-year period.
+          (async (): Promise<FetchedOrders> => {
+            const prevPeriod = String(year - 1);
+            if (!forceRefresh && !narrowFilter) {
+              const cached = await readOrders(prevPeriod, 'all');
+              if (cached) return { orders: cached.orders, didFetch: false };
+            }
+            // WHY: When narrowFilter is set, fetch only the narrowed subset from Priority.
+            //   Otherwise (default path), fetch ALL prev-year orders for the universal cache.
+            const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, narrowFilter, undefined, abortController.signal);
+            return { orders: prevData, didFetch: true };
+          })(),
+        ]);
     const orders = ordersWrapped.orders;
     const prevOrders = prevOrdersResult;
 

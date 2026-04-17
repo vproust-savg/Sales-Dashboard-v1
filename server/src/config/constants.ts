@@ -35,6 +35,12 @@ export const CACHE_TTLS = {
   report_payload: 60 * 60,              // 1 hour — pre-aggregated consolidated payload (per-dimension)
   product_types: 24 * 60 * 60,          // 24 hours
   products:      24 * 60 * 60,          // 24 hours
+  // WHY 15 min default: matches orders_ytd so the reverse index expires in step with the
+  // warm-cache'd orders it was built from. Callers hooking into writeOrders (fetch-all) pass
+  // getTTL('orders_raw') instead — the 365-day TTL matches the per-order cache those orders
+  // live under. Either is valid; `getTTL('revidx')` is the neutral default for callers that
+  // haven't picked a specific orders TTL.
+  revidx:        15 * 60,               // 15 min — default TTL when not tied to a specific orders cache
 } as const;
 
 /** Priority ORDERS fields — spec Section 18.1 */

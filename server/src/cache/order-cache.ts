@@ -8,6 +8,7 @@ import { redis } from './redis-client.js';
 import { orderKey, orderIndexKey, orderMetaKey } from './cache-keys.js';
 import { ORDER_PIPELINE_BATCH, CACHE_TTLS } from '../config/constants.js';
 import type { RawOrder } from '../services/priority-queries.js';
+import { buildReverseIndex, writeReverseIndex } from '../services/reverse-index.js';
 
 /** WHY: 365 days — same as orders_raw TTL. Individual order keys are shared across periods. */
 const ORDER_KEY_TTL = CACHE_TTLS.orders_raw;
@@ -68,6 +69,13 @@ export async function writeOrders(
     orderCount: orders.length,
     filterHash,
   }), { ex: indexTtl });
+
+  // WHY filterHash === 'all': the reverse index maps dim+id → CUSTNAMEs across the FULL
+  // universe. Writing it from a narrowed subset would silently produce an incomplete index
+  // that misleads per-item resolvers. Only the universal 'all' write refreshes it.
+  if (filterHash === 'all') {
+    await writeReverseIndex(period, buildReverseIndex(orders), indexTtl);
+  }
 
   console.log(`[order-cache] Wrote ${orders.length} orders in ${Math.ceil(orders.length / ORDER_PIPELINE_BATCH)} batches for ${period}:${filterHash}`);
   return true;

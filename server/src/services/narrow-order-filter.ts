@@ -49,7 +49,11 @@ export function buildNarrowOrderFilter(
   return undefined;
 }
 
-/** OR-chain a list of CUSTNAMEs into an OData filter, with single-quote escaping. */
-function custnameOrFilter(ids: string[]): string {
+/** OR-chain a list of CUSTNAMEs into an OData filter, with single-quote escaping.
+ *  Exported for per-item dim routes (vendor/brand/product_type/product), which resolve their
+ *  entity ids to CUSTNAMEs via the warm-cache reverse index (see services/reverse-index.ts
+ *  + services/resolve-customers-for-entity.ts) and reuse this helper to build the same
+ *  OData filter shape customer/zone dims already use. */
+export function custnameOrFilter(ids: string[]): string {
   return ids.map(id => `CUSTNAME eq '${id.replace(/'/g, "''")}'`).join(' or ');
 }

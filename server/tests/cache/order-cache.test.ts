@@ -53,12 +53,16 @@ describe('writeOrders', () => {
     expect(mockPipelineSet).toHaveBeenCalledTimes(2);
     expect(mockPipelineSet).toHaveBeenCalledWith('order:SO001', expect.any(String), expect.objectContaining({ ex: expect.any(Number) }));
     expect(mockPipelineSet).toHaveBeenCalledWith('order:SO002', expect.any(String), expect.objectContaining({ ex: expect.any(Number) }));
-    // Index + meta should be written via redis.set
-    expect(mockSet).toHaveBeenCalledTimes(2);
+    // Index + meta + reverse-index should be written via redis.set
+    // (reverse-index write added by the per-item narrow-fetch feature: see
+    //  learnings/odata-any-lambda-support.md and server/src/services/reverse-index.ts)
+    expect(mockSet).toHaveBeenCalledTimes(3);
     const indexCall = mockSet.mock.calls.find((c: unknown[]) => (c[0] as string).startsWith('orders:idx:'));
     expect(indexCall).toBeTruthy();
     const metaCall = mockSet.mock.calls.find((c: unknown[]) => (c[0] as string).startsWith('orders:meta:'));
     expect(metaCall).toBeTruthy();
+    const revidxCall = mockSet.mock.calls.find((c: unknown[]) => (c[0] as string) === 'dashboard:revidx:ytd');
+    expect(revidxCall).toBeTruthy();
   });
 
   it('does NOT publish index/meta if a pipeline batch fails (WO-T2)', async () => {

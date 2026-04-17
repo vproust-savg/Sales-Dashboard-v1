@@ -7,9 +7,13 @@
 //   Narrowing strategy by dimension:
 //     customer → CUSTNAME eq '{id}' (or OR-chain for multi)
 //     zone     → look up customers in zone, then CUSTNAME OR-chain
-//     vendor/brand/product_type/product → NO narrow (per-item fields; no ORDERS-level filter)
+//     vendor/brand/product_type/product → resolve customers via warm-cache reverse index,
+//       then reuse the CUSTNAME OR-chain. See services/resolve-customers-for-entity.ts
+//       and learnings/odata-any-lambda-support.md for why direct OData narrowing isn't
+//       possible.
 //
-//   This guards the regression observed after the Plan A universal-cache refactor.
+//   This guards the regression observed after the Plan A universal-cache refactor AND
+//   the per-item extension added in 2026-04.
 // USED BY: vitest runner
 // EXPORTS: none
 
@@ -35,10 +39,16 @@ vi.mock('../../services/priority-queries.js', () => ({
   fetchProducts: vi.fn(),
 }));
 
+vi.mock('../../services/resolve-customers-for-entity.js', () => ({
+  resolveCustomersForEntity: vi.fn(),
+  MAX_CUSTNAMES_PER_NARROW: 500,
+}));
+
 import { dashboardRouter } from '../dashboard.js';
 import { readOrders } from '../../cache/order-cache.js';
 import { cachedFetch } from '../../cache/cache-layer.js';
 import { fetchOrders, fetchCustomers, fetchProducts } from '../../services/priority-queries.js';
+import { resolveCustomersForEntity } from '../../services/resolve-customers-for-entity.js';
 import type { RawCustomer } from '../../services/priority-queries.js';
 
 function makeApp() {
@@ -73,6 +83,8 @@ describe('GET /api/sales/dashboard — cold-cache narrow fetch', () => {
     // WHY: product dimension triggers a LOGPART fetch for country-of-origin enrichment.
     // Return an empty list so the route continues without throwing.
     vi.mocked(fetchProducts).mockResolvedValue([]);
+    // Default: reverse index not available — per-item requests fall through to universal.
+    vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'no-index' });
   });
 
   describe('customer dimension', () => {
@@ -150,16 +162,54 @@ describe('GET /api/sales/dashboard — cold-cache narrow fetch', () => {
   });
 
   describe('per-item dimensions (vendor/brand/product_type/product)', () => {
-    // These dimensions aggregate via ORDERITEMS_SUBFORM fields. Priority has no
-    // ORDERS-level filter for them, so we intentionally do NOT narrow — the universal
-    // cache is the only path. The frontend must show a loading/warming state long enough
-    // to accommodate a cold fetch.
+    // These dimensions' discriminator fields live on ORDERITEMS_SUBFORM. Priority's OData
+    // doesn't support any() or a queryable standalone ORDERITEMS (see
+    // learnings/odata-any-lambda-support.md). The workaround: warm-cache builds a reverse
+    // index mapping dim+id → CUSTNAMEs, and the route resolves that to a CUSTNAME OR-chain.
+
     it.each([
       ['vendor',       'V123'],
       ['brand',        'BRAND_A'],
       ['product_type', 'PT_X'],
       ['product',      'SKU_001'],
-    ])('%s dimension does NOT narrow (no ORDERS-level filter available)', async (dim, id) => {
+    ])('%s with resolver kind:ok narrows fetchOrders with resolved CUSTNAMEs', async (dim, id) => {
+      vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'ok', custnames: ['C7826', 'C2303'] });
+
+      await request(makeApp())
+        .get(`/api/sales/dashboard?groupBy=${dim}&entityId=${id}&period=ytd`)
+        .expect(200);
+
+      expect(resolveCustomersForEntity).toHaveBeenCalledWith(dim, [id], 'ytd');
+      const calls = vi.mocked(fetchOrders).mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      for (const args of calls) {
+        expect(filterArg(args)).toBe("CUSTNAME eq 'C7826' or CUSTNAME eq 'C2303'");
+      }
+    });
+
+    it.each([
+      ['vendor',       'V_UNSOLD'],
+      ['brand',        'BRAND_NONE'],
+      ['product_type', 'PT_NONE'],
+      ['product',      'SKU_UNSOLD'],
+    ])('%s with resolver kind:empty short-circuits — fetchOrders NOT called', async (dim, id) => {
+      vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'empty' });
+
+      await request(makeApp())
+        .get(`/api/sales/dashboard?groupBy=${dim}&entityId=${id}&period=ytd`)
+        .expect(200);
+
+      expect(fetchOrders).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['vendor',       'V_MEGA'],
+      ['brand',        'BRAND_UBIQUITOUS'],
+      ['product_type', 'PT_COMMON'],
+      ['product',      'SKU_HOT'],
+    ])('%s with resolver kind:over-cap falls through to universal (narrowFilter undefined)', async (dim, id) => {
+      vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'over-cap', count: 1234 });
+
       await request(makeApp())
         .get(`/api/sales/dashboard?groupBy=${dim}&entityId=${id}&period=ytd`)
         .expect(200);
@@ -168,6 +218,32 @@ describe('GET /api/sales/dashboard — cold-cache narrow fetch', () => {
       for (const args of calls) {
         expect(filterArg(args)).toBeUndefined();
       }
+    });
+
+    it.each([
+      ['vendor',       'V1'],
+      ['brand',        'B1'],
+      ['product_type', '01'],
+      ['product',      'P1'],
+    ])('%s with resolver kind:no-index falls through to universal (index not built yet)', async (dim, id) => {
+      vi.mocked(resolveCustomersForEntity).mockResolvedValue({ kind: 'no-index' });
+
+      await request(makeApp())
+        .get(`/api/sales/dashboard?groupBy=${dim}&entityId=${id}&period=ytd`)
+        .expect(200);
+
+      const calls = vi.mocked(fetchOrders).mock.calls;
+      for (const args of calls) {
+        expect(filterArg(args)).toBeUndefined();
+      }
+    });
+
+    it('no-entity boot request does NOT invoke resolver (no ids to resolve)', async () => {
+      await request(makeApp())
+        .get('/api/sales/dashboard?groupBy=vendor&period=ytd')
+        .expect(200);
+
+      expect(resolveCustomersForEntity).not.toHaveBeenCalled();
     });
   });
 

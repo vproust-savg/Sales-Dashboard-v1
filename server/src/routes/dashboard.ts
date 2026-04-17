@@ -12,7 +12,7 @@ import type { RawOrder } from '../services/priority-queries.js';
 import type { RawProduct } from '@shared/types/dashboard';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
-import { buildNarrowOrderFilter } from '../services/narrow-order-filter.js';
+import { decideNarrowFilter } from '../services/narrow-filter-decision.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL } from '../cache/cache-keys.js';
 import { readOrders } from '../cache/order-cache.js';
@@ -62,12 +62,23 @@ dashboardRouter.get('/dashboard', validateQuery(querySchema), async (_req, res, 
     // path so every cold-cache load pulled ~22K YTD orders (6+ min, often timing out at
     // Priority's per-page cap). Restoring the narrow filter for dims where it's possible
     // makes the cold path fast again without compromising the consolidated/Report flow.
-    const narrowFilter = buildNarrowOrderFilter(groupBy as Dimension, ids, customersResult.data);
+    // Per-item dims use the warm-cache reverse index (see services/narrow-filter-decision).
+    const { narrowFilter, shortCircuitEmpty } = await decideNarrowFilter(
+      groupBy as Dimension,
+      ids,
+      customersResult.data,
+      period,
+    );
 
-    const [ordersCached, prevOrdersCached] = await Promise.all([
-      readOrdersOrFallback(period, cacheEntityType, startDate, endDate, true, narrowFilter),
-      readOrdersOrFallback(String(year - 1), 'orders_year', prevStartDate, prevEndDate, false, narrowFilter),
-    ]);
+    const [ordersCached, prevOrdersCached] = shortCircuitEmpty
+      ? [
+          { orders: [] as RawOrder[], fromCache: false, cachedAt: null as string | null },
+          { orders: [] as RawOrder[], fromCache: false, cachedAt: null as string | null },
+        ]
+      : await Promise.all([
+          readOrdersOrFallback(period, cacheEntityType, startDate, endDate, true, narrowFilter),
+          readOrdersOrFallback(String(year - 1), 'orders_year', prevStartDate, prevEndDate, false, narrowFilter),
+        ]);
 
     // Build scope if entity subset requested
     const scope = ids.length > 0
