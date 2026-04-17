@@ -3,22 +3,18 @@
 // USED BY: client/src/components/right-panel/RightPanel.tsx
 // EXPORTS: DetailHeader
 
-import type { EntityListItem, Period, Dimension } from '@shared/types/dashboard';
+import type { EntityListItem, Dimension } from '@shared/types/dashboard';
 import { DIMENSION_PLURAL_LABELS } from '@shared/types/dashboard';
 import { CopyableId } from '../shared/CopyableId';
-import { PeriodSelector } from './PeriodSelector';
 
 interface DetailHeaderProps {
   entity: EntityListItem | null;
   activeDimension: Dimension;
-  activePeriod: Period;
-  yearsAvailable: string[];
-  onPeriodChange: (period: Period) => void;
   onExport: () => void;
 }
 
 export function DetailHeader({
-  entity, activeDimension, activePeriod, yearsAvailable, onPeriodChange, onExport,
+  entity, activeDimension, onExport,
 }: DetailHeaderProps) {
   const name = entity?.name ?? `All ${DIMENSION_PLURAL_LABELS[activeDimension]}`;
   const subtitle = entity?.meta1 ?? '';
@@ -42,7 +38,9 @@ export function DetailHeader({
 
       {/* Right side — period selector, export */}
       <div className="ml-[var(--spacing-lg)] flex shrink-0 items-center gap-[var(--spacing-lg)]">
-        <PeriodSelector activePeriod={activePeriod} yearsAvailable={yearsAvailable} onChange={onPeriodChange} />
+        {/* Period selector hidden 2026-04-17 — activePeriod state still flows through
+            to KPISection and HeroRevenueCard for labelling. Restore when multi-year
+            comparison is reintroduced. */}
         <button
           type="button"
           onClick={onExport}

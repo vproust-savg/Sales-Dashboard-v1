@@ -24,10 +24,8 @@ interface RightPanelProps {
   orders: OrderRow[];
   items: FlatItem[];
   contacts: Contact[];
-  yearsAvailable: string[];
   activePeriod: Period;
   activeTab: DetailTab;
-  onPeriodChange: (period: Period) => void;
   onTabChange: (tab: DetailTab) => void;
   onExport: () => void;
   consolidatedMode?: boolean;
@@ -39,16 +37,15 @@ interface RightPanelProps {
 
 export function RightPanel({
   entity, activeDimension = 'customer', kpis, monthlyRevenue, productMixes, topSellers,
-  sparklines, orders, items, contacts, yearsAvailable, activePeriod, activeTab,
-  onPeriodChange, onTabChange, onExport,
+  sparklines, orders, items, contacts, activePeriod, activeTab,
+  onTabChange, onExport,
   consolidatedMode, consolidatedEntities, perEntityProductMixes, perEntityTopSellers, hideDetailHeader,
 }: RightPanelProps) {
   return (
     <>
       {!hideDetailHeader && (
         <DetailHeader
-          entity={entity} activeDimension={activeDimension} activePeriod={activePeriod} yearsAvailable={yearsAvailable}
-          onPeriodChange={onPeriodChange} onExport={onExport}
+          entity={entity} activeDimension={activeDimension} onExport={onExport}
         />
       )}
       <section aria-label="KPI summary">
