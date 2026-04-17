@@ -53,22 +53,22 @@ export function ItemsProductRow({ item, depth, showCompare }: ItemsProductRowPro
         </div>
         <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-primary)]">
           {formatCurrency(item.value)}
-          <TrendArrow current={item.value} previous={item.prevYearValue} />
+          <TrendArrow current={item.value} prev={item.prevYearValue} />
         </div>
         <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {formatInteger(item.totalUnits)} {item.unitName}
-          <TrendArrow current={item.totalUnits} previous={item.prevYearUnits} />
+          <TrendArrow current={item.totalUnits} prev={item.prevYearUnits} />
         </div>
         <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {formatCurrency(item.lastPrice)}
         </div>
         <div role="gridcell" className="w-24 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {formatCurrency(item.marginAmount)}
-          <TrendArrow current={item.marginAmount} previous={prevMarginAmount} />
+          <TrendArrow current={item.marginAmount} prev={prevMarginAmount} />
         </div>
         <div role="gridcell" className="w-28 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {formatPercent(item.marginPercent)}
-          <TrendArrow current={item.marginPercent} previous={item.prevYearMarginPercent} />
+          <TrendArrow current={item.marginPercent} prev={item.prevYearMarginPercent} />
         </div>
         <div role="gridcell" className="w-20 text-right text-[14px] tabular-nums text-[var(--color-text-muted)]">
           {item.purchaseFrequency.toFixed(1)}/mo

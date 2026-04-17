@@ -35,6 +35,8 @@
   --color-red: #ef4444;
   --color-yellow: #eab308;
   --color-blue: #3b82f6;
+  --color-trend-positive: #16a34a;
+  --color-trend-negative: #dc2626;
 
   /* Border radius — spec Section 24.1 */
   --radius-xs: 2px;
