@@ -167,6 +167,7 @@ export function DashboardLayout(props: DashboardLayoutProps) {
                   dimensionLabel={DIMENSION_CONFIG[activeDimension].pluralLabel}
                   filters={report.filters}
                   onExport={exportCsv}
+                  onClose={() => { report.reset(); clearSelection(); }}
                 />
                 <RightPanel
                   entity={null}

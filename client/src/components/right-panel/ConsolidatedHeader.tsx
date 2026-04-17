@@ -1,8 +1,9 @@
 // FILE: client/src/components/right-panel/ConsolidatedHeader.tsx
 // PURPOSE: Header replacing DetailHeader when in Report / View Consolidated mode
-// USED BY: client/src/components/right-panel/RightPanel.tsx
+// USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: ConsolidatedHeader
 
+import { useEffect } from 'react';
 import type { FetchAllFilters } from '@shared/types/dashboard';
 import { formatInteger } from '@shared/utils/formatting';
 
@@ -12,6 +13,7 @@ interface ConsolidatedHeaderProps {
   dimensionLabel: string;          // Singular or plural; caller chooses
   filters: FetchAllFilters | null; // null for consolidated mode
   onExport: () => void;
+  onClose: () => void;
 }
 
 /** WHY: foodServiceRetail values: 'Y' = Retail, anything else = Food Service */
@@ -33,11 +35,19 @@ function formatFilters(filters: FetchAllFilters | null): string | null {
 }
 
 export function ConsolidatedHeader({
-  mode, entityCount, dimensionLabel, filters, onExport,
+  mode, entityCount, dimensionLabel, filters, onExport, onClose,
 }: ConsolidatedHeaderProps) {
   const prefix = mode === 'report' ? 'Report' : 'Consolidated';
   const title = `${prefix}: ${formatInteger(entityCount)} ${dimensionLabel}`;
   const filterLine = formatFilters(filters);
+
+  /** WHY: Escape exits Reports view globally while this component is mounted.
+      document-level listener means it works regardless of focus position. */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   return (
     <div className="flex items-start justify-between gap-[var(--spacing-lg)] rounded-[var(--radius-3xl)] bg-[var(--color-bg-card)] px-[var(--spacing-3xl)] py-[var(--spacing-2xl)] shadow-[var(--shadow-card)]">
@@ -57,6 +67,14 @@ export function ConsolidatedHeader({
           className="cursor-pointer rounded-[var(--radius-base)] bg-[var(--color-gold-subtle)] px-[var(--spacing-2xl)] py-[var(--spacing-md)] text-[12px] font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-gold-muted)]"
         >
           Export
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Exit Reports view"
+          className="cursor-pointer rounded-[var(--radius-sm)] p-[var(--spacing-sm)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-gold-subtle)] hover:text-[var(--color-text-secondary)]"
+        >
+          ✕
         </button>
       </div>
     </div>
