@@ -18,16 +18,38 @@ export interface FilterConditionData {
   value: string;
 }
 
+/** Fields whose values come from a closed, Priority-sourced list. Rendered as a dropdown
+ *  instead of free-text to prevent typos (agent names, zone descriptions, customer-group
+ *  descriptions must match exactly for the filter engine's string comparison to hit). */
+export type DropdownValueField = 'rep' | 'zone' | 'customerType';
+export type ValueOptions = Partial<Record<DropdownValueField, readonly string[]>>;
+
+const DROPDOWN_VALUE_FIELDS: ReadonlySet<FilterField> = new Set<FilterField>(['rep', 'zone', 'customerType']);
+
 interface FilterConditionProps {
   condition: FilterConditionData;
   availableFields: FilterField[];
+  valueOptions?: ValueOptions;
   onChange: (updated: FilterConditionData) => void;
   onRemove: () => void;
 }
 
-export function FilterConditionRow({ condition, availableFields, onChange, onRemove }: FilterConditionProps) {
+export function FilterConditionRow({ condition, availableFields, valueOptions, onChange, onRemove }: FilterConditionProps) {
   const fieldType = condition.field ? FIELD_TYPES[condition.field] : null;
   const operatorOptions = fieldType ? OPERATORS_BY_TYPE[fieldType] : [];
+
+  // WHY 'contains' keeps the text input: partial-match is inherently free-form — if the user
+  // picks "contains", forcing them to select from a list would defeat the operator. Equals /
+  // not_equals / is_empty all use the dropdown (is_empty has no value control at all).
+  const useDropdown =
+    condition.field !== '' &&
+    DROPDOWN_VALUE_FIELDS.has(condition.field) &&
+    condition.operator !== '' &&
+    condition.operator !== 'contains' &&
+    condition.operator !== 'is_empty';
+  const dropdownValues = useDropdown && condition.field
+    ? valueOptions?.[condition.field as DropdownValueField] ?? []
+    : [];
 
   return (
     <div
@@ -40,8 +62,12 @@ export function FilterConditionRow({ condition, availableFields, onChange, onRem
           value={condition.field}
           onChange={(e) => {
             const newField = e.target.value as FilterField | '';
-            // WHY: Reset operator when field changes — different types have different operators
-            onChange({ ...condition, field: newField, operator: '', value: '' });
+            // WHY: Reset operator when field changes — different types have different operators.
+            // For dropdown-backed fields (rep / zone / customerType) default to 'equals' so the
+            // user only has to click the value next, not operator then value.
+            const defaultOperator: FilterOperator | '' =
+              newField && DROPDOWN_VALUE_FIELDS.has(newField) ? 'equals' : '';
+            onChange({ ...condition, field: newField, operator: defaultOperator, value: '' });
           }}
           className="flex-1 rounded-[var(--radius-base)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[13px] font-normal text-[var(--color-text-primary)] focus:border-[var(--color-gold-primary)]"
           aria-label="Filter field"
@@ -78,14 +104,28 @@ export function FilterConditionRow({ condition, availableFields, onChange, onRem
 
         {/* WHY conditional: "is empty" operator needs no value input */}
         {condition.operator !== 'is_empty' && (
-          <input
-            type="text"
-            value={condition.value}
-            onChange={(e) => onChange({ ...condition, value: e.target.value })}
-            placeholder="Value..."
-            className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-gold-primary)]"
-            aria-label="Filter value"
-          />
+          useDropdown ? (
+            <select
+              value={condition.value}
+              onChange={(e) => onChange({ ...condition, value: e.target.value })}
+              className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] focus:border-[var(--color-gold-primary)]"
+              aria-label="Filter value"
+            >
+              <option value="">Select value…</option>
+              {dropdownValues.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={condition.value}
+              onChange={(e) => onChange({ ...condition, value: e.target.value })}
+              placeholder="Value..."
+              className="min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--color-gold-muted)] bg-[var(--color-bg-card)] px-[var(--spacing-md)] py-[var(--spacing-xs)] text-[12px] font-normal text-[var(--color-text-primary)] placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-gold-primary)]"
+              aria-label="Filter value"
+            />
+          )
         )}
       </div>
     </div>

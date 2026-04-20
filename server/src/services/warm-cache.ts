@@ -1,6 +1,7 @@
 // FILE: server/src/services/warm-cache.ts
 // PURPOSE: Background cache warm on server startup. Always refreshes master-data caches
-//   (customers, zones, vendors, product_types, products) on boot; warms YTD orders if cold.
+//   (customers, zones, vendors, product_types, products, agents, customer_types) on boot;
+//   warms YTD orders if cold.
 // USED BY: server/src/index.ts
 // EXPORTS: warmEntityCache
 
@@ -12,6 +13,8 @@ import {
   fetchVendors,
   fetchProductTypes,
   fetchProducts,
+  fetchAgents,
+  fetchCustomerTypes,
 } from './priority-queries.js';
 import { cachedFetch } from '../cache/cache-layer.js';
 import { cacheKey, getTTL, orderMetaKey } from '../cache/cache-keys.js';
@@ -44,6 +47,10 @@ export async function warmEntityCache(): Promise<void> {
       () => fetchProductTypes(priorityClient)),
     cachedFetch(cacheKey('products', 'all'), getTTL('products'),
       () => fetchProducts(priorityClient)),
+    cachedFetch(cacheKey('agents', 'all'), getTTL('agents'),
+      () => fetchAgents(priorityClient)),
+    cachedFetch(cacheKey('customer_types', 'all'), getTTL('customer_types'),
+      () => fetchCustomerTypes(priorityClient)),
   ];
 
   if (existingMeta) {

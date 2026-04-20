@@ -11,6 +11,7 @@ import { env } from './config/env.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { entitiesRouter } from './routes/entities.js';
 import { contactsRouter } from './routes/contacts.js';
+import { filterOptionsRouter } from './routes/filter-options.js';
 import { fetchAllRouter } from './routes/fetch-all.js';
 import { cacheStatusRouter } from './routes/cache-status.js';
 import { healthRouter } from './routes/health.js';
@@ -42,6 +43,7 @@ app.use(cors({
 app.use('/api/sales', entitiesRouter);
 app.use('/api/sales', dashboardRouter);
 app.use('/api/sales', contactsRouter);
+app.use('/api/sales', filterOptionsRouter);
 app.use('/api/sales', fetchAllRouter);
 app.use('/api/sales', cacheStatusRouter);
 app.use('/api', healthRouter);

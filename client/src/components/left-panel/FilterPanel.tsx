@@ -3,11 +3,12 @@
 // USED BY: client/src/components/left-panel/LeftPanel.tsx
 // EXPORTS: FilterPanel
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FilterConditionRow } from './FilterCondition';
+import { FilterConditionRow, type ValueOptions } from './FilterCondition';
 import type { FilterCondition } from '../../hooks/useFilters';
 import { DIMENSION_FILTER_FIELDS } from '../../utils/filter-types';
+import { useFilterOptions } from '../../hooks/useFilterOptions';
 import type { Dimension } from '@shared/types/dashboard';
 
 /** WHY conjunction type: spec Section 3.4 defines AND/OR toggle between conditions,
@@ -30,6 +31,12 @@ export function FilterPanel({
 }: FilterPanelProps) {
   const [conjunction, setConjunction] = useState<Conjunction>('and');
   const availableFields = DIMENSION_FILTER_FIELDS[activeDimension];
+  const { options } = useFilterOptions();
+  const valueOptions = useMemo<ValueOptions>(() => ({
+    rep: options.reps,
+    zone: options.zones,
+    customerType: options.customerTypes,
+  }), [options]);
 
   /** WHY: When conjunction toggles, update ALL conditions so the filter engine
    *  evaluates them with the correct logic (AND vs OR). */
@@ -70,6 +77,7 @@ export function FilterPanel({
                 <FilterConditionRow
                   condition={{ id: condition.id, field: condition.field, operator: condition.operator, value: String(condition.value) }}
                   availableFields={availableFields}
+                  valueOptions={valueOptions}
                   onChange={(updated) => onUpdateCondition(condition.id, { field: updated.field || '', operator: updated.operator || '', value: updated.value })}
                   onRemove={() => handleRemove(condition.id)}
                 />

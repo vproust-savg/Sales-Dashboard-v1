@@ -1,7 +1,7 @@
 // FILE: shared/types/api-responses.ts
 // PURPOSE: API response envelope types for all endpoints
 // USED BY: server/routes/*.ts, client/hooks/*.ts
-// EXPORTS: ApiResponse, ApiError
+// EXPORTS: ApiResponse, ApiError, FilterOptions
 
 export interface ApiResponse<T> {
   data: T;
@@ -24,4 +24,13 @@ export interface ApiError {
     message: string;
     retryable: boolean;
   };
+}
+
+/** Distinct values used to populate the left-panel filter-value dropdowns
+ *  (Rep / Zone / Customer Type). Sourced from Priority master lists:
+ *  reps ← AGENTS.AGENTNAME, zones ← DISTRLINES.ZONEDES, customerTypes ← CTYPE.CTYPENAME. */
+export interface FilterOptions {
+  reps: string[];
+  zones: string[];
+  customerTypes: string[];
 }

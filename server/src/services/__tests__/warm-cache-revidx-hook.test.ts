@@ -22,12 +22,14 @@ vi.mock('../priority-instance.js', () => ({
 }));
 
 vi.mock('../priority-queries.js', () => ({
-  fetchOrders:       vi.fn().mockResolvedValue([]),
-  fetchCustomers:    vi.fn().mockResolvedValue([]),
-  fetchZones:        vi.fn().mockResolvedValue([]),
-  fetchVendors:      vi.fn().mockResolvedValue([]),
-  fetchProductTypes: vi.fn().mockResolvedValue([]),
-  fetchProducts:     vi.fn().mockResolvedValue([]),
+  fetchOrders:        vi.fn().mockResolvedValue([]),
+  fetchCustomers:     vi.fn().mockResolvedValue([]),
+  fetchZones:         vi.fn().mockResolvedValue([]),
+  fetchVendors:       vi.fn().mockResolvedValue([]),
+  fetchProductTypes:  vi.fn().mockResolvedValue([]),
+  fetchProducts:      vi.fn().mockResolvedValue([]),
+  fetchAgents:        vi.fn().mockResolvedValue([]),
+  fetchCustomerTypes: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../reverse-index.js', () => ({

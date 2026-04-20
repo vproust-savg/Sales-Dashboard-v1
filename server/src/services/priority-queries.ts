@@ -1,7 +1,7 @@
 // FILE: server/src/services/priority-queries.ts
 // PURPOSE: Build OData query parameters for each Priority entity the dashboard needs
 // USED BY: server/src/routes/dashboard.ts, server/src/routes/contacts.ts, server/src/services/warm-cache.ts
-// EXPORTS: fetchOrders, fetchCustomers, fetchZones, fetchAgents, fetchVendors, fetchContacts, fetchProductTypes, fetchProducts
+// EXPORTS: fetchOrders, fetchCustomers, fetchZones, fetchAgents, fetchVendors, fetchContacts, fetchProductTypes, fetchProducts, fetchCustomerTypes
 //
 // SIGNAL CONVENTION: fetchers called from fetch-all.ts (where AbortController cascades client
 //   cancel) accept `signal?: AbortSignal` — currently fetchOrders, fetchCustomers,
@@ -89,6 +89,11 @@ export interface RawVendor {
   COUNTRYNAME: string;
 }
 
+export interface RawCustomerType {
+  CTYPECODE: string;
+  CTYPENAME: string;
+}
+
 /** Fetch orders with expanded line items for a date range — spec Section 17.2 */
 export async function fetchOrders(
   client: PriorityClient,
@@ -155,6 +160,14 @@ export async function fetchVendors(client: PriorityClient): Promise<RawVendor[]>
   return client.fetchAllPages<RawVendor>('SUPPLIERS', {
     select: 'SUPNAME,SUPDES,COUNTRYNAME',
     orderby: 'SUPNAME asc',
+  });
+}
+
+/** Fetch customer group master list — used to populate the Customer Type filter dropdown. */
+export async function fetchCustomerTypes(client: PriorityClient): Promise<RawCustomerType[]> {
+  return client.fetchAllPages<RawCustomerType>('CTYPE', {
+    select: 'CTYPECODE,CTYPENAME',
+    orderby: 'CTYPECODE asc',
   });
 }
 
