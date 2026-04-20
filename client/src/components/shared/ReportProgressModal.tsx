@@ -92,7 +92,7 @@ function ProgressContent({ inPhase1, inPhase2, rows, message, onCancel }: Progre
   // is working, not frozen. Switches to "X rows received" once data starts flowing.
   const phase1Detail = inPhase1
     ? (rows > 0 ? `${formatInteger(rows)} rows received` : 'Connecting to Priority ERP\u2026')
-    : `${formatInteger(rows)} rows fetched`;
+    : (rows > 0 ? `${formatInteger(rows)} rows fetched` : 'Loaded from cache');
 
   return (
     <>
@@ -124,7 +124,7 @@ function ProgressContent({ inPhase1, inPhase2, rows, message, onCancel }: Progre
       />
 
       <p className="text-center text-[11px] text-[var(--color-text-faint)]">
-        This usually takes 5&ndash;10 minutes
+        This usually takes 10&ndash;15 minutes
       </p>
 
       {inPhase1 && (

@@ -137,11 +137,6 @@ function ReportFilterModalContent({
         aria-label="Report filters"
       >
         <div className="flex flex-col items-center gap-[var(--spacing-md)]">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-gold-subtle)]">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path d="M3 5h14l-5 6v5l-4 2v-7L3 5z" stroke="var(--color-gold-primary)" strokeWidth="1.5" strokeLinejoin="round" />
-            </svg>
-          </div>
           <h2 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Please select</h2>
         </div>
 
@@ -175,8 +170,8 @@ function ReportFilterModalContent({
             className="mt-[2px] h-[14px] w-[14px] accent-[var(--color-gold-primary)]"
           />
           <span className="text-[12px] leading-snug text-[var(--color-text-secondary)]">
-            <span className="font-medium">Force full refresh from Priority</span>
-            <span className="text-[var(--color-text-muted)]"> (slower, ~1–5 min)</span>
+            <span className="font-medium">Full refresh</span>
+            <span className="text-[var(--color-text-muted)]"> (slower)</span>
             <br />
             <span className="text-[var(--color-text-muted)]">
               Re-fetches all orders including any retroactive edits. Use when YoY numbers look off.
@@ -185,7 +180,7 @@ function ReportFilterModalContent({
         </label>
 
         <p className="text-center text-[12px] text-[var(--color-text-muted)]">
-          Fetching data for {formatInteger(estimatedCount)} {pluralLabel}. Estimated 4&ndash;7 minutes.
+          Fetching data for {formatInteger(estimatedCount)} {pluralLabel}. Estimated 10&ndash;15 minutes.
         </p>
 
         <div className="flex gap-[var(--spacing-md)]">
