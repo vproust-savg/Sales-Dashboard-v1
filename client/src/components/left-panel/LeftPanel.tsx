@@ -65,15 +65,15 @@ export function LeftPanel({
 
   return (
     <>
-      <DimensionToggles
-        activeDimension={activeDimension}
-        onDimensionChange={onDimensionChange}
-      />
-
       <ReportButton
         state={reportState}
         isActive={activeView === 'report'}
         onClick={onReportClick}
+      />
+
+      <DimensionToggles
+        activeDimension={activeDimension}
+        onDimensionChange={onDimensionChange}
       />
 
       <SearchBox
