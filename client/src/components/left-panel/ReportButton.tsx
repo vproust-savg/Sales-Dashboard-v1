@@ -33,7 +33,7 @@ export function ReportButton({ state, isActive, onClick }: ReportButtonProps) {
         transition-[box-shadow,background-color] duration-150
         ${isActive
           ? 'bg-[var(--color-dark)] text-white hover:bg-[var(--color-dark-hover)]'
-          : 'bg-[var(--color-gold-primary)] text-[var(--color-text-primary)] hover:shadow-[var(--shadow-glow)]'
+          : 'bg-[var(--color-gold-muted)] text-[var(--color-text-primary)] hover:shadow-[var(--shadow-glow)]'
         }
         ${isLoading ? 'animate-pulse cursor-wait' : ''}
       `}
