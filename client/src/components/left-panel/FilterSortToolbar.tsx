@@ -32,7 +32,7 @@ export function FilterSortToolbar({
           text-[12px] font-medium transition-colors duration-150
           ${filterActive
             ? 'bg-[var(--color-dark)] text-white hover:bg-[var(--color-dark-hover)]'
-            : 'bg-[var(--color-gold-subtle)] text-[var(--color-text-secondary)] hover:bg-[var(--color-gold-muted)]'
+            : 'bg-[var(--color-gold-muted)] text-[var(--color-text-secondary)] hover:bg-[var(--color-gold-light)]'
           }
         `}
       >
@@ -62,7 +62,7 @@ export function FilterSortToolbar({
           text-[12px] font-medium transition-colors duration-150
           ${sortActive
             ? 'bg-[var(--color-dark)] text-white hover:bg-[var(--color-dark-hover)]'
-            : 'bg-[var(--color-gold-subtle)] text-[var(--color-text-secondary)] hover:bg-[var(--color-gold-muted)]'
+            : 'bg-[var(--color-gold-muted)] text-[var(--color-text-secondary)] hover:bg-[var(--color-gold-light)]'
           }
         `}
       >

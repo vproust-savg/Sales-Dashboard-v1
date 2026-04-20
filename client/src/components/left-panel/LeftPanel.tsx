@@ -76,12 +76,6 @@ export function LeftPanel({
         onDimensionChange={onDimensionChange}
       />
 
-      <SearchBox
-        value={searchTerm}
-        onChange={onSearchChange}
-        placeholder={config.searchPlaceholder}
-      />
-
       <FilterSortToolbar
         filterActive={filterOpen || filterCount > 0}
         sortActive={sortActive}
@@ -99,6 +93,12 @@ export function LeftPanel({
         onRemoveCondition={onRemoveCondition}
         onClearFilters={onClearFilters}
         onClose={onFilterToggle}
+      />
+
+      <SearchBox
+        value={searchTerm}
+        onChange={onSearchChange}
+        placeholder={config.searchPlaceholder}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
