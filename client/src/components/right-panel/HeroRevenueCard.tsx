@@ -40,7 +40,7 @@ export function HeroRevenueCard({ kpis, monthlyRevenue, activePeriod, showDetail
 
   /** WHY: combined ref attaches both ResizeObserver (for chart height calc) and keyboard-nav ref */
   const mergedCardRef = useCallback((el: HTMLDivElement | null) => {
-    (cardSizeRef as { current: HTMLDivElement | null }).current = el;
+    cardSizeRef(el);
     cardRef?.(el);
   }, [cardRef, cardSizeRef]);
 
