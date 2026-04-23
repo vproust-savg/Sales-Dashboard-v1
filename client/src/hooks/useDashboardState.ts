@@ -9,6 +9,7 @@ import { useContacts, useConsolidatedContacts } from './useContacts';
 import { useEntitySelection } from './useEntitySelection';
 import { useFilters } from './useFilters';
 import { useReport } from './useReport';
+import { deriveConsolidatedContactIds } from './derive-consolidated-contact-ids';
 import { searchEntities } from '../utils/search';
 import { filterEntities } from '../utils/filter-engine';
 import { sortEntities } from '../utils/sort-engine';
@@ -86,12 +87,14 @@ export function useDashboardState() {
   // WHY: Contacts load for any dimension — server resolves to customer contacts via scopeOrders.
   const contactsQuery = useContacts(activeDimension, activeEntityId, !!activeEntityId);
 
-  // WHY: In consolidated mode, entity IDs come from report.payload regardless of dimension.
-  // Server resolves non-customer dims to customer contacts via scopeOrders.
-  const consolidatedContactIds = useMemo(() => {
-    if (report.state === 'loaded' && report.payload) return report.payload.entities.map(e => e.id);
-    return [] as string[];
-  }, [report.state, report.payload]);
+  // WHY: Only the View Consolidated path (filters.entityIds set) should enable consolidated
+  // contacts. A regular Report leaves filters.entityIds undefined and must not fan out to
+  // a per-customer Priority fetch across the full dimension (1876-call 500). See
+  // derive-consolidated-contact-ids.ts for the decision logic and its test coverage.
+  const consolidatedContactIds = useMemo(
+    () => deriveConsolidatedContactIds({ state: report.state, payload: report.payload, filters: report.filters }),
+    [report.state, report.payload, report.filters],
+  );
   const consolidatedContactsQuery = useConsolidatedContacts(
     activeDimension,
     consolidatedContactIds,
