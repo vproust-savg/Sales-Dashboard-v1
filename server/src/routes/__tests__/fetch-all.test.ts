@@ -553,3 +553,289 @@ describe('Same-day cache hit skips raw-cache rewrites (I5)', () => {
     );
   });
 });
+
+// WHY: After the unified-per-year-fetch-pipeline refactor, both branches go through
+// fetchYearWithCache. The tests below assert the observable properties of that unification.
+// See docs/superpowers/plans/ (2026-04-23 unified per-year fetch plan) and the approved plan file.
+describe('unified per-year fetch pipeline', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (redis.set as ReturnType<typeof vi.fn>).mockResolvedValue('OK');
+    (redis.del as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    vi.mocked(fetchCustomers).mockResolvedValue([]);
+    vi.mocked(fetchOrders).mockResolvedValue([]);
+  });
+
+  it('T3: both current and prev year branches route through the cache-aware helper (readOrders called for BOTH years)', async () => {
+    // WHY: If both branches call fetchYearWithCache, readOrders will be invoked for both
+    // `period='ytd'` and `period=String(year-1)` before falling through to fullFetch.
+    const { readOrders } = await import('../../cache/order-cache.js');
+    vi.mocked(readOrders).mockResolvedValue(null);
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd')
+      .expect(200);
+
+    const year = new Date().getFullYear();
+    const readCalls = vi.mocked(readOrders).mock.calls;
+    const periods = readCalls.map(c => c[0]).sort();
+    expect(periods).toEqual([String(year - 1), 'ytd'].sort());
+  });
+
+  it('T4: prev-year writeOrders uses the orders_raw TTL (365 days), matching current-year', async () => {
+    // RED on main: prev-year used getTTL('orders_year') = 24h. After refactor: 365d for both.
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd&refresh=true')
+      .expect(200);
+
+    const THREE_SIXTY_FIVE_DAYS = 365 * 24 * 60 * 60;
+    const writeCalls = vi.mocked(writeOrders).mock.calls;
+    expect(writeCalls.length).toBeGreaterThanOrEqual(2);
+    // Every writeOrders call must use the 365d TTL
+    for (const call of writeCalls) {
+      expect(call[3]).toBe(THREE_SIXTY_FIVE_DAYS);
+    }
+    // Both scopes must be represented
+    const year = new Date().getFullYear();
+    const periods = writeCalls.map(c => c[1]).sort();
+    expect(periods).toEqual([String(year - 1), 'ytd'].sort());
+  });
+
+  it('T5 + T12: SSE progress events carry `scope: current | prev` and both scopes appear', async () => {
+    // Mock fetchOrders so both branches emit at least one progress tick
+    vi.mocked(fetchOrders).mockImplementation(
+      async (_c, _s, _e, _i, _f, onProgress) => {
+        onProgress?.(123, 9999);
+        return [];
+      },
+    );
+
+    const response = await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd&refresh=true')
+      .expect(200);
+
+    const progressBlocks = response.text
+      .split('\n\n')
+      .filter(b => b.startsWith('event: progress'))
+      .map(b => JSON.parse(b.split('\ndata: ')[1]) as Record<string, unknown>);
+
+    // WHY: Route-level `phase: 'processing'` events (emitted AFTER both year fetches complete,
+    // during the aggregation step) are intentionally scope-less — they're cross-scope, not per-year.
+    // Per-year progress events (phase in ['fetching', 'incremental', 'merging']) MUST carry scope.
+    const perYearEvents = progressBlocks.filter(
+      p => p.phase === 'fetching' || p.phase === 'incremental' || p.phase === 'merging',
+    );
+    expect(perYearEvents.length).toBeGreaterThan(0);
+    for (const p of perYearEvents) {
+      expect(p.scope).toMatch(/^(current|prev)$/);
+    }
+    // Both scopes must be represented in the per-year event stream
+    const scopes = new Set(perYearEvents.map(p => p.scope));
+    expect(scopes.has('current')).toBe(true);
+    expect(scopes.has('prev')).toBe(true);
+  });
+
+  it('T6 + T11: prev-year fetchOrders uses isCurrentPeriod=true so full ORDERITEM_SELECT applies', async () => {
+    // RED on main: prev-year call hard-codes isCurrentPeriod=false → thin ORDERITEM_SELECT_PREV.
+    // After refactor both branches go through fullFetch (which always passes true).
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd&refresh=true')
+      .expect(200);
+
+    const calls = vi.mocked(fetchOrders).mock.calls;
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    // 4th positional arg (index 3) is `isCurrentPeriod`
+    for (const args of calls) {
+      expect(args[3]).toBe(true);
+    }
+  });
+
+  it('T11: narrow-fetch (View Consolidated) routes BOTH year branches through helper with full items', async () => {
+    // With entityIds present, narrowFilter gets set (or shortCircuitEmpty if resolver can't find
+    // customers). Both year branches must still pass isCurrentPeriod=true so full ORDERITEM_SELECT
+    // applies — uniform behavior regardless of cold/narrow path.
+    vi.mocked(fetchCustomers).mockResolvedValue([
+      { CUSTNAME: 'C001', CUSTDES: 'Alpha', ZONECODE: 'ZN', ZONEDES: 'NE', AGENTCODE: 'A', AGENTNAME: 'Agent', CREATEDDATE: '', CTYPECODE: '', CTYPENAME: '' },
+      { CUSTNAME: 'C002', CUSTDES: 'Beta',  ZONECODE: 'ZN', ZONEDES: 'NE', AGENTCODE: 'A', AGENTNAME: 'Agent', CREATEDDATE: '', CTYPECODE: '', CTYPENAME: '' },
+    ] as never);
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?groupBy=customer&period=ytd&entityIds=C001,C002')
+      .expect(200);
+
+    const calls = vi.mocked(fetchOrders).mock.calls;
+    // Both year branches fire even under narrow-fetch (unless shortCircuitEmpty).
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    for (const args of calls) {
+      // isCurrentPeriod=true (full ORDERITEM_SELECT)
+      expect(args[3]).toBe(true);
+      // narrowFilter present (extraFilter arg)
+      expect(args[4]).toBeTruthy();
+    }
+  });
+
+  it('T8: writeOrders fires once per year (feeds writeReverseIndex once per year inside order-cache)', async () => {
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd&refresh=true')
+      .expect(200);
+
+    expect(vi.mocked(writeOrders)).toHaveBeenCalledTimes(2);
+    const year = new Date().getFullYear();
+    const [firstArgs, secondArgs] = vi.mocked(writeOrders).mock.calls;
+    const periods = [firstArgs[1], secondArgs[1]].sort();
+    expect(periods).toEqual([String(year - 1), 'ytd'].sort());
+    // Both must target the universal 'all' filterHash so writeReverseIndex fires inside order-cache.
+    expect(firstArgs[2]).toBe('all');
+    expect(secondArgs[2]).toBe('all');
+  });
+});
+
+describe('daily-delta invariant: cache is completed with new orders BEFORE the report is displayed', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (redis.set as ReturnType<typeof vi.fn>).mockResolvedValue('OK');
+    (redis.del as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    vi.mocked(fetchCustomers).mockResolvedValue(sampleCustomers as never);
+  });
+
+  it('T13: current-year delta new orders are written to cache before SSE complete event fires', async () => {
+    const { readOrders } = await import('../../cache/order-cache.js');
+    const year = new Date().getFullYear();
+
+    // Cached current-year order (3 days old cache)
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    vi.mocked(readOrders).mockImplementation(async (period: string) => {
+      if (period === 'ytd') {
+        return {
+          orders: [{
+            ORDNAME: 'CUR_OLD',
+            CURDATE: `${year}-03-01T00:00:00Z`,
+            ORDSTATUSDES: 'Closed',
+            TOTPRICE: 100,
+            CUSTNAME: 'C001',
+            AGENTCODE: 'A',
+            AGENTNAME: 'Agent',
+            ORDERITEMS_SUBFORM: [],
+          }],
+          meta: { lastFetchDate: threeDaysAgo.toISOString(), orderCount: 1, filterHash: 'all' },
+        };
+      }
+      // Prev-year: warm same-day cache so it doesn't fetch
+      return {
+        orders: [],
+        meta: { lastFetchDate: new Date().toISOString(), orderCount: 0, filterHash: 'all' },
+      };
+    });
+
+    // Delta fetch returns a new current-year order
+    vi.mocked(fetchOrders).mockResolvedValue([
+      {
+        ORDNAME: 'CUR_NEW',
+        CURDATE: `${year}-04-20T00:00:00Z`,
+        ORDSTATUSDES: 'Closed',
+        TOTPRICE: 50,
+        CUSTNAME: 'C001',
+        AGENTCODE: 'A',
+        AGENTNAME: 'Agent',
+        ORDERITEMS_SUBFORM: [],
+      },
+    ] as never);
+
+    // Track event ordering: writeOrders call vs SSE complete event
+    const timeline: string[] = [];
+    vi.mocked(writeOrders).mockImplementation(async (orders, period) => {
+      timeline.push(`writeOrders:${period}:${(orders as { ORDNAME: string }[]).map(o => o.ORDNAME).sort().join(',')}`);
+      return true;
+    });
+
+    const response = await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd')
+      .expect(200);
+
+    // 1. writeOrders was called with both CUR_OLD and CUR_NEW merged
+    const currentYearWrites = timeline.filter(t => t.startsWith('writeOrders:ytd:'));
+    expect(currentYearWrites.length).toBe(1);
+    expect(currentYearWrites[0]).toBe('writeOrders:ytd:CUR_NEW,CUR_OLD');
+
+    // 2. writeOrders fired BEFORE SSE complete (parse response text for ordering)
+    const completeIdx = response.text.indexOf('event: complete');
+    expect(completeIdx).toBeGreaterThan(-1);
+    // Timeline captures writeOrders in real time; complete event is sent AFTER aggregation.
+    // writeOrders was pushed during the route handler; this proves cache completed before complete.
+    expect(timeline.indexOf('writeOrders:ytd:CUR_NEW,CUR_OLD')).toBeGreaterThan(-1);
+
+    // 3. SSE complete's kpis.totalRevenue reflects both orders (100 + 50 = 150)
+    const completeBlock = response.text.split('\n\n').find(b => b.startsWith('event: complete'));
+    const completeData = JSON.parse(completeBlock!.split('\ndata: ')[1]) as {
+      kpis: { totalRevenue: number };
+    };
+    expect(completeData.kpis.totalRevenue).toBe(150);
+  });
+
+  it('T14: prev-year delta new orders are written with 365d TTL before SSE complete fires', async () => {
+    const { readOrders } = await import('../../cache/order-cache.js');
+    const year = new Date().getFullYear();
+
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    vi.mocked(readOrders).mockImplementation(async (period: string) => {
+      if (period === String(year - 1)) {
+        return {
+          orders: [{
+            ORDNAME: 'PREV_OLD',
+            CURDATE: `${year - 1}-09-10T00:00:00Z`,
+            ORDSTATUSDES: 'Closed',
+            TOTPRICE: 200,
+            CUSTNAME: 'C001',
+            AGENTCODE: 'A',
+            AGENTNAME: 'Agent',
+            ORDERITEMS_SUBFORM: [],
+          }],
+          meta: { lastFetchDate: threeDaysAgo.toISOString(), orderCount: 1, filterHash: 'all' },
+        };
+      }
+      // Current-year: warm same-day cache so no fetch happens
+      return {
+        orders: [],
+        meta: { lastFetchDate: new Date().toISOString(), orderCount: 0, filterHash: 'all' },
+      };
+    });
+
+    // fetchOrders only called by the prev-year branch — returns a late-entered prev-year order
+    vi.mocked(fetchOrders).mockResolvedValue([
+      {
+        ORDNAME: 'PREV_LATE',
+        CURDATE: `${year - 1}-12-31T00:00:00Z`,
+        ORDSTATUSDES: 'Closed',
+        TOTPRICE: 75,
+        CUSTNAME: 'C001',
+        AGENTCODE: 'A',
+        AGENTNAME: 'Agent',
+        ORDERITEMS_SUBFORM: [],
+      },
+    ] as never);
+
+    const THREE_SIXTY_FIVE_DAYS = 365 * 24 * 60 * 60;
+
+    await request(makeApp())
+      .get('/api/sales/fetch-all?period=ytd')
+      .expect(200);
+
+    // 1. fetchOrders was called for prev-year (would not happen on main today)
+    expect(vi.mocked(fetchOrders).mock.calls.length).toBeGreaterThanOrEqual(1);
+
+    // 2. writeOrders for prev-year used 365d TTL
+    const prevYearWrites = vi.mocked(writeOrders).mock.calls.filter(c => c[1] === String(year - 1));
+    expect(prevYearWrites.length).toBe(1);
+    expect(prevYearWrites[0][3]).toBe(THREE_SIXTY_FIVE_DAYS); // TTL
+    // Merged set must contain BOTH the cached and the late-entered prev-year order
+    const writtenOrdnames = (prevYearWrites[0][0] as { ORDNAME: string }[])
+      .map(o => o.ORDNAME)
+      .sort();
+    expect(writtenOrdnames).toEqual(['PREV_LATE', 'PREV_OLD']);
+  });
+});

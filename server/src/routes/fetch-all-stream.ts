@@ -1,7 +1,9 @@
 // FILE: server/src/routes/fetch-all-stream.ts
-// PURPOSE: SSE fetch helpers — fullFetch and tryIncrementalRefresh for the fetch-all route
+// PURPOSE: SSE fetch helpers — fetchYearWithCache (unified per-year path), fullFetch, and
+//   tryIncrementalRefresh. Both current-year and prev-year branches in fetch-all.ts call
+//   fetchYearWithCache so they share identical cache + delta + items-SELECT behavior.
 // USED BY: server/src/routes/fetch-all.ts
-// EXPORTS: FetchedOrders, fullFetch, tryIncrementalRefresh
+// EXPORTS: FetchedOrders, fullFetch, tryIncrementalRefresh, fetchYearWithCache, FetchYearArgs
 
 import { priorityClient } from '../services/priority-instance.js';
 import { fetchOrders } from '../services/priority-queries.js';
@@ -80,4 +82,38 @@ export async function tryIncrementalRefresh(
   const startTime = new Date(startDate).getTime();
   const merged = [...orderMap.values()].filter(o => new Date(o.CURDATE).getTime() >= startTime);
   return { orders: merged, didFetch: true };
+}
+
+// WHY: Shared args for fetchYearWithCache so current-year and prev-year branches call the
+// same helper. `scope` tags every SSE progress event so the client (today) and the modal
+// UI (future polish) can distinguish which year a progress tick came from.
+export interface FetchYearArgs {
+  period: string;
+  startDate: string;
+  endDate: string;
+  forceRefresh: boolean;
+  narrowFilter?: string;
+  sendEvent: (event: string, data: unknown) => void;
+  scope: 'current' | 'prev';
+  signal?: AbortSignal;
+}
+
+// WHY: Single entry point for per-year fetching. Both branches in fetch-all.ts pass through
+// this helper so they share (a) the cache-hit short-circuit, (b) the delta-merge path for
+// next-day refreshes, (c) the scope-tagged progress events, and (d) the cold-cache full fetch.
+// Removing the bespoke prev-year IIFE kills the TTL asymmetry, silent-progress, and thin-items
+// bugs structurally (see docs: 2026-04-23 unified-per-year-fetch-pipeline plan).
+export async function fetchYearWithCache(args: FetchYearArgs): Promise<FetchedOrders> {
+  const { period, startDate, endDate, forceRefresh, narrowFilter, sendEvent, scope, signal } = args;
+  const tag = (event: string, data: unknown): void => {
+    // WHY: Merge scope into every progress payload without losing existing fields. Non-object
+    // payloads are forwarded as-is (defensive; no current caller emits them).
+    const payload = data && typeof data === 'object' ? { ...(data as Record<string, unknown>), scope } : data;
+    sendEvent(event, payload);
+  };
+  if (forceRefresh || narrowFilter) {
+    return fullFetch(startDate, endDate, tag, signal, narrowFilter);
+  }
+  const cached = await tryIncrementalRefresh(period, startDate, endDate, tag, signal);
+  return cached ?? fullFetch(startDate, endDate, tag, signal);
 }

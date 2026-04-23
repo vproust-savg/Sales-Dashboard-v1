@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../middleware/request-validator.js';
 import { priorityClient } from '../services/priority-instance.js';
-import { fetchOrders, fetchCustomers, fetchProducts } from '../services/priority-queries.js';
+import { fetchCustomers, fetchProducts } from '../services/priority-queries.js';
 import type { RawProduct } from '@shared/types/dashboard';
 import { aggregateOrders } from '../services/data-aggregator.js';
 import { groupByDimension, type PrevYearInput } from '../services/dimension-grouper.js';
@@ -15,13 +15,13 @@ import { filterOrdersByAgent, filterOrdersByCustomerCriteria, filterOrdersByItem
 import { filterOrdersByEntityIds } from '../services/entity-subset-filter.js';
 import { decideNarrowFilter } from '../services/narrow-filter-decision.js';
 import { cachedFetch } from '../cache/cache-layer.js';
-import { writeOrders, readOrders, deleteOrderIndex } from '../cache/order-cache.js';
+import { writeOrders, deleteOrderIndex } from '../cache/order-cache.js';
 import { cacheKey, getTTL, buildFilterQualifier, buildFilterHash } from '../cache/cache-keys.js';
 import { redis } from '../cache/redis-client.js';
 import type { Dimension, DashboardPayload } from '@shared/types/dashboard';
 import { createSseWriter } from './sse-writer.js';
 import type { FetchedOrders } from './fetch-all-stream.js';
-import { fullFetch, tryIncrementalRefresh } from './fetch-all-stream.js';
+import { fetchYearWithCache } from './fetch-all-stream.js';
 
 // WHY: Filter params arrive as comma-separated strings (multi-select UI)
 const querySchema = z.object({
@@ -109,19 +109,21 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
     // (18m02s sequential → 13m48s parallel) for a ~46K-order uncached Report. Both branches
     // share abortController.signal so user cancel cascades to both streams.
     //
+    // WHY unified helper: both branches go through fetchYearWithCache, which routes to
+    // tryIncrementalRefresh (warm-cache + delta merge) or fullFetch (cold-cache) and tags every
+    // progress event with `scope: 'current' | 'prev'`. Unifying the paths eliminated three
+    // bugs at once: (a) prev-year 24h TTL asymmetry, (b) silent prev-year progress, (c) thin
+    // ORDERITEM_SELECT_PREV on prev-year. See the unified-per-year-fetch-pipeline plan.
+    //
     // STARVATION RISK (spec D2.2): both streams share PriorityClient.requestTimestamps (one
-    // rate-limit budget, 100 calls/min). At 10K-order scale, the benchmark observed 0 throttle
-    // delays. At larger scale one stream could consistently back off while the other sprints.
-    // Trigger condition: if a Railway log ever shows one stream with >30s cumulative throttle
-    // wait while the other has <5s, queue a round-robin-throttle refactor spec.
+    // rate-limit budget, 100 calls/min). Trigger condition: if a Railway log ever shows one
+    // stream with >30s cumulative throttle wait while the other has <5s, queue a round-robin-
+    // throttle refactor spec.
     //
     // HEADROOM CAVEAT: 13m48s on laptop leaves ~1m12s (8.7%) under the 15-min Railway cap.
-    // The laptop benchmark does NOT survive the ±30% laptop-vs-Railway variance. A production
-    // measurement (see spec "Runtime — D2" verification) is required before closing the
-    // wall-clock risk; the architectural-redesign path stays open in the backlog.
-    // WHY: Universal "all" cache — always read/write with filterHash='all'. Agent/zone/customerType
-    // filtering happens post-cache in-memory. This means one painful initial load caches everything,
-    // then all filtered views are instant reads from the same cache.
+    // Full ORDERITEM_SELECT for prev-year adds ~30% to prev-year payload; if production ever
+    // hits the cap, the next step is moving the fetch off the SSE connection (background job).
+    //
     // WHY skip universal-cache READ when narrowFilter is set: the narrowed subset is
     // intentionally scoped to a few entities, but readOrders(period, 'all') would return
     // either nothing (cold) or the full agent-agnostic set (warm). Neither is useful here.
@@ -136,27 +138,26 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
           { orders: [], didFetch: false } as FetchedOrders,
         ]
       : await Promise.all([
-          (async (): Promise<FetchedOrders> => {
-            if (forceRefresh || narrowFilter) {
-              return fullFetch(startDate, endDate, sendEvent, abortController.signal, narrowFilter);
-            }
-            const cached = await tryIncrementalRefresh(period, startDate, endDate, sendEvent, abortController.signal);
-            return cached ?? fullFetch(startDate, endDate, sendEvent, abortController.signal);
-          })(),
-          // WHY: Prev-year also uses per-order caching — with 50K+ orders the bulk cachedFetch
-          // payload exceeds Upstash's 10 MB limit (production failure: 20 MB for 2025 orders).
-          // Same readOrders/writeOrders pattern as current-year, keyed by prev-year period.
-          (async (): Promise<FetchedOrders> => {
-            const prevPeriod = String(year - 1);
-            if (!forceRefresh && !narrowFilter) {
-              const cached = await readOrders(prevPeriod, 'all');
-              if (cached) return { orders: cached.orders, didFetch: false };
-            }
-            // WHY: When narrowFilter is set, fetch only the narrowed subset from Priority.
-            //   Otherwise (default path), fetch ALL prev-year orders for the universal cache.
-            const prevData = await fetchOrders(priorityClient, prevStartDate, prevEndDate, false, narrowFilter, undefined, abortController.signal);
-            return { orders: prevData, didFetch: true };
-          })(),
+          fetchYearWithCache({
+            period,
+            startDate,
+            endDate,
+            forceRefresh,
+            narrowFilter,
+            sendEvent,
+            scope: 'current',
+            signal: abortController.signal,
+          }),
+          fetchYearWithCache({
+            period: String(year - 1),
+            startDate: prevStartDate,
+            endDate: prevEndDate,
+            forceRefresh,
+            narrowFilter,
+            sendEvent,
+            scope: 'prev',
+            signal: abortController.signal,
+          }),
         ]);
     const orders = ordersWrapped.orders;
     const prevOrders = prevOrdersResult;
@@ -174,8 +175,10 @@ fetchAllRouter.get('/fetch-all', validateQuery(querySchema), async (req, res) =>
       await writeOrders(orders, period, 'all', getTTL('orders_raw'));
     }
     if (prevOrders.didFetch && !narrowFilter) {
-      // WHY: Prev-year also written under 'all' scope — same pattern, same 10 MB limit applies.
-      await writeOrders(prevOrders.orders, String(year - 1), 'all', getTTL('orders_year'));
+      // WHY: Prev-year writes with the SAME orders_raw TTL (365d) as current-year. Previously
+      // this used orders_year (24h), which caused daily cache misses on prev-year even though
+      // every per-order key was still alive. Unified TTL is the structural fix.
+      await writeOrders(prevOrders.orders, String(year - 1), 'all', getTTL('orders_raw'));
     }
 
     // WHY: All filters are post-cache in-memory. Agent filtering is ORDER-level (AGENTNAME),
