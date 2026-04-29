@@ -130,6 +130,25 @@ describe('aggregateOrders', () => {
     expect(result.topSellers[29].rank).toBe(30);
   });
 
+  it('excludes SKUs that start with "000" (placeholder freight/discount line items)', () => {
+    // Highest revenue is the placeholder; it must not appear in top sellers.
+    // Real products keep their relative ranking, ranks are recomputed 1..N.
+    const items = [
+      makeItem({ PARTNAME: '000-FREIGHT',   PDES: 'Freight charge',  QPRICE: 99999, TQUANT: 1 }),
+      makeItem({ PARTNAME: '0001-DISCOUNT', PDES: 'Promo discount',  QPRICE: 88888, TQUANT: 1 }),
+      makeItem({ PARTNAME: 'REAL-A',        PDES: 'Real product A',  QPRICE: 5000,  TQUANT: 10 }),
+      makeItem({ PARTNAME: 'REAL-B',        PDES: 'Real product B',  QPRICE: 3000,  TQUANT: 5 }),
+      // SKUs that contain '000' but don't START with it MUST still be included.
+      makeItem({ PARTNAME: '90001',         PDES: 'Real product C',  QPRICE: 2000,  TQUANT: 3 }),
+    ];
+    const orders = [makeOrder({ ORDERITEMS_SUBFORM: items })];
+    const result = aggregateOrders(orders, [], 'ytd');
+    expect(result.topSellers).toHaveLength(3);
+    expect(result.topSellers.map(s => s.sku)).toEqual(['REAL-A', 'REAL-B', '90001']);
+    expect(result.topSellers[0].rank).toBe(1);
+    expect(result.topSellers[2].rank).toBe(3);
+  });
+
   it('computes YoY revenue change percent', () => {
     const orders = [makeOrder({ TOTPRICE: 24000 })];
     const prevOrders = [makeOrder({ TOTPRICE: 20000 })];
