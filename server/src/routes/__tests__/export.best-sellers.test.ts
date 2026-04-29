@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import ExcelJS from 'exceljs';
 import { app } from '../../index.js';
 
 function makeRow(rank: number) {
@@ -91,5 +92,46 @@ describe('POST /api/sales/export/best-sellers', () => {
     body.context.entityType = 'unknown';
     const res = await request(app).post('/api/sales/export/best-sellers').send(body);
     expect(res.status).toBe(400);
+  });
+
+  it('produces a valid xlsx whose structure matches the request', async () => {
+    const body = makeBody(20, 7);
+    const res = await request(app)
+      .post('/api/sales/export/best-sellers')
+      .send(body)
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+
+    expect(res.status).toBe(200);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(res.body as Buffer);
+    const ws = wb.getWorksheet('Best Sellers');
+    expect(ws).toBeDefined();
+
+    // Title row
+    expect(ws!.getCell('A1').value).toContain(body.context.entityLabel);
+    expect(ws!.getCell('A1').value).toContain(`Top ${body.context.topN}`);
+
+    // Header row at row 4
+    const headers = (ws!.getRow(4).values as unknown[]).slice(1); // exceljs is 1-indexed
+    expect(headers).toEqual(['Rank', 'SKU', 'Product', 'Revenue', 'Units', 'Unit']);
+
+    // 7 data rows starting at row 5
+    for (let i = 0; i < body.rows.length; i++) {
+      const row = ws!.getRow(5 + i);
+      expect(row.getCell(1).value).toBe(body.rows[i].rank);
+      expect(row.getCell(2).value).toBe(body.rows[i].sku);
+      expect(row.getCell(3).value).toBe(body.rows[i].name);
+      expect(row.getCell(4).value).toBe(body.rows[i].revenue);
+      expect(row.getCell(5).value).toBe(body.rows[i].units);
+      expect(row.getCell(6).value).toBe(body.rows[i].unit);
+    }
+
+    // Row 5+8 should be empty (only 7 data rows)
+    expect(ws!.getRow(5 + body.rows.length).getCell(1).value).toBeNull();
   });
 });
