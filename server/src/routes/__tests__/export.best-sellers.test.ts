@@ -63,4 +63,33 @@ describe('POST /api/sales/export/best-sellers', () => {
     const cd = res.headers['content-disposition'];
     expect(cd).toMatch(/attachment; filename="best-sellers-customer-customer-c7826-acme-foods-50-\d{8}\.xlsx"/);
   });
+
+  it('rejects with 400 when topN is not 20/50/100', async () => {
+    const body = makeBody(20, 5);
+    body.context.topN = 25 as 20; // intentional bad value
+    const res = await request(app).post('/api/sales/export/best-sellers').send(body);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects with 400 when rows.length exceeds 100', async () => {
+    const body = makeBody(100, 101);
+    const res = await request(app).post('/api/sales/export/best-sellers').send(body);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects with 400 when a row is missing required fields', async () => {
+    const body = makeBody(20, 5);
+    // @ts-expect-error — intentional malformed row
+    delete body.rows[0].revenue;
+    const res = await request(app).post('/api/sales/export/best-sellers').send(body);
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects with 400 when entityType is unknown', async () => {
+    const body = makeBody(20, 5);
+    // @ts-expect-error — intentional bad enum
+    body.context.entityType = 'unknown';
+    const res = await request(app).post('/api/sales/export/best-sellers').send(body);
+    expect(res.status).toBe(400);
+  });
 });
