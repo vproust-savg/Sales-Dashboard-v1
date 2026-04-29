@@ -3,10 +3,13 @@
 // USED BY: client/src/layouts/DashboardLayout.tsx
 // EXPORTS: RightPanel
 
+import { useMemo } from 'react';
 import type {
   EntityListItem, KPIs, MonthlyRevenue, ProductMixSegment, ProductMixType,
   TopSellerItem, SparklineData, OrderRow, FlatItem, Contact, Period, Dimension,
+  BestSellersExportRequest,
 } from '@shared/types/dashboard';
+import { DIMENSION_PLURAL_LABELS } from '@shared/types/dashboard';
 import type { DetailTab } from './detail-tab-types';
 import { DetailHeader } from './DetailHeader';
 import { KPISection } from './KPISection';
@@ -41,6 +44,29 @@ export function RightPanel({
   onTabChange, onExport,
   consolidatedMode, consolidatedEntities, perEntityProductMixes, perEntityTopSellers, hideDetailHeader,
 }: RightPanelProps) {
+  /** WHY: Best Sellers Excel export needs a human-readable entity label + date range
+   *  for the workbook title row, subtitle row, and download filename. Composed from
+   *  existing in-scope state — no new global plumbing. */
+  const entityContext = useMemo<{
+    entityType: BestSellersExportRequest['context']['entityType'];
+    entityLabel: string;
+    dateRangeLabel: string;
+  }>(() => {
+    const entityType: BestSellersExportRequest['context']['entityType'] = activeDimension;
+    let entityLabel: string;
+    if (entity?.name) {
+      entityLabel = entity.name;
+    } else if (consolidatedEntities && consolidatedEntities.length > 0) {
+      entityLabel = `${consolidatedEntities.length} selected ${DIMENSION_PLURAL_LABELS[activeDimension]}`;
+    } else {
+      entityLabel = `All ${DIMENSION_PLURAL_LABELS[activeDimension]}`;
+    }
+    const dateRangeLabel = activePeriod === 'ytd'
+      ? `YTD ${new Date().getUTCFullYear()}`
+      : activePeriod;
+    return { entityType, entityLabel, dateRangeLabel };
+  }, [activeDimension, entity, consolidatedEntities, activePeriod]);
+
   return (
     <>
       {!hideDetailHeader && (
@@ -63,6 +89,7 @@ export function RightPanel({
           consolidatedEntities={consolidatedEntities}
           perEntityProductMixes={perEntityProductMixes}
           perEntityTopSellers={perEntityTopSellers}
+          entityContext={entityContext}
         />
       </section>
       <TabsSection
