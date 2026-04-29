@@ -297,3 +297,15 @@ export interface CacheStatus {
   rowCount: number;
   filterHashes: string[];
 }
+
+/** Request body for POST /api/sales/export/best-sellers.
+ *  Client sends rows it is currently displaying (server is a pure formatter, no recompute). */
+export interface BestSellersExportRequest {
+  rows: TopSellerItem[];
+  context: {
+    entityType: 'customer' | 'zone' | 'vendor' | 'brand' | 'product_type' | 'product';
+    entityLabel: string;
+    dateRangeLabel: string;
+    topN: 20 | 50 | 100;
+  };
+}
