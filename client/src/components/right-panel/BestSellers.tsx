@@ -61,9 +61,15 @@ function SellerRow({ item }: { item: TopSellerItem }) {
   );
 }
 
-/** WHY: Modal shows full unpaginated list — up to 20 items in single column for easy scanning */
-export function BestSellersExpanded({ data }: BestSellersProps) {
-  const items = data.filter(item => item.revenue > 0).slice(0, 20);
+interface BestSellersExpandedProps {
+  data: TopSellerItem[];
+  /** Maximum rows to render. Defaults to 20 for backwards-compatibility. */
+  topN?: number;
+}
+
+/** WHY: Modal shows full unpaginated list — sliced to `topN` (20 default, up to 100) in single column. */
+export function BestSellersExpanded({ data, topN = 20 }: BestSellersExpandedProps) {
+  const items = data.filter(item => item.revenue > 0).slice(0, topN);
   return (
     <div className="flex flex-col gap-[var(--spacing-xs)]">
       {items.map((item) => (
