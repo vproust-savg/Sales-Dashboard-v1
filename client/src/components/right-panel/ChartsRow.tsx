@@ -3,7 +3,7 @@
 // USED BY: client/src/components/right-panel/RightPanel.tsx
 // EXPORTS: ChartsRow
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { ProductMixSegment, ProductMixType, TopSellerItem, EntityListItem } from '@shared/types/dashboard';
 import { ProductMixCarousel, ProductMixExpanded } from './ProductMixCarousel';
 import { BestSellers, BestSellersExpanded } from './BestSellers';
@@ -83,7 +83,12 @@ function BestSellersModalContent({
   const [topN, setTopN] = useState<TopNValue>(20);
   const [mode, setMode] = useState<PerCustomerMode>('aggregated');
 
-  const filtered = data.filter(item => item.revenue > 0);
+  // WHY useMemo: filtered lands in the useEffect dep array below. Without memoization,
+  // every render allocates a new array, the effect re-fires, calls setHeaderActions,
+  // which triggers a parent re-render that comes back through this component — infinite
+  // loop until React bails with "Maximum update depth exceeded". `data` is captured at
+  // modal-open time and is stable for the modal's lifetime, so [data] is the right dep.
+  const filtered = useMemo(() => data.filter(item => item.revenue > 0), [data]);
   const showToggle = !!consolidatedEntities && !!perEntityTopSellers;
 
   /** WHY: keep header toolbar in sync with topN. Cleanup clears the toolbar on unmount so

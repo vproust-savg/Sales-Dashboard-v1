@@ -1,5 +1,6 @@
 // FILE: client/src/components/right-panel/BestSellers.tsx
-// PURPOSE: Paginated two-column ranked list of best-selling products (up to 25)
+// PURPOSE: Paginated two-column ranked list of best-selling products (up to 100;
+//          modal renderer slices to user-selected topN, default 20)
 // USED BY: client/src/components/right-panel/ChartsRow.tsx
 // EXPORTS: BestSellers
 

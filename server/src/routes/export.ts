@@ -59,10 +59,13 @@ exportRouter.post('/export/best-sellers', async (req, res, next) => {
  *  distinguishable while staying file-system-safe. */
 function buildFilename(context: { entityType: string; entityLabel: string; topN: number }): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const slug = `${context.entityType}-${context.entityLabel}`
+  // WHY trim AFTER slice: if the normalized slug exceeds 80 chars and char 80 falls
+  // mid-dash-run, slicing first then trimming removes any trailing dash the cut
+  // introduced (e.g., "...long-name-" -> "...long-name").
+  const slug = (`${context.entityType}-${context.entityLabel}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80) || 'export';
+    .slice(0, 80)
+    .replace(/^-+|-+$/g, '')) || 'export';
   return `best-sellers-${slug}-${context.topN}-${date}.xlsx`;
 }
