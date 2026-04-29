@@ -53,4 +53,14 @@ describe('POST /api/sales/export/best-sellers', () => {
     expect(res.body).toBeInstanceOf(Buffer);
     expect(res.body.byteLength).toBeGreaterThan(0);
   });
+
+  it('sets Content-Disposition with a filename matching best-sellers-{slug}-{topN}-{date}.xlsx', async () => {
+    const res = await request(app)
+      .post('/api/sales/export/best-sellers')
+      .send(makeBody(50, 30));
+
+    expect(res.status).toBe(200);
+    const cd = res.headers['content-disposition'];
+    expect(cd).toMatch(/attachment; filename="best-sellers-customer-customer-c7826-acme-foods-50-\d{8}\.xlsx"/);
+  });
 });
