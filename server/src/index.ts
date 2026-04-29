@@ -14,6 +14,7 @@ import { contactsRouter } from './routes/contacts.js';
 import { filterOptionsRouter } from './routes/filter-options.js';
 import { fetchAllRouter } from './routes/fetch-all.js';
 import { cacheStatusRouter } from './routes/cache-status.js';
+import { exportRouter } from './routes/export.js';
 import { healthRouter } from './routes/health.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { warmEntityCache } from './services/warm-cache.js';
@@ -46,6 +47,7 @@ app.use('/api/sales', contactsRouter);
 app.use('/api/sales', filterOptionsRouter);
 app.use('/api/sales', fetchAllRouter);
 app.use('/api/sales', cacheStatusRouter);
+app.use('/api/sales', exportRouter);
 app.use('/api', healthRouter);
 
 // In production, serve the React client

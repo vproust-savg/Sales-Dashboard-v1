@@ -29,11 +29,22 @@ function makeBody(topN: 20 | 50 | 100, rowCount: number) {
   };
 }
 
+// WHY .buffer(true).parse(...): supertest's default parser falls back to text for
+// unknown content-types — including .xlsx — turning the binary body into a corrupted
+// utf-8 string in res.text. The image parser (Buffer.concat) gives us the bytes back.
+function bufferBinary(r: NodeJS.ReadableStream, cb: (err: Error | null, body: Buffer) => void) {
+  const chunks: Buffer[] = [];
+  r.on('data', (c: Buffer) => chunks.push(c));
+  r.on('end', () => cb(null, Buffer.concat(chunks)));
+}
+
 describe('POST /api/sales/export/best-sellers', () => {
   it('returns 200 with xlsx content-type for a valid 20-row body', async () => {
     const res = await request(app)
       .post('/api/sales/export/best-sellers')
-      .send(makeBody(20, 20));
+      .send(makeBody(20, 20))
+      .buffer(true)
+      .parse(bufferBinary);
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toBe(
