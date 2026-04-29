@@ -12,9 +12,12 @@ interface CardModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** WHY: optional toolbar slot rendered between title and close button.
+   *  Used by Best Sellers modal for the Top-N selector + Export button. */
+  headerActions?: ReactNode;
 }
 
-export function CardModal({ isOpen, title, onClose, children }: CardModalProps) {
+export function CardModal({ isOpen, title, onClose, children, headerActions }: CardModalProps) {
   /** WHY: Escape key closes modal — standard accessibility pattern */
   useEffect(() => {
     if (!isOpen) return;
@@ -69,11 +72,22 @@ export function CardModal({ isOpen, title, onClose, children }: CardModalProps) 
               </svg>
             </button>
 
-            {/* Title */}
-            {title && (
-              <h2 className="mb-[var(--spacing-2xl)] text-[14px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
-                {title}
-              </h2>
+            {/* Header row: title + optional actions. Reserves right padding for the close button. */}
+            {(title || headerActions) && (
+              <div className="mb-[var(--spacing-2xl)] flex items-center justify-between gap-[var(--spacing-2xl)] pr-12">
+                {title ? (
+                  <h2 className="text-[14px] font-semibold uppercase tracking-[0.5px] text-[var(--color-text-muted)]">
+                    {title}
+                  </h2>
+                ) : (
+                  <div />
+                )}
+                {headerActions && (
+                  <div className="flex items-center gap-[var(--spacing-md)]">
+                    {headerActions}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Content */}
