@@ -149,11 +149,13 @@ function computeAllProductMixes(items: RawOrderItem[]): Record<ProductMixType, P
 }
 
 /** Top 100 by revenue, aggregated by SKU, with unit of measure. Modal slices client-side to user's selected topN (20/50/100).
- *  WHY exclude 000-prefix SKUs: in Priority ERP, SKUs starting with "000" are
- *  placeholder line items (freight, discount, miscellaneous) — not real products.
- *  Excluding them at aggregation reserves the top-100 budget for real products
- *  and keeps card / modal / Excel export consistent with one filter point. */
-const PLACEHOLDER_SKU_PREFIX = '000';
+ *  WHY exclude the "000" SKU: in Priority ERP, the SKU literally named "000"
+ *  is a placeholder line item used for freight / discount / misc charges —
+ *  not a real product. Excluding it at aggregation keeps the top-100 budget
+ *  reserved for real products and keeps card / modal / Excel export consistent
+ *  with one filter point. The match is EXACT — variants like "0001" or
+ *  "000-FREIGHT" remain in the rankings since they may be valid product codes. */
+const PLACEHOLDER_SKU = '000';
 
 function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
   const bySku = new Map<string, { name: string; sku: string; revenue: number; units: number; unit: string }>();
@@ -174,7 +176,7 @@ function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
   });
 
   return [...bySku.values()]
-    .filter(item => item.revenue > 0 && !item.sku.startsWith(PLACEHOLDER_SKU_PREFIX))
+    .filter(item => item.revenue > 0 && item.sku !== PLACEHOLDER_SKU)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 100)
     .map((item, i) => ({ ...item, rank: i + 1 }));
