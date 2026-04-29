@@ -30,22 +30,21 @@ function makeBody(topN: 20 | 50 | 100, rowCount: number) {
   };
 }
 
-// WHY .buffer(true).parse(...): supertest's default parser falls back to text for
-// unknown content-types — including .xlsx — turning the binary body into a corrupted
-// utf-8 string in res.text. The image parser (Buffer.concat) gives us the bytes back.
-function bufferBinary(r: NodeJS.ReadableStream, cb: (err: Error | null, body: Buffer) => void) {
-  const chunks: Buffer[] = [];
-  r.on('data', (c: Buffer) => chunks.push(c));
-  r.on('end', () => cb(null, Buffer.concat(chunks)));
-}
-
+/** WHY .buffer(true).parse(...): supertest's default parser falls back to text for
+ *  unknown content-types — including .xlsx — turning the binary body into a corrupted
+ *  utf-8 string in res.text. Inlining the parser lets supertest contextually-type
+ *  the callback, so we don't have to import + match the supertest Parser type by hand. */
 describe('POST /api/sales/export/best-sellers', () => {
   it('returns 200 with xlsx content-type for a valid 20-row body', async () => {
     const res = await request(app)
       .post('/api/sales/export/best-sellers')
       .send(makeBody(20, 20))
       .buffer(true)
-      .parse(bufferBinary);
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on('data', (c: Buffer) => chunks.push(c));
+        r.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toBe(
@@ -88,7 +87,8 @@ describe('POST /api/sales/export/best-sellers', () => {
 
   it('rejects with 400 when entityType is unknown', async () => {
     const body = makeBody(20, 5);
-    // @ts-expect-error — intentional bad enum
+    // makeBody widens entityType to string, so this assignment is legal at compile time;
+    // Zod's enum validator still rejects it at runtime, which is what we're asserting.
     body.context.entityType = 'unknown';
     const res = await request(app).post('/api/sales/export/best-sellers').send(body);
     expect(res.status).toBe(400);
@@ -108,7 +108,10 @@ describe('POST /api/sales/export/best-sellers', () => {
 
     expect(res.status).toBe(200);
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(res.body as Buffer);
+    // WHY no cast: supertest types res.body loosely enough that exceljs's `Buffer`
+    // parameter accepts it directly. Adding a cast (e.g. `as Buffer`) actually narrows
+    // the type into the strict generic mismatch zone — keep this plain.
+    await wb.xlsx.load(res.body);
     const ws = wb.getWorksheet('Best Sellers');
     expect(ws).toBeDefined();
 
