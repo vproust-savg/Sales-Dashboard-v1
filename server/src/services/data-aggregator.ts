@@ -148,7 +148,7 @@ function computeAllProductMixes(items: RawOrderItem[]): Record<ProductMixType, P
   };
 }
 
-/** Spec Section 22.5 — Top 25 by revenue, aggregated by SKU, with unit of measure */
+/** Top 100 by revenue, aggregated by SKU, with unit of measure. Modal slices client-side to user's selected topN (20/50/100). */
 function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
   const bySku = new Map<string, { name: string; sku: string; revenue: number; units: number; unit: string }>();
   items.forEach(item => {
@@ -170,7 +170,7 @@ function computeTopSellers(items: RawOrderItem[]): TopSellerItem[] {
   return [...bySku.values()]
     .filter(item => item.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 25)
+    .slice(0, 100)
     .map((item, i) => ({ ...item, rank: i + 1 }));
 }
 

@@ -113,7 +113,7 @@ describe('aggregateOrders', () => {
     expect(result.productMixes.productType[0].percentage).toBe(60);
   });
 
-  it('builds top 25 sellers ranked by revenue', () => {
+  it('builds top 100 sellers ranked by revenue (modal slices client-side)', () => {
     const items = Array.from({ length: 30 }, (_, i) =>
       makeItem({
         PARTNAME: `SKU-${i}`,
@@ -124,10 +124,10 @@ describe('aggregateOrders', () => {
     );
     const orders = [makeOrder({ ORDERITEMS_SUBFORM: items })];
     const result = aggregateOrders(orders, [], 'ytd');
-    expect(result.topSellers).toHaveLength(25);
+    expect(result.topSellers).toHaveLength(30);
     expect(result.topSellers[0].rank).toBe(1);
     expect(result.topSellers[0].revenue).toBe(30000);
-    expect(result.topSellers[24].rank).toBe(25);
+    expect(result.topSellers[29].rank).toBe(30);
   });
 
   it('computes YoY revenue change percent', () => {
